@@ -1,0 +1,29 @@
+{
+  "slug": "WingLink",
+  "name": "WING-LINK",
+  "version": "2.0.0",
+  "license": "GPL-3.0-only",
+  "brand": "WING-LINK",
+  "author": "Bastian Ofner",
+  "authorEmail": "",
+  "authorUrl": "https://github.com/Camillowup",
+  "pluginUrl": "https://github.com/Camillowup/Wing-link-for-vcv-rack",
+  "manualUrl": "https://github.com/Camillowup/Wing-link-for-vcv-rack#readme",
+  "sourceUrl": "https://github.com/Camillowup/Wing-link-for-vcv-rack",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "WingLink",
+      "name": "WING-LINK",
+      "description": "Bridge to a Behringer WING over USB: 8 tracks as USB audio, names, colours and icons on the WING channels, faders, pan, sends, mute and solo both ways, CV in and out",
+      "tags": ["External", "Mixer", "Controller"]
+    },
+    {
+      "slug": "WingLinkX",
+      "name": "WING-LINK X",
+      "description": "Expander for WING-LINK: 8 more WING channels (dock right of WING-LINK)",
+      "tags": ["External", "Mixer", "Expander"]
+    }
+  ]
+}

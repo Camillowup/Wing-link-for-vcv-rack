@@ -1,0 +1,73 @@
+name: Build WING-LINK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # a push to the branch "release" publishes GitHub release v<version> with the plugin
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Rack SDK
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://vcvrack.com/downloads/Rack-SDK-latest-win-x64.zip -OutFile sdk.zip
+          Expand-Archive sdk.zip -DestinationPath sdk
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            make zip tar zstd sed
+            mingw-w64-x86_64-gcc
+
+      - name: Tests (protocol, without Rack)
+        run: |
+          g++ -std=c++11 -O2 -Isrc test/test_proto.cpp -o t.exe && ./t.exe
+
+      - name: Build plugin
+        run: |
+          VER=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' plugin.json)
+          echo "Version $VER"
+          make RACK_DIR=sdk/Rack-SDK SLUG=WingLink VERSION=$VER -j4 dist
+
+      - name: Check the package
+        run: |
+          ls -la dist/WingLink dist/WingLink/res
+          test -f dist/WingLink/plugin.dll
+          test -f dist/WingLink/res/WingLink.svg
+          test -f dist/WingLink/res/WingLinkX.svg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winglink-windows
+          path: dist/*.vcvplugin
+
+      - name: Read the release version
+        if: github.ref == 'refs/heads/release'
+        run: |
+          VER=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' plugin.json)
+          echo "RELVER=$VER" >> $GITHUB_ENV
+
+      - name: Publish the release (tag v-version with the plugin)
+        if: github.ref == 'refs/heads/release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.RELVER }}
+          target_commitish: ${{ github.sha }}
+          name: WING-LINK ${{ env.RELVER }}
+          files: dist/*.vcvplugin
+          body: |
+            WING-LINK for VCV Rack 2 (Windows x64).
+
+            Install: download the `.vcvplugin` file and put it into your Rack user folder's `plugins-win-x64` folder
+            (Rack › Help › Open user folder), then restart Rack.
