@@ -130,7 +130,7 @@ struct WingAudioPort : audio::Port {
 
 // ---------------------------------------------------------------- WING-LINK
 struct WingLink : Module {
-	enum ParamId { DOWN_PARAM = NS * NF, UP_PARAM, SYNC_PARAM, NUM_PARAMS };
+	enum ParamId { DOWN_PARAM = NS * NF, UP_PARAM, SYNC_PARAM, TRACKS_PARAM, NUM_PARAMS };
 	enum InputId { NUM_INPUTS = NS * NCI };
 	enum OutputId { NUM_OUTPUTS = NS * NCO };
 	enum LightId { MUTE_LIGHT, SOLO_LIGHT = MUTE_LIGHT + NS, SYNC_LIGHT = SOLO_LIGHT + NS, NUM_LIGHTS };
@@ -140,7 +140,16 @@ struct WingLink : Module {
 	std::atomic<int> usbMode{0};      // 0: USB n = WING channel n, else: the first USB channel
 	std::atomic<int> fxBus[2] = {{1}, {2}};
 	std::atomic<bool> autoMidi{true}, autoAudio{true};
+	std::atomic<int> chStep{1};       // START CH − / + move by 1 or 8
 	Strip st[NT];
+
+	// ---- the SD recorder (WING-LIVE card): two cards, each started / stopped on its own
+	struct Sd {
+		std::atomic<int> state{-1};    // −1 unknown, 0 STOP, 1 PPAUSE, 2 PLAY, 3 REC
+		std::atomic<int> card{-1};     // −1 unknown, 0 NONE, 1 READY, 2 PROTECT, 3 ERASE, 4 ERROR
+		std::atomic<float> etime{0.f}, sdfree{0.f};  // ms
+		std::atomic<bool> toggle{false};  // (the panel: start / stop)
+	} sd[2];
 	std::mutex metaMutex;  // names (the UI writes them, the engine sends them)
 
 	// ---- the panels linked to it (set by the UI; cleared when one goes)
@@ -195,6 +204,7 @@ struct WingLink : Module {
 		configButton(DOWN_PARAM, "Start channel down");
 		configButton(UP_PARAM, "Start channel up");
 		configButton(SYNC_PARAM, "SYNC: names, colours, icons and USB routing to the WING, then read its faders back");
+		configSwitch(TRACKS_PARAM, 0.f, 1.f, 0.f, "SD recording tracks", {"8", "16"});
 		ctl.setDivision(32);
 		midiOut.setChannel(-1);
 		midiIn.setChannel(-1);
@@ -239,10 +249,25 @@ struct WingLink : Module {
 		*j = s % NS;
 		return s < NS ? (Module*) this : (Module*) xMod.load();
 	}
-	int input(int s) { return wingStart + s; }
+	P::Tgt target(int s) {
+		int ty = st[s].tType;
+		return ty > P::T_NONE ? P::tgt(ty, st[s].tNum) : P::inputTgt(wingStart + s);
+	}
+	std::string node(int s) { return P::tgtNode(target(s)); }
 	bool active(int s) {
 		int j;
-		return input(s) <= P::NUM_IN && owner(s, &j);
+		return target(s).ok() && owner(s, &j);
+	}
+	/** Whether the strip's field means something for what it controls (sends: channels and aux only …). */
+	bool has(int s, int f) {
+		P::Tgt t = target(s);
+		if (f == FX1 || f == FX2)
+			return t.audio();
+		if (f == PAN)
+			return t.pan();
+		if (f == SOLO)
+			return t.solo();
+		return t.ok();
 	}
 	int usbStart() { return usbMode.load() > 0 ? usbMode.load() : wingStart.load(); }
 	int usbOf(int s) { return usbStart() + s; }
@@ -250,8 +275,14 @@ struct WingLink : Module {
 		WingFx* f = fxMod.load();
 		if (!f)
 			return -1;
-		int j = slot - f->page * NPAGE;
+		int j = slot - f->first;
 		return (j >= 0 && j < NPAGE) ? j : -1;
+	}
+	/** The parameter on knob k of a slot (the one picked on WING-FX, else the model's default). */
+	const F::Param* fxKnob(int slot, int k) {
+		int m = fxs[slot].model;
+		WingFx* f = fxMod.load();
+		return f ? f->knob(m, k) : F::knobParam(F::MODELS[m], k, -1);
 	}
 
 	void send(const std::vector<uint8_t>& bytes) {
@@ -338,9 +369,11 @@ struct WingLink : Module {
 		if (model)
 			queries.push_back({1, slot, FMODEL});
 		queries.push_back({1, slot, FMIX});
-		int m = fxs[slot].model;
-		for (int k = 0; k < F::MODELS[m].nShow; k++)
-			queries.push_back({1, slot, FP1 + k});
+		for (int k = 0; k < 4; k++)
+			if (fxKnob(slot, k))
+				queries.push_back({1, slot, FP1 + k});
+		if (F::MODELS[fxs[slot].model].timeParam >= 0)
+			queries.push_back({1, slot, FTIME});
 	}
 
 	void onReply(int cmd, const std::string& text) {
@@ -349,6 +382,32 @@ struct WingLink : Module {
 		qWaiting = false;
 		if (cmd != P::GET_REPLY)
 			return;
+		if (qNow.kind == 2) {
+			// the SD recorder
+			Sd& c = sd[qNow.s];
+			std::string t;
+			for (char ch : text)
+				if (ch != '"' && ch != ' ' && ch != '\n')
+					t += ch;
+			float v;
+			if (qNow.f == 0) {
+				static const char* const ST[] = {"STOP", "PPAUSE", "PLAY", "REC"};
+				for (int i = 0; i < 4; i++)
+					if (t == ST[i])
+						c.state = i;
+			}
+			else if (qNow.f == 1 && P::number(t, &v))
+				c.etime = v;
+			else if (qNow.f == 2 && P::number(t, &v))
+				c.sdfree = v;
+			else if (qNow.f == 3) {
+				static const char* const CS[] = {"NONE", "READY", "PROTECT", "ERASE", "ERROR"};
+				for (int i = 0; i < 5; i++)
+					if (t == CS[i])
+						c.card = i;
+			}
+			return;
+		}
 		if (qNow.kind == 1) {
 			int slot = qNow.s, f = qNow.f;
 			if (f == FMODEL) {
@@ -365,10 +424,18 @@ struct WingLink : Module {
 					fromWingFx(slot, FMIX, clamp(v / 100.f, 0.f, 1.f));
 				return;
 			}
-			const F::Model& M = F::MODELS[fxs[slot].model];
-			int k = f - FP1;
-			if (k < M.nShow && F::parseValue(M.show[k], text, &v))
-				fromWingFx(slot, f, F::toNorm(M.show[k], v));
+			if (f == FTIME) {
+				const F::Model& M = F::MODELS[fxs[slot].model];
+				if (M.timeParam >= 0 && F::parseValue(M.all[M.timeParam], text, &v))
+					fxs[slot].timeMs = v;
+				return;
+			}
+			const F::Param* p = fxKnob(slot, f - FP1);
+			if (p && F::parseValue(*p, text, &v)) {
+				fromWingFx(slot, f, F::toNorm(*p, v));
+				if (!std::strcmp(p->key, "time"))
+					fxs[slot].timeMs = v;
+			}
 			return;
 		}
 		float v;
@@ -422,62 +489,72 @@ struct WingLink : Module {
 			}
 			else {
 				const F::Model& M = F::MODELS[fxs[slot].model];
-				if (param >= 1 && param <= M.nKeys)
-					for (int k = 0; k < M.nShow; k++)
-						if (!std::strcmp(M.keys[param - 1], M.show[k].key) && fxs[slot].f[FP1 + k].hold <= 0.f)
+				if (param >= 1 && param <= M.nKeys) {
+					const char* key = M.keys[param - 1];
+					for (int k = 0; k < 4; k++) {
+						const F::Param* p = fxKnob(slot, k);
+						if (p && !std::strcmp(key, p->key) && fxs[slot].f[FP1 + k].hold <= 0.f)
 							queries.push_front({1, slot, FP1 + k});
+					}
+					if (!std::strcmp(key, "time"))
+						queries.push_back({1, slot, FTIME});
+				}
 			}
 			return;
 		}
-		int k = P::inputOfCc(cc);
-		if (k == 0 || ch > 2)
+		P::Tgt t;
+		int what;
+		if (!P::ccTgt(ch, cc, &t, &what))
 			return;
-		int s = k - wingStart;
-		if (s < 0 || s >= NT || !active(s))
-			return;
-		if (ch == 0) {
-			float now = st[s].f[FADER].wing;
-			if (!std::isnan(now) && (int) std::round(now * 127.f) == val)
-				return;
-			fromWing(s, FADER, val / 127.f);
-		}
-		else if (ch == 1)
-			fromWing(s, MUTE, val >= 64 ? 1.f : 0.f);
-		else {
-			float now = st[s].f[PAN].wing;
-			if (!std::isnan(now) && (int) std::round((now + 1.f) * 63.5f) == val)
-				return;
-			fromWing(s, PAN, val == 64 ? 0.f : clamp((val - 64) / 63.f, -1.f, 1.f));
+		for (int s = 0; s < NT; s++) {
+			if (!active(s) || !(target(s) == t))
+				continue;
+			if (what == 0) {
+				float now = st[s].f[FADER].wing;
+				if (!std::isnan(now) && (int) std::round(now * 127.f) == val)
+					continue;
+				fromWing(s, FADER, val / 127.f);
+			}
+			else if (what == 1)
+				fromWing(s, MUTE, val >= 64 ? 1.f : 0.f);
+			else {
+				float now = st[s].f[PAN].wing;
+				if (!std::isnan(now) && (int) std::round((now + 1.f) * 63.5f) == val)
+					continue;
+				fromWing(s, PAN, val == 64 ? 0.f : clamp((val - 64) / 63.f, -1.f, 1.f));
+			}
 		}
 	}
 
 	// ---- values to the WING
 	void sendField(int s, int f, float v) {
-		int k = input(s);
-		bool sx = sysexOk;
+		P::Tgt t = target(s);
+		std::string n = P::tgtNode(t) + ".";
+		bool sx = sysexOk, dca = t.type == P::T_DCA;
+		int cc = P::tgtCc(t);
 		switch (f) {
 			case FADER:
 				if (sx)
-					send(P::set(k, "fdr=" + P::dbText(P::posToDb(v))));
+					send(P::setPath(n + "fdr=" + P::dbText(P::posToDb(v))));
 				else
-					sendCc(0, P::ccOf(k), (int) std::round(v * 127.f));
+					sendCc(dca ? 3 : 0, cc, (int) std::round(v * 127.f));
 				break;
 			case PAN:
 				if (sx)
-					send(P::set(k, string::f("pan=%d", (int) std::round(v * 100.f))));
+					send(P::setPath(n + string::f("pan=%d", (int) std::round(v * 100.f))));
 				else
-					sendCc(2, P::ccOf(k), (int) std::round((v + 1.f) * 63.5f));
+					sendCc(2, cc, (int) std::round((v + 1.f) * 63.5f));
 				break;
 			case MUTE:
 				if (sx)
-					send(P::set(k, v > 0.5f ? "mute=1" : "mute=0"));
+					send(P::setPath(n + (v > 0.5f ? "mute=1" : "mute=0")));
 				else
-					sendCc(1, P::ccOf(k), v > 0.5f ? 127 : 0);
+					sendCc(dca ? 4 : 1, cc, v > 0.5f ? 127 : 0);
 				break;
-			case SOLO: send(P::set(k, v > 0.5f ? "$solo=1" : "$solo=0")); break;
+			case SOLO: send(P::setPath(n + (v > 0.5f ? "$solo=1" : "$solo=0"))); break;
 			case FX1:
 			case FX2:
-				send(P::set(k, string::f("send.%d.on=1,lvl=", fxBus[f == FX2].load()) + P::dbText(P::posToDb(v))));
+				send(P::setPath(n + string::f("send.%d.on=1,lvl=", fxBus[f == FX2].load()) + P::dbText(P::posToDb(v))));
 				break;
 		}
 	}
@@ -492,11 +569,13 @@ struct WingLink : Module {
 			send(P::fxSet(slot + 1, string::f("fxmix=%d", (int) std::round(n * 100.f))));
 			return;
 		}
-		const F::Model& M = F::MODELS[fxs[slot].model];
-		int k = f - FP1;
-		if (k >= M.nShow)
+		const F::Param* p = fxKnob(slot, f - FP1);
+		if (!p)
 			return;
-		send(P::fxSet(slot + 1, std::string(M.show[k].key) + "=" + F::wingText(M.show[k], F::toValue(M.show[k], n))));
+		float v = F::toValue(*p, n);
+		send(P::fxSet(slot + 1, std::string(p->key) + "=" + F::wingText(*p, v)));
+		if (!std::strcmp(p->key, "time"))
+			fxs[slot].timeMs = v;
 	}
 	std::string queryOf(int f) {
 		switch (f) {
@@ -519,13 +598,13 @@ struct WingLink : Module {
 				what += "name=" + P::nameText(t.name);
 			if (t.colour > 0)
 				what += std::string(what.empty() ? "" : ",") + string::f("col=%d", t.colour);
-			if (t.icon >= 0)
+			if (t.icon >= 0 && target(s).type != P::T_DCA)
 				what += std::string(what.empty() ? "" : ",") + string::f("icon=%d", t.icon);
 		}
-		if (route)
+		if (route && target(s).audio())
 			what += std::string(what.empty() ? "" : ",") + string::f("in.conn.grp=USB,in=%d", usbOf(s));
 		if (!what.empty())
-			send(P::set(input(s), what));
+			send(P::setPath(node(s) + "." + what));
 		return true;
 	}
 
@@ -538,23 +617,29 @@ struct WingLink : Module {
 		}
 		if (!fm)
 			return;
-		if (pageDownT.process(fm->params[WingFx::PAGE_DOWN_PARAM].getValue() > 0.f) && fm->page > 0)
-			fm->page--;
-		if (pageUpT.process(fm->params[WingFx::PAGE_UP_PARAM].getValue() > 0.f) && fm->page < NSLOT / NPAGE - 1)
-			fm->page++;
-		int page = fm->page;
-		if (page != fxPageSeen) {
-			// a new page (or a new model): the panel shows what we know, then we ask
-			fxPageSeen = page;
+		int step = fm->slotStep == 1 ? 1 : 4;
+		if (pageDownT.process(fm->params[WingFx::PAGE_DOWN_PARAM].getValue() > 0.f))
+			fm->first = std::max(0, step == 4 ? (fm->first - 1) / 4 * 4 : fm->first - 1);
+		if (pageUpT.process(fm->params[WingFx::PAGE_UP_PARAM].getValue() > 0.f))
+			fm->first = std::min(NSLOT - NPAGE, step == 4 ? fm->first / 4 * 4 + 4 : fm->first + 1);
+		if (fm->refresh.exchange(false))
+			fxPageSeen = -1;
+		int first = fm->first;
+		if (first != fxPageSeen) {
+			// new slots on the panel (or a new model, or another parameter on a knob): show what we know, then ask
+			if (fxPageSeen >= 0 && first != fxPageSeen)
+				for (int k = 0; k < NSLOT; k++)
+					for (int f = 0; f < NFX; f++)
+						fxs[k].known[f] = fxs[k].known[f] && f <= FMIX;  // (the knobs may mean other parameters there)
+			fxPageSeen = first;
 			for (int j = 0; j < NPAGE; j++) {
-				int slot = page * NPAGE + j;
+				int slot = first + j;
 				FxSlot& x = fxs[slot];
 				for (int f = 0; f < NFX; f++) {
 					float v = x.known[f] ? x.val[f] : fm->params[fxPid(j, f)].getValue();
 					fm->params[fxPid(j, f)].setValue(v);
 					x.f[f].local = v;
-					if (!x.known[f])
-						x.f[f].wing = v;
+					x.f[f].wing = v;
 					x.f[f].dirty = false;
 				}
 				if (connected && sysexOk)
@@ -563,7 +648,7 @@ struct WingLink : Module {
 		}
 		// the panel's changes (and CV)
 		for (int j = 0; j < NPAGE; j++) {
-			int slot = page * NPAGE + j;
+			int slot = first + j;
 			FxSlot& x = fxs[slot];
 			for (int k = 0; k < 5; k++)
 				if (fm->inputs[fxCv(j, k)].isConnected())
@@ -575,7 +660,7 @@ struct WingLink : Module {
 					y.local = v;
 					x.val[f] = v;
 					x.known[f] = true;
-					if (connected && !(std::fabs(v - y.wing) < 1e-4f)) {
+					if (connected && !(std::fabs(v - y.wing) < 1e-4f) && (f <= FMIX || fxKnob(slot, f - FP1))) {
 						y.dirty = true;
 						y.hold = 0.4f;
 					}
@@ -609,7 +694,7 @@ struct WingLink : Module {
 		bool sync = fm->params[WingFx::SYNC_PARAM].getValue() > 0.5f;
 		fm->lights[WingFx::SYNC_LIGHT].setBrightness(sync ? 1.f : 0.f);
 
-		// tempo: SYNC on → the delays take Rack's tempo; off → the first delay's time is the WING's tempo
+		// tempo: SYNC on → every delay takes Rack's tempo; off → the first delay's time is the WING's tempo
 		tempoTimer -= dt;
 		if (tempoTimer > 0.f)
 			return;
@@ -621,33 +706,35 @@ struct WingLink : Module {
 			const F::Model& M = F::MODELS[x.model];
 			if (M.timeParam < 0)
 				continue;
-			int f = FP1 + M.timeParam;
-			const F::Param& p = M.show[M.timeParam];
-			if (sync && rackBpm > 0.f) {
+			const F::Param& p = M.all[M.timeParam];
+			if (sync && rackBpm > 0.f && connected && sysexOk) {
 				float ms = clamp(60000.f / rackBpm, p.min, p.max);
-				float n = F::toNorm(p, ms);
-				if (!x.known[f] || std::fabs(F::toValue(p, x.val[f]) - ms) >= 1.f) {
-					x.val[f] = n;
-					x.known[f] = true;
-					Sync& y = x.f[f];
-					y.local = n;
-					y.dirty = connected;
-					y.hold = 0.4f;
+				if (std::isnan(x.timeMs) || std::fabs(x.timeMs - ms) >= 1.f) {
+					send(P::fxSet(slot + 1, std::string("time=") + F::wingText(p, ms)));
+					x.timeMs = ms;
+					// a knob that shows TIME moves with it
 					int j = fxVisible(slot);
-					if (j >= 0)
-						fm->params[fxPid(j, f)].setValue(n);
+					for (int k = 0; k < 4 && j >= 0; k++) {
+						const F::Param* kp = fxKnob(slot, k);
+						if (kp && !std::strcmp(kp->key, "time")) {
+							float n = F::toNorm(*kp, ms);
+							int f = FP1 + k;
+							x.val[f] = n;
+							x.known[f] = true;
+							x.f[f].local = x.f[f].wing = n;
+							x.f[f].dirty = false;
+							fm->params[fxPid(j, f)].setValue(n);
+						}
+					}
 				}
 			}
-			if (wslot < 0 && x.known[f]) {
-				float ms = F::toValue(p, x.val[f]);
-				if (ms > 1.f) {
-					wb = 60000.f / ms;
-					while (wb < 60.f)
-						wb *= 2.f;
-					while (wb > 240.f)
-						wb /= 2.f;
-					wslot = slot;
-				}
+			if (wslot < 0 && !std::isnan(x.timeMs) && x.timeMs > 1.f) {
+				wb = 60000.f / x.timeMs;
+				while (wb < 60.f)
+					wb *= 2.f;
+				while (wb > 240.f)
+					wb /= 2.f;
+				wslot = slot;
 			}
 		}
 		wingBpm = wb;
@@ -713,12 +800,13 @@ struct WingLink : Module {
 
 		if (wantReset.exchange(false))
 			resetSync();
+		bool by8 = chStep == 8;
 		if (downT.process(params[DOWN_PARAM].getValue() > 0.f) && wingStart > 1) {
-			wingStart--;
+			wingStart = by8 ? std::max(1, ((wingStart - 2) / 8) * 8 + 1) : wingStart - 1;
 			resetSync();
 		}
 		if (upT.process(params[UP_PARAM].getValue() > 0.f) && wingStart < P::NUM_IN) {
-			wingStart++;
+			wingStart = by8 ? std::min(41, ((wingStart - 1) / 8 + 1) * 8 + 1) : wingStart + 1;
 			resetSync();
 		}
 		if (syncT.process(params[SYNC_PARAM].getValue() > 0.f))
@@ -735,7 +823,7 @@ struct WingLink : Module {
 			t.peak = 0.f;
 			if (!m)
 				continue;
-			bool on = input(s) <= P::NUM_IN;
+			bool on = active(s);
 			auto cv = [&](int in, int f, float v) {
 				if (m->inputs[iid(j, in)].isConnected())
 					m->params[pid(j, f)].setValue(v);
@@ -749,7 +837,7 @@ struct WingLink : Module {
 				float v = m->params[pid(j, f)].getValue();
 				if (v != y.local) {
 					y.local = v;
-					if (on && connected && !(std::fabs(v - y.wing) < 1e-4f)) {
+					if (on && connected && has(s, f) && !(std::fabs(v - y.wing) < 1e-4f)) {
 						y.dirty = true;
 						y.hold = 0.4f;
 					}
@@ -780,6 +868,19 @@ struct WingLink : Module {
 		controlFx(dt, connected);
 		if (!connected)
 			return;
+
+		// the SD recorder: a click on a card starts it (with the tracks set) or stops it
+		for (int c = 0; c < 2; c++)
+			if (sd[c].toggle.exchange(false)) {
+				std::string n = string::f("cards.wlive.%d.", c + 1);
+				if (sd[c].state == 3)
+					send(P::setPath(n + "$ctl.control=STOP"));
+				else {
+					send(P::setPath(n + (params[TRACKS_PARAM].getValue() > 0.5f ? "cfg.rectracks=16" : "cfg.rectracks=8")));
+					send(P::setPath(n + "$ctl.control=REC"));
+				}
+				queries.push_front({2, c, 0});
+			}
 
 		// SYNC: names, colours, icons and the USB routing for every strip, then read the WING back
 		if (syncNow) {
@@ -853,10 +954,11 @@ struct WingLink : Module {
 				for (int s = 0; s < NT; s++)
 					if (active(s))
 						for (int f = 0; f < NF; f++)
-							queries.push_back({0, s, f});
+							if (has(s, f))
+								queries.push_back({0, s, f});
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
-						askFx(fm->page * NPAGE + j, true);
+						askFx(fm->first + j, true);
 				for (int ch = 8; ch < 16; ch++) {  // FX: ask the WING for its CCs (ON has no other way)
 					sendCc(ch, 9, ch - 8);
 					sendCc(ch, 9, ch - 8 + 8);
@@ -866,14 +968,16 @@ struct WingLink : Module {
 			if (pollTimer <= 0.f && queries.empty()) {
 				pollTimer = 1.f;
 				for (int s = 0; s < NT; s++)
-					if (active(s)) {
-						queries.push_back({0, s, SOLO});
-						queries.push_back({0, s, FX1});
-						queries.push_back({0, s, FX2});
-					}
+					if (active(s))
+						for (int f : {SOLO, FX1, FX2})
+							if (has(s, f))
+								queries.push_back({0, s, f});
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
-						askFx(fm->page * NPAGE + j, true);
+						askFx(fm->first + j, true);
+				for (int c = 0; c < 2; c++)
+					for (int f = 0; f < 4; f++)
+						queries.push_back({2, c, f});
 			}
 			if (qWaiting) {
 				qTimer -= dt;
@@ -884,9 +988,13 @@ struct WingLink : Module {
 				qNow = queries.front();
 				queries.pop_front();
 				if (qNow.kind == 0) {
-					if (!active(qNow.s))
+					if (!active(qNow.s) || !has(qNow.s, qNow.f))
 						continue;
-					send(P::get(input(qNow.s), queryOf(qNow.f)));
+					send(P::getPath(node(qNow.s) + "." + queryOf(qNow.f)));
+				}
+				else if (qNow.kind == 2) {
+					static const char* const SDQ[4] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate"};
+					send(P::getPath(string::f("cards.wlive.%d.", qNow.s + 1) + SDQ[qNow.f]));
 				}
 				else {
 					std::string what;
@@ -894,12 +1002,17 @@ struct WingLink : Module {
 						what = "mdl";
 					else if (qNow.f == FMIX)
 						what = "fxmix";
-					else {
+					else if (qNow.f == FTIME) {
 						const F::Model& M = F::MODELS[fxs[qNow.s].model];
-						int k = qNow.f - FP1;
-						if (k >= M.nShow)
+						if (M.timeParam < 0)
 							continue;
-						what = M.show[k].key;
+						what = M.all[M.timeParam].key;
+					}
+					else {
+						const F::Param* p = fxKnob(qNow.s, qNow.f - FP1);
+						if (!p)
+							continue;
+						what = p->key;
 					}
 					send(P::fxGet(qNow.s + 1, what));
 				}
@@ -953,6 +1066,11 @@ struct WingLink : Module {
 		st[s].metaDirty = true;
 		st[s].metaWait = 0.2f;
 	}
+	void setTarget(int s, P::Tgt t) {
+		st[s].tType = t.ok() ? t.type : 0;
+		st[s].tNum = t.ok() ? t.n : 0;
+		wantReset = true;
+	}
 	void setIcon(int s, int i) {
 		std::lock_guard<std::mutex> lock(metaMutex);
 		st[s].icon = i;
@@ -968,6 +1086,7 @@ struct WingLink : Module {
 		json_object_set_new(root, "fxBus2", json_integer(fxBus[1]));
 		json_object_set_new(root, "autoMidi", json_boolean(autoMidi));
 		json_object_set_new(root, "autoAudio", json_boolean(autoAudio));
+		json_object_set_new(root, "chStep", json_integer(chStep));
 		json_object_set_new(root, "midiIn", midiIn.toJson());
 		json_object_set_new(root, "midiOut", midiOut.toJson());
 		json_object_set_new(root, "audio", port.toJson());
@@ -979,6 +1098,8 @@ struct WingLink : Module {
 				json_object_set_new(o, "name", json_string(st[s].name.c_str()));
 				json_object_set_new(o, "colour", json_integer(st[s].colour));
 				json_object_set_new(o, "icon", json_integer(st[s].icon));
+				json_object_set_new(o, "type", json_integer(st[s].tType));
+				json_object_set_new(o, "num", json_integer(st[s].tNum));
 				json_array_append_new(strips, o);
 			}
 		}
@@ -998,6 +1119,7 @@ struct WingLink : Module {
 		usbMode = clamp(geti("usbMode", 0), 0, 48);
 		fxBus[0] = clamp(geti("fxBus1", 1), 1, 16);
 		fxBus[1] = clamp(geti("fxBus2", 2), 1, 16);
+		chStep = geti("chStep", 1) == 8 ? 8 : 1;
 		if (json_t* j = json_object_get(root, "autoMidi"))
 			autoMidi = json_boolean_value(j);
 		if (json_t* j = json_object_get(root, "autoAudio"))
@@ -1021,6 +1143,13 @@ struct WingLink : Module {
 					st[s].colour = clamp((int) json_integer_value(j), 0, P::NUM_COLOURS);
 				if (json_t* j = json_object_get(o, "icon"))
 					st[s].icon = (int) json_integer_value(j);
+				json_t* ty = json_object_get(o, "type");
+				json_t* nu = json_object_get(o, "num");
+				if (ty && nu) {
+					P::Tgt t = P::tgt((int) json_integer_value(ty), (int) json_integer_value(nu));
+					st[s].tType = t.ok() ? t.type : 0;
+					st[s].tNum = t.ok() ? t.n : 0;
+				}
 			}
 		}
 		if (json_t* a = json_object_get(root, "fxModels"))
@@ -1196,6 +1325,96 @@ struct NameField : DisplayTextField {
 	}
 };
 
+/** Our own icon for each of the WING's icon groups (GENERAL, VOX, DRUMS, STRINGS, KEYS, SPEAKERS, SPECIAL). */
+static void drawIcon(NVGcontext* vg, int group, float cx, float cy, float r, NVGcolor c) {
+	nvgStrokeColor(vg, c);
+	nvgFillColor(vg, c);
+	nvgStrokeWidth(vg, std::max(1.f, r * 0.13f));
+	nvgLineCap(vg, NVG_ROUND);
+	nvgLineJoin(vg, NVG_ROUND);
+	nvgBeginPath(vg);
+	switch (group) {
+		case 0:  // a knob
+			nvgCircle(vg, cx, cy, r * 0.8f);
+			nvgMoveTo(vg, cx, cy - r * 0.8f);
+			nvgLineTo(vg, cx, cy - r * 0.35f);
+			nvgStroke(vg);
+			break;
+		case 1:  // a microphone
+			nvgRoundedRect(vg, cx - r * 0.32f, cy - r, r * 0.64f, r * 1.05f, r * 0.32f);
+			nvgMoveTo(vg, cx - r * 0.6f, cy - r * 0.15f);
+			nvgBezierTo(vg, cx - r * 0.6f, cy + r * 0.5f, cx + r * 0.6f, cy + r * 0.5f, cx + r * 0.6f, cy - r * 0.15f);
+			nvgMoveTo(vg, cx, cy + r * 0.38f);
+			nvgLineTo(vg, cx, cy + r * 0.85f);
+			nvgMoveTo(vg, cx - r * 0.35f, cy + r * 0.85f);
+			nvgLineTo(vg, cx + r * 0.35f, cy + r * 0.85f);
+			nvgStroke(vg);
+			break;
+		case 2:  // a drum
+			nvgEllipse(vg, cx, cy - r * 0.35f, r * 0.85f, r * 0.3f);
+			nvgMoveTo(vg, cx - r * 0.85f, cy - r * 0.35f);
+			nvgLineTo(vg, cx - r * 0.85f, cy + r * 0.45f);
+			nvgBezierTo(vg, cx - r * 0.4f, cy + r * 0.9f, cx + r * 0.4f, cy + r * 0.9f, cx + r * 0.85f, cy + r * 0.45f);
+			nvgLineTo(vg, cx + r * 0.85f, cy - r * 0.35f);
+			nvgMoveTo(vg, cx - r * 0.45f, cy - r);
+			nvgLineTo(vg, cx + r * 0.05f, cy - r * 0.5f);
+			nvgMoveTo(vg, cx + r * 0.45f, cy - r);
+			nvgLineTo(vg, cx - r * 0.05f, cy - r * 0.5f);
+			nvgStroke(vg);
+			break;
+		case 3:  // a guitar / bass
+			nvgMoveTo(vg, cx, cy - r);
+			nvgLineTo(vg, cx, cy - r * 0.35f);
+			nvgMoveTo(vg, cx - r * 0.25f, cy - r * 0.35f);
+			nvgBezierTo(vg, cx - r * 0.7f, cy - r * 0.35f, cx - r * 0.45f, cy + r * 0.1f, cx - r * 0.65f, cy + r * 0.45f);
+			nvgBezierTo(vg, cx - r * 0.75f, cy + r, cx + r * 0.75f, cy + r, cx + r * 0.65f, cy + r * 0.45f);
+			nvgBezierTo(vg, cx + r * 0.45f, cy + r * 0.1f, cx + r * 0.7f, cy - r * 0.35f, cx + r * 0.25f, cy - r * 0.35f);
+			nvgClosePath(vg);
+			nvgStroke(vg);
+			break;
+		case 4: {  // keys
+			nvgRect(vg, cx - r, cy - r * 0.65f, r * 2.f, r * 1.3f);
+			for (int i = 1; i < 4; i++) {
+				nvgMoveTo(vg, cx - r + i * r * 0.5f, cy - r * 0.65f);
+				nvgLineTo(vg, cx - r + i * r * 0.5f, cy + r * 0.65f);
+			}
+			nvgStroke(vg);
+			for (int i = 1; i < 4; i++) {
+				nvgBeginPath(vg);
+				nvgRect(vg, cx - r + i * r * 0.5f - r * 0.13f, cy - r * 0.65f, r * 0.26f, r * 0.75f);
+				nvgFill(vg);
+			}
+			break;
+		}
+		case 5:  // a speaker
+			nvgRoundedRect(vg, cx - r * 0.6f, cy - r, r * 1.2f, r * 2.f, r * 0.12f);
+			nvgCircle(vg, cx, cy - r * 0.5f, r * 0.2f);
+			nvgCircle(vg, cx, cy + r * 0.35f, r * 0.4f);
+			nvgStroke(vg);
+			break;
+		default: {  // a star
+			for (int i = 0; i < 10; i++) {
+				float a = -1.5707963f + i * 0.62831853f, rr = (i % 2) ? r * 0.42f : r;
+				if (i == 0)
+					nvgMoveTo(vg, cx + rr * std::cos(a), cy + rr * std::sin(a));
+				else
+					nvgLineTo(vg, cx + rr * std::cos(a), cy + rr * std::sin(a));
+			}
+			nvgClosePath(vg);
+			nvgStroke(vg);
+		}
+	}
+}
+
+static int iconGroup(int icon) {
+	for (int g = 0; g < P::NUM_ICON_GROUPS; g++)
+		if (icon >= P::ICONS[g].base && icon < P::ICONS[g].base + P::ICONS[g].count)
+			return g;
+	return -1;
+}
+
+/** The strip's display: colour bar (click: next colour), name, icon (click: next group), what it controls.
+ * Right-click: what it controls (WING channel), all colours and icons. */
 struct ScribbleWidget : OpaqueWidget {
 	std::function<WingLink*()> getHost;
 	int s = 0;
@@ -1204,22 +1423,31 @@ struct ScribbleWidget : OpaqueWidget {
 		if (layer == 1) {
 			WingLink* h = getHost ? getHost() : nullptr;
 			NVGcontext* vg = args.vg;
-			int col = 0, icon = -1, k = 0;
+			int col = 0, icon = -1;
+			P::Tgt t;
+			bool fixed = false;
 			if (h) {
 				std::lock_guard<std::mutex> lock(h->metaMutex);
 				col = h->st[s].colour;
 				icon = h->st[s].icon;
-				k = h->input(s);
+				t = h->target(s);
+				fixed = h->st[s].tType > 0;
 			}
 			nvgBeginPath(vg);
 			nvgRoundedRect(vg, 0, 0, box.size.x, mm2px(1.3f), 1.5f);
 			nvgFillColor(vg, colourOf(col));
 			nvgFill(vg);
 			float cx = box.size.x / 2;
-			std::string it = icon >= 0 ? P::iconText(icon) : "no icon";
-			text(vg, boldFont(), cx, mm2px(8.4f), it, 7.f, icon >= 0 ? DIM : FAINT, NVG_ALIGN_CENTER, 0.3f);
-			std::string ch = !h ? "–" : (k > P::NUM_IN ? "–" : P::label(k));
-			text(vg, boldFont(), cx, mm2px(10.4f), ch, 7.f, FAINT, NVG_ALIGN_CENTER, 0.3f);
+			int g = iconGroup(icon);
+			if (g >= 0) {
+				std::string num = string::f("%d", icon - P::ICONS[g].base);
+				drawIcon(vg, g, cx - mm2px(1.6f), mm2px(7.75f), mm2px(0.95f), DIM);
+				text(vg, boldFont(), cx + mm2px(0.2f), mm2px(8.45f), num, 7.f, DIM, NVG_ALIGN_LEFT, 0.3f);
+			}
+			else
+				text(vg, boldFont(), cx, mm2px(8.4f), "no icon", 6.5f, FAINT, NVG_ALIGN_CENTER, 0.3f);
+			std::string ch = h ? P::tgtLabel(t) : "CH 33";
+			text(vg, boldFont(), cx, mm2px(10.4f), fixed ? ch + " •" : ch, 7.f, fixed ? TXT : FAINT, NVG_ALIGN_CENTER, 0.3f);
 		}
 		OpaqueWidget::drawLayer(args, layer);
 	}
@@ -1247,6 +1475,21 @@ struct ScribbleWidget : OpaqueWidget {
 			int ss = s;
 			ui::Menu* menu = createMenu();
 			menu->addChild(createMenuLabel(string::f("Strip %d", s + 1)));
+			menu->addChild(createSubmenuItem("WING channel", P::tgtLabel(h->target(s)), [=](ui::Menu* sub) {
+				sub->addChild(createCheckMenuItem("Auto (follows START CH)", "", [=]() { return h->st[ss].tType == 0; },
+				                                  [=]() { h->setTarget(ss, P::Tgt()); }));
+				sub->addChild(new MenuSeparator);
+				for (int ty = P::T_CH; ty < P::NUM_TGT; ty++)
+					sub->addChild(createSubmenuItem(P::TGT_NAME[ty], "", [=](ui::Menu* sub2) {
+						for (int n = 1; n <= P::TGT_COUNT[ty]; n++)
+							sub2->addChild(createCheckMenuItem(P::tgtLabel(P::tgt(ty, n)), "",
+							                                   [=]() { return h->st[ss].tType == ty && h->st[ss].tNum == n; },
+							                                   [=]() { h->setTarget(ss, P::tgt(ty, n)); }));
+					}));
+				sub->addChild(new MenuSeparator);
+				sub->addChild(createMenuLabel("A fixed strip stays when START CH moves (• in its display)"));
+				sub->addChild(createMenuLabel("Bus, main, matrix: no FX sends · DCA: fader, mute, name, colour"));
+			}));
 			menu->addChild(createSubmenuItem("Colour", "", [=](ui::Menu* sub) {
 				sub->addChild(createMenuItem("None (the WING keeps its own)", "", [=]() { h->setColour(ss, 0); }));
 				for (int c = 1; c <= P::NUM_COLOURS; c++)
@@ -1268,6 +1511,46 @@ struct ScribbleWidget : OpaqueWidget {
 			return;
 		}
 		OpaqueWidget::onButton(e);
+	}
+};
+
+/** Over a knob or button that means nothing for what the strip controls: greyed out. */
+struct GreyWidget : TransparentWidget {
+	std::function<WingLink*()> getHost;
+	int s = 0, f = 0;
+	void draw(const DrawArgs& args) override {
+		WingLink* h = getHost ? getHost() : nullptr;
+		if (!h || h->has(s, f))
+			return;
+		nvgBeginPath(args.vg);
+		nvgCircle(args.vg, box.size.x / 2, box.size.y / 2, box.size.x / 2);
+		nvgFillColor(args.vg, nvgRGBA(0x21, 0x23, 0x29, 0xd0));
+		nvgFill(args.vg);
+	}
+};
+
+/** M / S on the mute and solo buttons. */
+struct LetterWidget : TransparentWidget {
+	std::string letter;
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 1)
+			text(args.vg, boldFont(), box.size.x / 2, box.size.y / 2 + 3.6f, letter, 10.f, nvgRGBA(0xf2, 0xf3, 0xf7, 0xe0),
+			     NVG_ALIGN_CENTER, 0.f);
+		Widget::drawLayer(args, layer);
+	}
+};
+
+/** Under FX 1 / FX 2 in the label column: the bus the send goes to. */
+struct BusLabel : Widget {
+	std::function<WingLink*()> getHost;
+	int k = 0;
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 1) {
+			WingLink* h = getHost ? getHost() : nullptr;
+			text(args.vg, boldFont(), box.size.x, mm2px(1.8f), string::f("\xe2\x80\xba BUS %d", h ? hostFxBus(h, k) : k + 1),
+			     6.f, ACCENT, NVG_ALIGN_RIGHT, 0.3f);
+		}
+		Widget::drawLayer(args, layer);
 	}
 };
 
@@ -1343,6 +1626,36 @@ static void addStrips(ModuleWidget* w, Module* module, int base, std::function<W
 		mw->s = base + j;
 		mw->getHost = getHost;
 		w->addChild(mw);
+		// greyed when it means nothing for what the strip controls
+		auto grey = [&](const float* p, int f, float r) {
+			GreyWidget* g = new GreyWidget;
+			g->box.size = mm2px(Vec(2 * r, 2 * r));
+			g->box.pos = mm(p).minus(g->box.size.div(2));
+			g->s = base + j;
+			g->f = f;
+			g->getHost = getHost;
+			w->addChild(g);
+		};
+		grey(pan[j], PAN, 4.4f);
+		grey(fx1[j], FX1, 4.4f);
+		grey(fx2[j], FX2, 4.4f);
+		grey(solo[j], SOLO, 4.0f);
+		for (int k = 0; k < 2; k++) {
+			LetterWidget* l = new LetterWidget;
+			l->letter = k ? "S" : "M";
+			l->box.size = mm2px(Vec(6.f, 6.f));
+			l->box.pos = mm(k ? solo[j] : mute[j]).minus(l->box.size.div(2));
+			w->addChild(l);
+		}
+	}
+	const float* bl[2] = {L::BUSLBL1, L::BUSLBL2};
+	for (int k = 0; k < 2; k++) {
+		BusLabel* b = new BusLabel;
+		b->box.pos = mm2px(Vec(bl[k][0], bl[k][1]));
+		b->box.size = mm2px(Vec(bl[k][2], bl[k][3]));
+		b->k = k;
+		b->getHost = getHost;
+		w->addChild(b);
 	}
 }
 
@@ -1360,49 +1673,163 @@ struct StatusDisplay : Widget {
 			NVGcontext* vg = args.vg;
 			float x = mm2px(3.f);
 			if (!module) {
-				text(vg, boldFont(), x, mm2px(4.6f), "CH 33–40", 13.f, WHITE);
+				text(vg, boldFont(), x, mm2px(4.6f), "CH 33 – 40", 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
 				Widget::drawLayer(args, layer);
 				return;
 			}
 			int a = module->wingStart, b = std::min(P::NUM_IN, a + NS - 1);
 			std::string chs = P::label(a) + " – " + P::label(b);
 			if (module->xMod.load() && a + NS <= P::NUM_IN)
-				chs += "   +  " + P::label(a + NS) + " – " + P::label(std::min(P::NUM_IN, a + NT - 1));
-			if (module->fxMod.load())
-				chs += "   ·  FX";
-			text(vg, boldFont(), x, mm2px(4.6f), chs, 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
+				chs += "  +  " + P::label(a + NS) + " – " + P::label(std::min(P::NUM_IN, a + NT - 1));
+			text(vg, boldFont(), x, mm2px(4.6f), chs, 11.f, WHITE, NVG_ALIGN_LEFT, 0.4f);
 			std::string stx;
 			NVGcolor c;
 			if (module->midiOut.getDeviceId() < 0) {
-				stx = "●  NO WING (MIDI): plug the WING in by USB, or pick its MIDI port (right-click)";
+				stx = "●  NO WING (MIDI) · right-click: MIDI port";
 				c = BAD;
 			}
 			else if (module->sysexOk) {
-				stx = "●  WING  ·  MIDI OK  ·  SYSEX OK";
+				stx = "●  WING · MIDI OK · SYSEX OK";
+				if (module->fxMod.load())
+					stx += " · FX";
 				c = OK;
 			}
 			else if (module->midiSeen) {
-				stx = "●  WING  ·  MIDI OK  ·  NO SYSEX: WING › SETUP › REMOTE › MIDI: allow USB SYSEX";
+				stx = "●  NO SYSEX: WING › SETUP › REMOTE › MIDI";
 				c = WARN;
 			}
 			else {
-				stx = "●  WAITING FOR THE WING …  (WING › SETUP › REMOTE › MIDI: USB SYSEX + CHANNELS)";
+				stx = "●  WAITING FOR THE WING … (SETUP › REMOTE)";
 				c = WARN;
 			}
-			text(vg, boldFont(), x, mm2px(8.1f), stx, 6.6f, c, NVG_ALIGN_LEFT, 0.3f);
+			text(vg, boldFont(), x, mm2px(8.1f), stx, 6.4f, c, NVG_ALIGN_LEFT, 0.3f);
 			int u = module->usbStart();
 			std::string au;
 			int nOut = module->port.deviceNumOutputs;
 			if (module->port.getDeviceId() < 0)
-				au = "AUDIO: none (right-click › Audio to the WING)";
+				au = "AUDIO: none · right-click › Audio to the WING";
 			else if (nOut <= 0)
-				au = string::f("AUDIO: USB %d+ not on the device (set the WING to 48 USB channels)", u);
+				au = string::f("AUDIO: no USB %d on the device (48 USB ch.)", u);
 			else
-				au = string::f("AUDIO → USB %d–%d  ·  %s  ·  %.0f kHz", u, u + (module->xMod.load() ? NT : NS) - 1,
-				               module->audioName.c_str(), module->port.deviceSampleRate / 1000.f);
-			text(vg, boldFont(), x, mm2px(10.2f), au, 6.2f, DIM, NVG_ALIGN_LEFT, 0.3f);
+				au = string::f("AUDIO → USB %d–%d · %.0f kHz · %s", u, u + (module->xMod.load() ? NT : NS) - 1,
+				               module->port.deviceSampleRate / 1000.f, module->audioName.c_str());
+			text(vg, boldFont(), x, mm2px(10.2f), au.substr(0, 52), 6.f, DIM, NVG_ALIGN_LEFT, 0.3f);
 		}
 		Widget::drawLayer(args, layer);
+	}
+};
+
+/** A small display with a number; a click switches between two values. */
+struct StepWidget : OpaqueWidget {
+	std::atomic<int>* value = nullptr;
+	int a = 1, b = 8;
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 1)
+			text(args.vg, boldFont(), box.size.x / 2, box.size.y / 2 + 5.f, string::f("%d", value ? value->load() : a), 14.f,
+			     WHITE, NVG_ALIGN_CENTER, 0.f);
+		OpaqueWidget::drawLayer(args, layer);
+	}
+	void onButton(const ButtonEvent& e) override {
+		if (value && e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
+			*value = value->load() == a ? b : a;
+			e.consume(this);
+			return;
+		}
+		OpaqueWidget::onButton(e);
+	}
+};
+
+/** An SD card of the WING-LIVE recorder: lit while it records; a click starts or stops it. */
+struct SdWidget : OpaqueWidget {
+	WingLink* module = nullptr;
+	int c = 0;
+	static std::string hms(float ms, bool hours) {
+		int t = (int) (ms / 1000.f);
+		return hours ? string::f("%d:%02d h", t / 3600, (t / 60) % 60) : string::f("%d:%02d", t / 60, t % 60);
+	}
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 1) {
+			NVGcontext* vg = args.vg;
+			int state = module ? module->sd[c].state.load() : (c == 0 ? 3 : 0);
+			int card = module ? module->sd[c].card.load() : 1;
+			bool rec = state == 3;
+			float w = box.size.x, h = box.size.y, cut = mm2px(2.6f), r = mm2px(0.6f);
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, r, 0);
+			nvgLineTo(vg, w - cut, 0);
+			nvgLineTo(vg, w, cut);
+			nvgLineTo(vg, w, h - r);
+			nvgQuadTo(vg, w, h, w - r, h);
+			nvgLineTo(vg, r, h);
+			nvgQuadTo(vg, 0, h, 0, h - r);
+			nvgLineTo(vg, 0, r);
+			nvgQuadTo(vg, 0, 0, r, 0);
+			nvgFillColor(vg, nvgRGB(0x2a, 0x2c, 0x33));
+			nvgFill(vg);
+			nvgStrokeColor(vg, rec ? BAD : nvgRGB(0x4a, 0x4c, 0x57));
+			nvgStrokeWidth(vg, 1.2f);
+			nvgStroke(vg);
+			for (int q = 0; q < 4; q++) {
+				nvgBeginPath(vg);
+				nvgRoundedRect(vg, mm2px(1.0f + q * 1.35f), mm2px(1.0f), mm2px(0.9f), mm2px(1.8f), 0.6f);
+				nvgFillColor(vg, nvgRGB(0x4a, 0x4c, 0x57));
+				nvgFill(vg);
+			}
+			nvgBeginPath(vg);
+			nvgCircle(vg, w / 2, mm2px(6.f), mm2px(1.7f));
+			nvgFillColor(vg, rec ? BAD : (state == 1 ? WARN : nvgRGB(0x3a, 0x3c, 0x44)));
+			nvgFill(vg);
+			std::string t;
+			NVGcolor tc = TXT;
+			if (rec) {
+				t = module ? hms(module->sd[c].etime, false) : "12:04";
+				tc = BAD;
+			}
+			else if (card == 0)
+				t = "NO CARD", tc = FAINT;
+			else if (card >= 2)
+				t = card == 2 ? "LOCKED" : "ERROR", tc = WARN;
+			else if (card == 1)
+				t = module ? hms(module->sd[c].sdfree, true) : "3:05 h";
+			else
+				t = "–", tc = FAINT;
+			text(vg, boldFont(), w / 2, mm2px(9.6f), t, 5.4f, tc, NVG_ALIGN_CENTER, 0.2f);
+		}
+		OpaqueWidget::drawLayer(args, layer);
+	}
+	void onButton(const ButtonEvent& e) override {
+		if (module && e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
+			module->sd[c].toggle = true;
+			e.consume(this);
+			return;
+		}
+		OpaqueWidget::onButton(e);
+	}
+};
+
+/** 8 or 16 tracks for the SD recorder: two lamps. */
+struct TracksWidget : app::ParamWidget {
+	float dx = 0.f;
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 1) {
+			int v = getParamQuantity() ? (int) std::round(getParamQuantity()->getValue()) : 0;
+			for (int i = 0; i < 2; i++) {
+				nvgBeginPath(args.vg);
+				nvgCircle(args.vg, box.size.y / 2 + i * dx, box.size.y / 2, mm2px(1.35f));
+				nvgFillColor(args.vg, i == v ? ACCENT : nvgRGB(0x0d, 0x0e, 0x11));
+				nvgFill(args.vg);
+			}
+		}
+		ParamWidget::drawLayer(args, layer);
+	}
+	void onButton(const ButtonEvent& e) override {
+		if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
+			if (engine::ParamQuantity* pq = getParamQuantity())
+				pq->setValue(e.pos.x > box.size.y / 2 + dx / 2 ? 1.f : 0.f);
+			e.consume(this);
+			return;
+		}
+		ParamWidget::onButton(e);
 	}
 };
 
@@ -1437,6 +1864,27 @@ struct WingLinkWidget : ModuleWidget {
 		d->box.pos = mm2px(Vec(L::DISPLAY[0], L::DISPLAY[1]));
 		d->box.size = mm2px(Vec(L::DISPLAY[2], L::DISPLAY[3]));
 		addChild(d);
+		StepWidget* sw = new StepWidget;
+		sw->value = module ? &module->chStep : nullptr;
+		sw->a = 1;
+		sw->b = 8;
+		sw->box.pos = mm2px(Vec(L::STEP[0], L::STEP[1]));
+		sw->box.size = mm2px(Vec(L::STEP[2], L::STEP[3]));
+		addChild(sw);
+		const float* sdp[2] = {L::SD1, L::SD2};
+		for (int c = 0; c < 2; c++) {
+			SdWidget* w = new SdWidget;
+			w->module = module;
+			w->c = c;
+			w->box.pos = mm2px(Vec(sdp[c][0], sdp[c][1]));
+			w->box.size = mm2px(Vec(sdp[c][2], sdp[c][3]));
+			addChild(w);
+		}
+		TracksWidget* tw = createParam<TracksWidget>(Vec(0, 0), module, WingLink::TRACKS_PARAM);
+		tw->dx = mm2px(L::TRACKS[2]);
+		tw->box.size = mm2px(Vec(L::TRACKS[2] + 2.8f, 2.8f));
+		tw->box.pos = mm2px(Vec(L::TRACKS[0] - 1.4f, L::TRACKS[1] - 1.4f));
+		addParam(tw);
 		addStrips(this, module, 0, [module]() { return module; });
 	}
 
@@ -1544,6 +1992,11 @@ struct WingLinkWidget : ModuleWidget {
 		                                 [=](Menu* sub) { app::appendMidiMenu(sub, &m->midiOut); }));
 		menu->addChild(createCheckMenuItem("Find the WING by itself (MIDI)", "", [=]() { return m->autoMidi.load(); },
 		                                   [=]() { m->autoMidi = !m->autoMidi; }));
+		menu->addChild(createSubmenuItem("START CH steps", string::f("%d", m->chStep.load()), [=](Menu* sub) {
+			for (int v : {1, 8})
+				sub->addChild(createCheckMenuItem(v == 1 ? "1 (one channel)" : "8 (CH 1–8, 9–16 …)", "",
+				                                  [=]() { return m->chStep.load() == v; }, [=]() { m->chStep = v; }));
+		}));
 		for (int k = 0; k < 2; k++)
 			menu->addChild(createSubmenuItem(string::f("FX %d sends to", k + 1), string::f("Bus %d", m->fxBus[k].load()),
 			                                 [=](Menu* sub) {
@@ -1628,6 +2081,7 @@ struct WingLinkXWidget : ModuleWidget {
 
 // ---------------------------------------------------------------- for WING-FX's panel (src/WingFx.cpp)
 FxSlot* hostFx(WingLink* h, int slot) { return h ? &h->fxs[slot] : nullptr; }
+int hostFxBus(WingLink* h, int k) { return h ? h->fxBus[k].load() : k + 1; }
 void requestFxModel(WingLink* h, int slot, int model) {
 	if (h)
 		h->fxModelReq[slot] = model;

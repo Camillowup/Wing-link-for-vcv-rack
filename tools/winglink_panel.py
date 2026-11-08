@@ -128,9 +128,11 @@ class Panel:
     def strips(self):
         # row labels
         for lb, y in ROWS.items():
-            self.text(LABEL_W - 0.2, y + 0.6, lb, 1.45, DIM, 700, "end", 0.25)
-        self.text(LABEL_W - 0.2, JROWS[0] + 0.6, "IN", 1.45, DIM, 700, "end", 0.25)
-        self.text(LABEL_W - 0.2, JROWS[3] + 0.6, "OUT", 1.45, ACC, 800, "end", 0.25)
+            self.text(LABEL_W - 0.2, y + 0.75, lb, 1.75, TXT, 800, "end", 0.3)
+        for k in (1, 2):  # the bus each send goes to (the module writes it)
+            self.area(f"BUSLBL{k}", 0.6, ROWS[f"FX {k}"] + 1.5, LABEL_W - 0.8, 2.6)
+        self.text(LABEL_W - 0.2, JROWS[0] + 0.75, "IN", 1.75, TXT, 800, "end", 0.3)
+        self.text(LABEL_W - 0.2, JROWS[3] + 0.75, "OUT", 1.75, ACC, 800, "end", 0.3)
         for i in range(8):
             n = i + 1
             x0, cx = strip_x(i)
@@ -168,18 +170,32 @@ class Panel:
 # ---------------------------------------------------------------- WING-LINK
 main = Panel("wl")
 main.header("WING-LINK", "BEHRINGER WING BRIDGE · USB")
-DISP = (12.5, 10.6, 104.0, 11.2)
+DISP = (12.5, 10.6, 66.0, 11.2)
 main.e(f'<rect x="{DISP[0]}" y="{DISP[1]}" width="{DISP[2]}" height="{DISP[3]}" rx="1" fill="{DARK}" stroke="{LINE}" '
        f'stroke-width="0.3"/>')
 main.area("DISPLAY", *DISP)
 bx = DISP[0] + DISP[2]
-main.button("DOWN", bx + 7.5, 15.4)
-main.button("UP", bx + 16.5, 15.4)
-main.text(bx + 12, 9.2, "START CH", 1.4, DIM, 700, "middle", 0.25)
-main.button("SYNC", bx + 30.5, 15.4)
-main.text(bx + 30.5, 21.6, "SYNC", 1.4, ACC, 800, "middle", 0.3)
-main.text(bx + 7.5, 21.6, "−", 1.9, TXT, 800)
-main.text(bx + 16.5, 21.6, "+", 1.9, TXT, 800)
+main.button("DOWN", bx + 6.0, 15.4)
+main.button("UP", bx + 23.5, 15.4)
+main.text(bx + 14.75, 9.2, "START CH", 1.4, DIM, 700, "middle", 0.25)
+main.e(f'<rect x="{bx + 11.6:.2f}" y="12.2" width="6.3" height="6.4" rx="0.8" fill="{DARK}" stroke="{LINE}" stroke-width="0.3"/>')
+main.area("STEP", bx + 11.6, 12.2, 6.3, 6.4)  # the step (1 or 8): the module writes it; a click switches
+main.text(bx + 14.75, 21.6, "STEP", 1.3, DIM, 700, "middle", 0.2)
+main.button("SYNC", bx + 33.2, 15.4)
+main.text(bx + 33.2, 21.6, "SYNC", 1.4, ACC, 800, "middle", 0.3)
+main.text(bx + 6.0, 21.6, "−", 1.9, TXT, 800)
+main.text(bx + 23.5, 21.6, "+", 1.9, TXT, 800)
+# the SD recorder (WING-LIVE card): two cards (the module draws them; a click starts / stops), the number of tracks
+SDX = bx + 39.8
+for k in (0, 1):
+    main.area(f"SD{k + 1}", SDX + k * 10.2, 10.0, 8.4, 10.6)
+    main.text(SDX + k * 10.2 + 4.2, 22.4, f"SD {k + 1}", 1.35, DIM, 700, "middle", 0.25)
+TX = SDX + 25.0
+main.text(TX + 2.6, 9.2, "TRACKS", 1.4, DIM, 700, "middle", 0.25)
+for k, lb in enumerate(("8", "16")):
+    main.e(f'<circle cx="{TX + k * 5.2:.2f}" cy="14.6" r="1.35" fill="#0d0e11"/>')
+    main.text(TX + k * 5.2, 19.0, lb, 1.5, TXT, 700, "middle", 0.2)
+main.areas["TRACKS"] = (TX, 14.6, 5.2, 3)  # (first lamp's centre, pitch: a lamp row)
 main.strips()
 main.finish()
 
@@ -282,6 +298,10 @@ for k, p in enumerate((main, xp)):
             img(o, "", x, y, os.path.join(KNOB, "small.svg")) if os.path.exists(os.path.join(KNOB, "small.svg")) else None
         elif kind == "button":
             img(o, "VCVBezel", x, y) if HAVE_CL else o.insert(-1, f'<circle cx="{x}" cy="{y}" r="3" fill="#555"/>')
+            if n.startswith("MUTE") or n.startswith("SOLO"):
+                n0 = len(o)
+                p.text(x, y + 0.75, n[0], 2.1, "#d9dbe2", 800, "middle", 0)
+                o.insert(-1, o.pop(n0))
         elif kind == "fader":
             img(o, "", x, y, os.path.join(tmp, "bg.svg"))
             i = int(re.sub(r"\D", "", n)) - 1
@@ -311,9 +331,32 @@ for k, p in enumerate((main, xp)):
             c = "#ff4f4f" if s >= 10 else ("#ffc24d" if s >= 8 else "#5dff8a")
             o.insert(-1, f'<rect x="{x + 0.15:.2f}" y="{y + h - (s + 1) * seg + 0.3:.2f}" width="0.9" height="{seg - 0.6:.2f}" '
                          f'rx="0.2" fill="{c if s < lit else "#2a2b33"}"/>')
+    if k == 0:
+        for c in (0, 1):
+            x, y, w, h = p.areas[f"SD{c + 1}"]
+            rec = c == 0
+            o.insert(-1, f'<path d="M{x} {y + 0.6} q0 -0.6 0.6 -0.6 h{w - 3.2} l2.6 2.6 v{h - 3.2} q0 0.6 -0.6 0.6 h{-(w - 1.2)} '
+                         f'q-0.6 0 -0.6 -0.6 z" fill="#2a2c33" stroke="{"#ff4f4f" if rec else "#4a4c57"}" stroke-width="0.35"/>')
+            for q in range(4):
+                o.insert(-1, f'<rect x="{x + 1.0 + q * 1.35:.2f}" y="{y + 1.0}" width="0.9" height="1.8" rx="0.2" fill="#4a4c57"/>')
+            o.insert(-1, f'<circle cx="{x + w / 2:.2f}" cy="{y + 6.0}" r="1.7" fill="{"#ff4f4f" if rec else "#3a3c44"}"/>')
+            n0 = len(o)
+            p.text(x + w / 2, y + 9.6, "12:04" if rec else "3:05 h", 1.25, "#ff4f4f" if rec else TXT, 700, "middle", 0.1)
+            o.insert(-1, o.pop(n0))
+        x, y, w, h = p.areas["STEP"]
+        n0 = len(o)
+        p.text(x + w / 2, y + 4.4, "1", 3.0, "#ffffff", 800, "middle", 0)
+        o.insert(-1, o.pop(n0))
+        tx, ty, dx, _ = p.areas["TRACKS"]
+        o.insert(-1, f'<circle cx="{tx}" cy="{ty}" r="1.35" fill="{ACC}"/>')
+    for b in (1, 2):
+        x, y, w, h = p.areas[f"BUSLBL{b}"]
+        n0 = len(o)
+        p.text(x + w, y + 1.8, f"› BUS {b}", 1.3, ACC, 700, "end", 0.15)
+        o.insert(-1, o.pop(n0))
     x, y, w, h = p.areas["DISPLAY"]
-    lines = ([("CH 33–40  +  41–48", 3.4, "#ffffff", 800, 4.6), ("● WING  ·  MIDI OK  ·  SYSEX OK", 1.6, "#b8f23a", 700, 8.1),
-              ("USB 1–16  ·  AUDIO ASIO WING  ·  48 kHz", 1.5, DIM, 600, 10.2)] if k == 0 else
+    lines = ([("CH 33–40  +  41–48", 3.4, "#ffffff", 800, 4.6), ("● WING · MIDI OK · SYSEX OK · SD1 REC", 1.6, "#b8f23a", 700, 8.1),
+              ("AUDIO → USB 33–48 · ASIO WING · 48 kHz", 1.5, DIM, 600, 10.2)] if k == 0 else
              [("CH 41–48 = AUX 1–8", 3.4, "#ffffff", 800, 4.6), ("● LINKED TO WING-LINK", 1.6, ACC, 700, 8.1),
               ("USB 9–16", 1.5, DIM, 600, 10.2)])
     for s, sz, c, wt, dy in lines:

@@ -32,6 +32,7 @@ inline int oid(int j, int k) { return j * NCO + k; }
 // ---------------------------------------------------------------- WING-FX's parameters
 enum FxField { FON, FMIX, FP1, FP2, FP3, FP4, NFX };
 static const int FMODEL = 100;  // (a query: the model)
+static const int FTIME = 101;   // (a query: the delay time, for the tempo)
 inline int fxPid(int j, int f) { return j * NFX + f; }
 inline int fxCv(int j, int k) { return j * 5 + k; }  // k: 0 MIX, 1..4 P1..P4
 
@@ -49,6 +50,7 @@ struct Strip {
 	std::string name;
 	int colour = 0;  // 1..12, 0 = not set
 	int icon = -1;   // −1 = not set
+	std::atomic<int> tType{0}, tNum{0};  // what it controls: T_NONE = AUTO (follows START CH), else a fixed one
 	bool metaDirty = false;
 	float metaWait = 0.f;
 };
@@ -59,6 +61,7 @@ struct FxSlot {
 	Sync f[NFX];                // knob positions (0..1); ON 0 / 1
 	float val[NFX] = {};        // the last known positions
 	bool known[NFX] = {};
+	float timeMs = NAN;         // the delay time on the WING (models with a TIME), for the tempo
 };
 
 struct WingLink;
@@ -86,9 +89,13 @@ struct WingFx : Satellite {
 	enum InputId { CLOCK_INPUT = NPAGE * 5, NUM_INPUTS };
 	enum OutputId { CLOCK_OUTPUT, NUM_OUTPUTS };
 	enum LightId { ON_LIGHT, SYNC_LIGHT = ON_LIGHT + NPAGE, TAP_LIGHT, NUM_LIGHTS };
-	std::atomic<int> page{0};       // FX 1–4, 5–8, 9–12, 13–16
+	std::atomic<int> first{0};      // the first slot shown (0..12)
+	std::atomic<int> slotStep{4};   // SLOTS − / + move by 1 or 4
 	std::atomic<int> ppqIn{4}, ppqOut{4};  // clock pulses per quarter note (4 = 16ths)
+	std::atomic<int> choice[wingfx::NUM_MODELS][4];  // per effect: the parameter on each knob (index into all, −1: default)
+	std::atomic<bool> refresh{false};  // (a knob got another parameter: show it, ask the WING)
 	WingFx();
+	const wingfx::Param* knob(int model, int k) { return wingfx::knobParam(wingfx::MODELS[model], k, choice[model][k]); }
 	bool dockLeft() override { return false; }
 	json_t* dataToJson() override;
 	void dataFromJson(json_t* root) override;
@@ -99,6 +106,7 @@ void linkPanels(Satellite* s);
 void appendLinkMenu(Menu* menu, Satellite* s);
 void addScrews(ModuleWidget* w);
 FxSlot* hostFx(WingLink* h, int slot);
+int hostFxBus(WingLink* h, int k);
 void requestFxModel(WingLink* h, int slot, int model);
 float hostRackBpm(WingLink* h);
 float hostWingBpm(WingLink* h, int* slot);

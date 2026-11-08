@@ -16,14 +16,72 @@ struct Model {
 	const char* mdl;    // the value of /fx/N/mdl
 	const char* name;
 	bool premium;      // only on FX 1–8
-	int nShow;         // the parameters on the panel (≤ 4)
-	Param show[4];
-	int timeParam;     // the one that follows the tempo (TIME in ms), −1: none
+	int nAll;
+	const Param* all;  // every parameter that turns (a knob can take any of them)
+	int nShow;         // the parameters on the panel by default (≤ 4)
+	int show[4];       // (indices into all)
+	int timeParam;     // the one that follows the tempo (TIME in ms, index into all), −1: none
 	int nKeys;
 	const char* const* keys;  // all its parameters in order: CC parameter n = keys[n − 1]
 };
 
+static const char* const L_V_REV_7[] = {"FRONT", "REAR", nullptr};
+static const char* const L_DIMCRS_4[] = {"MONO", "STEREO", nullptr};
+static const char* const L_ST_DL_1[] = {"ST", "X", "M", nullptr};
+static const char* const L_ST_DL_2[] = {"1/4", "1/3", "1/2", "2/3", "3/4", "1", "3/8", "5/4", "4/3", "3/2", "2", nullptr};
+static const char* const L_ST_DL_3[] = {"1/2:1", "2/3:1", "3/4:1", "7/8:1", "1:1", "1:9/8", "1:5/4", "1:4/3", "1:3/2", nullptr};
+static const char* const L_TAP_DL_2[] = {"1/3", "1/2", "2/3", "3/4", "1", "5/4", "4/3", "3/2", "2", nullptr};
+static const char* const L_TAP_DL_4[] = {"MOVE", "JUMP", "FOCUS", "SPREAD", nullptr};
+static const char* const L_VSS3_0[] = {"Build", "Small Booth", "Home Room", "Dialog Alley", "Small Wood Room", "A Small Room", "Intimate Studio", "Small Room", "Tight &amp; Natural", "Room Conversation", "Furnished Room 2", "Studio 20x20 ft", "Drew Room", "Piano Close", "Clear Guitar Room", "Wide Ambient Chamber", "Small Dense Hall", "Slap Hall", "Acoustic Gtr Ambience", "Clear Room", "Livingroom", "Band Rehearsal Room", "The Studio", "In The Room", "Studio 40x40 ft", "Hit Room", "Ambient Hall", "Stage and Hall", "Acoustic Guitar Space", "Medium Vocal Hall", "Bright Theatre", "Big Empty Club", "Venue Warm 1", "Concert 1", "Bright Guitar Hall", "Concert Arena", "Concert Piano", "Piano Hall 1st Row", "Empty Arena", "Ballad Vocal Hall", "Grand Vocal Hall", "Large Warm Hall", "Back There", "WoodHall", "Church", "Sound Col", "5000 Hall", "Cathedral", "Large Church", "Medium Church", "Warm Cathedral", "Cologne Cathedral", "Drum Plate Stuff", "Drum Wood Plate", "Piano Plate", "Stairway Plate", "Slapback Plate", "Ambient Plate", "Silky Gold Plate", "Gold Plate", "EMT 141", "Leader Of The Band", "VocalDry", "Vocal Room", "VocalWet", "Slapback Vox 1", "Vocal Hall 1", "Vocal Chamber", "Bright Male Vox", "Vocal Bright", "Vocal Deep", "Vocal Female", "Vocal Deep Male", "Large Vocal Hall", "Kick &amp; Bass Ambience", "Drum Room", "Small Perc Room", "Drum Room Xpander", "Bright Shoe Gaze Snare", "Snare Room Bright", "Tom-Tom Reverb", "Bossa Nova Perc Room", "Hard Drum Space", "Puk Drum Ambience", "Overhead Mics", "Dance Snare", "Drum Perc Soft 1", "Perc Straight Tail", "Store Room", "Studio Small", "The Alley", "Near The Wall", "WoodFlr", "Large Office", "Conference Room", "Dance Studio", "Forest 2", "StoneWall", "Venue 1", "Small Stairway", "Forest 1", "Airport PA", "Small Tower Hall", "On The Street", "Dark Tunnel", "Empty Nightclub", "Parking Garage", "Parking Distant", "Long Swimmingpool", nullptr};
+static const char* const L_VSS3_3[] = {"ROYAL", "THEATRE", "CHURCH", "GAS", "CONCERT", "ROYAL2", "V1-NEAR", "V2-HARD", "V3-SPREAD", "V4-BUILD", "V5-RANDOM", "SLAP", "CAR", "PHONEBTH", "BATHROOM", "CONFRM9", "CONFRM30", "GARAGE", "SWIMSTDM", "AIRPORT", "STREET", "ALLEY", "PIAZA", "FOREST", nullptr};
+static const char* const L_VSS3_4[] = {"SML", "MED", "LRG", nullptr};
+static const char* const L_VSS3_5[] = {"NEAR", "DIST", nullptr};
+static const char* const L_VSS3_10[] = {"SMOOTH", "NATURAL", "ALIVE", "FAST", "X-WIDE", "ALIVE2", nullptr};
+static const char* const L_VSS3_11[] = {"NARROW", "NORMAL", "WIDE", "X-WIDE", nullptr};
+static const char* const L_VSS3_27[] = {"A", "B", "C", "D", "E", "F", nullptr};
+static const char* const L_GEQ_0[] = {"STD", "TRU", nullptr};
+static const char* const L_DOUBLE_0[] = {"TIGHT", "LOOSE", "GROUP", "DETUNE", "THICK", nullptr};
+static const char* const L_DE_S2_4[] = {"FEMALE", "MALE", nullptr};
+static const char* const L_DE_S2_5[] = {"STEREO", "MID/SIDE", nullptr};
 static const char* const L_ROTARY_0[] = {"STOP", "SLOW", "FAST", nullptr};
+static const char* const L_MOOD_1[] = {"LP", "HP", "BP", "NOTCH", nullptr};
+static const char* const L_MOOD_2[] = {"12", "24", nullptr};
+static const char* const L_MOOD_11[] = {"TRI", "SIN", "SAW+", "SAW-", "RMP", "SQU", "RND", nullptr};
+static const char* const L_SUB_0[] = {"LOW", "MID", "HIGH", nullptr};
+static const char* const L_E88_3[] = {"LOW", "HIGH", nullptr};
+static const char* const L_E88_4[] = {"BELL", "SHELV", nullptr};
+static const char* const L_E88_13[] = {"LOW", "HIG", nullptr};
+static const char* const L_E88_14[] = {"BELL", "SHELV", nullptr};
+static const char* const L_E84_2[] = {"OFF", "35", "60", "110", "220", nullptr};
+static const char* const L_E84_4[] = {"OFF", "350", "700", "1k6", "3k2", "4k8", "7k2", nullptr};
+static const char* const L_E84_6[] = {"LOW", "HIGH", nullptr};
+static const char* const L_E84_7[] = {"10k", "12k", "16k", "OFF", nullptr};
+static const char* const L_F110_10[] = {"33", "56", "95", "160", "270", "460", nullptr};
+static const char* const L_F110_12[] = {"3k3", "4k7", "6k8", "10k", "15k", "18k", nullptr};
+static const char* const L_PULSAR_4[] = {"20", "30", "60", "100", nullptr};
+static const char* const L_PULSAR_7[] = {"3k", "4k", "5k", "8k", "10k", "12k", "16k", nullptr};
+static const char* const L_PULSAR_9[] = {"5k", "10k", "20k", nullptr};
+static const char* const L_PULSAR_11[] = {"200", "300", "500", "700", "1k", nullptr};
+static const char* const L_PULSAR_13[] = {"200", "300", "500", "700", "1k", "1k5", "2k", "3k", "4k", "5k", "7k", nullptr};
+static const char* const L_PULSAR_15[] = {"1k5", "2k", "3k", "4k", "5k", nullptr};
+static const char* const L_MACH4_7[] = {"OFF", "2k5", "5k", "10k", "20k", "40k", nullptr};
+static const char* const L_C5_CMB_2[] = {"1.1", "1.2", "1.3", "1.5", "1.7", "2.0", "2.5", "3.0", "3.5", "4.0", "5.0", "7.0", "10.0", "100.0", nullptr};
+static const char* const L_C5_CMB_3[] = {"24", "48", nullptr};
+static const char* const L_V_IMG_2[] = {"K", "VELVET", nullptr};
+static const char* const L_SPKMAN_1[] = {"FLAT", "BW6", "BW12", "BS12", "LR12", "BW18", "BW24", "BS24", "LR24", "BW48", "LR48", nullptr};
+static const char* const L_SPKMAN_3[] = {"FLAT", "BW6", "BW12", "BS12", "LR12", "BW18", "BW24", "BS24", "LR24", "BW48", "LR48", nullptr};
+static const char* const L_SPKMAN_12[] = {"1.20", "1.30", "1.50", "2.00", "3.00", "5.00", "10.00", nullptr};
+static const char* const L_SPKMAN_15[] = {"OFF", "BP", "LP6", "LP12", "HP6", "HP12", nullptr};
+static const char* const L_SPKMAN_19[] = {"low", "high", nullptr};
+static const char* const L_DEQ3_1[] = {"1.20", "1.30", "1.50", "2.00", "3.00", "5.00", "10.00", nullptr};
+static const char* const L_DEQ3_4[] = {"OFF", "BP", "LP6", "LP12", "HP6", "HP12", nullptr};
+static const char* const L_DEQ3_8[] = {"low", "high", nullptr};
+static const char* const L_DEQ3_10[] = {"1.20", "1.30", "1.50", "2.00", "3.00", "5.00", "10.00", nullptr};
+static const char* const L_DEQ3_13[] = {"OFF", "BP", "LP6", "LP12", "HP6", "HP12", nullptr};
+static const char* const L_DEQ3_17[] = {"low", "high", nullptr};
+static const char* const L_DEQ3_19[] = {"1.20", "1.30", "1.50", "2.00", "3.00", "5.00", "10.00", nullptr};
+static const char* const L_DEQ3_22[] = {"OFF", "BP", "LP6", "LP12", "HP6", "HP12", nullptr};
+static const char* const L_DEQ3_26[] = {"low", "high", nullptr};
 static const char* const K_HALL[] = {"pdel", "size", "dcy", "mult", "damp", "lc", "hc", "shp", "sprd", "diff", "mspd"};
 static const char* const K_ROOM[] = {"pdel", "size", "dcy", "mult", "damp", "lc", "hc", "shp", "sprd", "diff", "spin", "ecl", "ecr", "efl", "efr"};
 static const char* const K_CHAMBER[] = {"pdel", "size", "dcy", "mult", "damp", "lc", "hc", "shp", "sprd", "diff", "spin", "ecl", "ecr", "ell", "elr"};
@@ -82,67 +140,803 @@ static const char* const K_SUB_M[] = {"mix", "freq", "bd1", "bd2", "bd3", "bd4",
 static const char* const K_V_IMG[] = {"wid", "st", "gain", "mode", "deep"};
 static const char* const K_SPKMAN[] = {"hpf", "hptype", "lpf", "lptype", "tiltf", "tiltg", "phase", "invert ", "dist", "pos", "dyneq", "dynthr", "deqratio", "deqatt", "deqrel", "deqfilt", "deqg", "deqf", "deqq", "deqmode", "lim", "limthr", "limrms", "limrel"};
 static const char* const K_DEQ3[] = {"1-thr", "1-ratio", "1-att", "1-rel", "1-filt", "1-g", "1-f", "1-q", "1-mode", "2-thr", "2-ratio", "2-att", "2-rel", "2-filt", "2-g", "2-f", "2-q", "2-mode", "3-thr", "3-ratio", "3-att", "3-rel", "3-filt", "3-g", "3-f", "3-q", "3-mode"};
+static const Param A_HALL[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", INT, 0.0f, 100.0f, "", nullptr},
+	{"dcy", "DECAY", LOG, 0.2f, 5.0f, "s", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"shp", "SHP", LIN, 0.0f, 50.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 50.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 1.0f, 30.0f, "", nullptr},
+	{"mspd", "MSPD", INT, 0.0f, 100.0f, "", nullptr}
+};
+static const Param A_ROOM[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", LIN, 4.0f, 76.0f, "m", nullptr},
+	{"dcy", "DECAY", LOG, 0.3f, 25.0f, "s", nullptr},
+	{"mult", "MULT", LOG, 0.25f, 4.0f, "", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"shp", "SHP", LIN, 0.0f, 250.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 50.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 0.0f, 100.0f, "", nullptr},
+	{"spin", "SPIN", INT, 0.0f, 100.0f, "", nullptr},
+	{"ecl", "ECL", LIN, 0.0f, 1200.0f, "ms", nullptr},
+	{"ecr", "ECR", LIN, 0.0f, 1200.0f, "ms", nullptr},
+	{"efl", "EFL", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"efr", "EFR", LIN, -100.0f, 100.0f, "%", nullptr}
+};
+static const Param A_CHAMBER[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", LIN, 4.0f, 76.0f, "m", nullptr},
+	{"dcy", "DECAY", LOG, 0.3f, 25.0f, "s", nullptr},
+	{"mult", "MULT", LOG, 0.25f, 4.0f, "", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"shp", "SHP", LIN, 0.0f, 250.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 50.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 0.0f, 100.0f, "", nullptr},
+	{"spin", "SPIN", INT, 0.0f, 100.0f, "", nullptr},
+	{"ecl", "ECL", LIN, 0.0f, 300.0f, "ms", nullptr},
+	{"ecr", "ECR", LIN, 0.0f, 300.0f, "ms", nullptr},
+	{"ell", "ELL", FADER, -144.f, 10.f, "dB", nullptr},
+	{"elr", "ELR", FADER, -144.f, 10.f, "dB", nullptr}
+};
+static const Param A_PLATE[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", LIN, 4.0f, 76.0f, "m", nullptr},
+	{"dcy", "DECAY", LOG, 0.3f, 25.0f, "s", nullptr},
+	{"mult", "MULT", LOG, 0.25f, 4.0f, "", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"att", "ATTACK", LIN, 0.0f, 100.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 50.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 0.0f, 100.0f, "", nullptr},
+	{"spin", "SPIN", INT, 0.0f, 100.0f, "", nullptr},
+	{"ecl", "ECL", LIN, 0.0f, 1200.0f, "ms", nullptr},
+	{"ecr", "ECR", LIN, 0.0f, 1200.0f, "ms", nullptr},
+	{"efl", "EFL", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"efr", "EFR", LIN, -100.0f, 100.0f, "%", nullptr}
+};
+static const Param A_CONCERT[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", LIN, 20.0f, 76.0f, "m", nullptr},
+	{"dcy", "DECAY", LOG, 0.3f, 29.0f, "s", nullptr},
+	{"mult", "MULT", LOG, 0.25f, 4.0f, "", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"shp", "SHP", LIN, 0.0f, 50.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 50.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 1.0f, 16.0f, "", nullptr},
+	{"depth", "DEPTH", INT, 0.0f, 100.0f, "", nullptr},
+	{"rfl", "RFL", LIN, 0.0f, 1200.0f, "ms", nullptr},
+	{"rfr", "RFR", LIN, 0.0f, 1200.0f, "ms", nullptr},
+	{"rfll", "RFLL", FADER, -144.f, 10.f, "dB", nullptr},
+	{"rflr", "RFLR", FADER, -144.f, 10.f, "dB", nullptr},
+	{"spin", "SPIN", INT, 0.0f, 100.0f, "", nullptr},
+	{"crs", "CRS", INT, 1.0f, 100.0f, "", nullptr}
+};
+static const Param A_AMBI[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", LIN, 2.0f, 100.0f, "m", nullptr},
+	{"dcy", "DECAY", LOG, 0.2f, 7.3f, "s", nullptr},
+	{"tail", "TAIL", INT, 0.0f, 100.0f, "", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"diff", "DIFFUSE", INT, 1.0f, 30.0f, "", nullptr},
+	{"mod", "MOD", INT, 1.0f, 100.0f, "", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr}
+};
+static const Param A_V_ROOM[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", INT, 0.0f, 50.0f, "", nullptr},
+	{"dcy", "DECAY", LOG, 0.1f, 20.0f, "s", nullptr},
+	{"dens", "DENSITY", LIN, 1.0f, 30.0f, "", nullptr},
+	{"erlvl", "EARLY", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"lmult", "LO MULT", LOG, 0.1f, 10.0f, "", nullptr},
+	{"hmult", "HMULT", LOG, 0.1f, 10.0f, "", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"frz", "FRZ", INT, 0.0f, 1.0f, "", nullptr},
+	{"erl", "ERL", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"err", "ERR", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"add", "ADD", INT, 0.0f, 1.0f, "", nullptr},
+	{"lvl", "LVL", INT, -6.0f, 101.0f, "dB", nullptr}
+};
+static const Param A_V_REV[] = {
+	{"pdel", "PRE", INT, 0.0f, 120.0f, "ms", nullptr},
+	{"dcy", "DECAY", LIN, 0.4f, 4.5f, "s", nullptr},
+	{"lmult", "LO MULT", LOG, 0.5f, 2.0f, "", nullptr},
+	{"hmult", "HMULT", LOG, 0.25f, 0.67f, "", nullptr},
+	{"mod", "MOD", INT, 0.0f, 100.0f, "", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 5000.0f, 20000.0f, "Hz", nullptr},
+	{"out", "OUT", LIST, 0.f, 1.0f, "", L_V_REV_7},
+	{"trans", "TRANS", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_V_PLATE[] = {
+	{"pdel", "PRE", INT, 0.0f, 250.0f, "ms", nullptr},
+	{"dcy", "DECAY", LIN, 1.0f, 6.0f, "s", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"col", "COLOR", LIN, -20.0f, 20.0f, "", nullptr}
+};
+static const Param A_GATED[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"att", "ATTACK", INT, 4.0f, 30.0f, "", nullptr},
+	{"dcy", "DECAY", LOG, 0.14f, 1.0f, "s", nullptr},
+	{"dens", "DENSITY", INT, 0.0f, 100.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 0.0f, 100.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 50.0f, "", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hfs", "HFS", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"hsg", "HSG", LIN, -30.0f, 0.0f, "dB", nullptr}
+};
+static const Param A_REVERSE[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"rise", "RISE", INT, 4.0f, 50.0f, "", nullptr},
+	{"dcy", "DECAY", LOG, 0.14f, 1.0f, "s", nullptr},
+	{"diff", "DIFFUSE", INT, 0.0f, 30.0f, "", nullptr},
+	{"sprd", "SPREAD", INT, 0.0f, 100.0f, "", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hfs", "HFS", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"hsg", "HSG", LIN, -30.0f, 0.0f, "dB", nullptr}
+};
+static const Param A_DEL_REV[] = {
+	{"time", "TIME", LIN, 0.0f, 3000.0f, "ms", nullptr},
+	{"feed", "FEEDBACK", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"fhc", "FB HICUT", LOG, 200.0f, 2000.0f, "Hz", nullptr},
+	{"dly", "DELAY", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"d2r", "DLY>REV", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", INT, 2.0f, 100.0f, "", nullptr},
+	{"dcy", "DECAY", LOG, 0.1f, 5.0f, "s", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"rlc", "RLC", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"i2r", "I2R", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_SHIMMER[] = {
+	{"pdel", "PRE", INT, 0.0f, 250.0f, "ms", nullptr},
+	{"size", "SIZE", INT, 2.0f, 50.0f, "", nullptr},
+	{"dcy", "DECAY", LOG, 1.0f, 20.0f, "s", nullptr},
+	{"lc", "LO CUT", LOG, 25.0f, 250.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 500.0f, 7000.0f, "Hz", nullptr},
+	{"damp", "DAMP", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"shim", "SHIMMER", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"shine", "SHINE", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_SPRING[] = {
+	{"dcy", "DECAY", LOG, 1.5f, 6.0f, "s", nullptr},
+	{"dens", "DENSITY", LIN, 1.0f, 30.0f, "", nullptr},
+	{"low", "BASS", LIN, 1.0f, 50.0f, "", nullptr},
+	{"high", "TREBLE", LIN, 1.0f, 50.0f, "", nullptr}
+};
+static const Param A_DIMCRS[] = {
+	{"sw1", "SW1", INT, 0.0f, 1.0f, "", nullptr},
+	{"sw2", "SW2", INT, 0.0f, 1.0f, "", nullptr},
+	{"sw3", "SW3", INT, 0.0f, 1.0f, "", nullptr},
+	{"sw4", "SW4", INT, 0.0f, 1.0f, "", nullptr},
+	{"in", "IN", LIST, 0.f, 1.0f, "", L_DIMCRS_4},
+	{"drysw", "DRYSW", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_CHORUS[] = {
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"wave", "WAVE", LIN, 0.0f, 100.0f, "", nullptr},
+	{"phase", "PHASE", LIN, 0.0f, 100.0f, "", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"dlyl", "DLYL", LIN, 5.0f, 50.0f, "ms", nullptr},
+	{"dlyr", "DLYR", LIN, 5.0f, 50.0f, "ms", nullptr},
+	{"depl", "DEPTH L", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"depr", "DEPTH R", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"sprd", "SPREAD", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr}
+};
+static const Param A_FLANGER[] = {
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"flc", "FLC", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"fhc", "FB HICUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"dlyl", "DLYL", LIN, 5.0f, 20.0f, "ms", nullptr},
+	{"dlyr", "DLYR", LIN, 5.0f, 20.0f, "ms", nullptr},
+	{"depl", "DEPTH L", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"depr", "DEPTH R", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"phase", "PHASE", LIN, 0.0f, 180.0f, "", nullptr},
+	{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr},
+	{"feed", "FEEDBACK", LIN, -90.0f, 90.0f, "%", nullptr}
+};
+static const Param A_ST_DL[] = {
+	{"time", "TIME", LIN, 1.0f, 3000.0f, "ms", nullptr},
+	{"mode", "MODE", LIST, 0.f, 2.0f, "", L_ST_DL_1},
+	{"fact", "FACT", LIST, 0.f, 10.0f, "", L_ST_DL_2},
+	{"pat", "PAT", LIST, 0.f, 8.0f, "", L_ST_DL_3},
+	{"offset", "OFFSET", INT, -50.0f, 50.0f, "ms", nullptr},
+	{"feed", "FEEDBACK", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"flc", "FLC", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"fhc", "FB HICUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr}
+};
+static const Param A_TAP_DL[] = {
+	{"time", "TIME", LIN, 1.0f, 2000.0f, "ms", nullptr},
+	{"slp", "SLOPE", LIN, -6.0f, 6.0f, "dB", nullptr},
+	{"fact", "FACT", LIST, 0.f, 8.0f, "", L_TAP_DL_2},
+	{"pdel", "PRE", LIN, 0.0f, 500.0f, "ms", nullptr},
+	{"mode", "MODE", LIST, 0.f, 3.0f, "", L_TAP_DL_4},
+	{"wid", "WIDTH", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"diff", "DIFFUSE", LIN, 0.0f, 100.0f, "", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr}
+};
+static const Param A_TAPE_DL[] = {
+	{"time", "TIME", LIN, 60.0f, 650.0f, "ms", nullptr},
+	{"sust", "SUSTAIN", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"drv", "DRIVE", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"wf", "FLUTTER", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_OILCAN[] = {
+	{"time", "TIME", LIN, 0.0f, 10.0f, "", nullptr},
+	{"sust", "SUSTAIN", LIN, 0.0f, 10.0f, "%", nullptr},
+	{"wb", "WOBBLE", LIN, 0.0f, 10.0f, "%", nullptr},
+	{"tone", "TONE", LIN, 0.0f, 10.0f, "%", nullptr}
+};
+static const Param A_BBD_DL[] = {
+	{"dly", "DELAY", LIN, 0.0f, 100.0f, "", nullptr},
+	{"feed", "FEEDBACK", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_PITCH[] = {
+	{"semi", "SEMI", INT, -12.0f, 12.0f, "", nullptr},
+	{"cent", "CENT", INT, -50.0f, 50.0f, "", nullptr},
+	{"dly", "DELAY", LIN, 0.0f, 500.0f, "ms", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_D_PITCH[] = {
+	{"semi1", "SEMI 1", INT, -12.0f, 12.0f, "", nullptr},
+	{"cent1", "CENT1", INT, -50.0f, 50.0f, "", nullptr},
+	{"dly1", "DLY1", LIN, 0.0f, 500.0f, "ms", nullptr},
+	{"pan1", "PAN1", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"lvl1", "LEVEL 1", FADER, -144.f, 10.f, "dB", nullptr},
+	{"semi2", "SEMI 2", INT, -12.0f, 12.0f, "", nullptr},
+	{"cent2", "CENT2", INT, -50.0f, 50.0f, "", nullptr},
+	{"dly2", "DLY2", LIN, 0.0f, 500.0f, "ms", nullptr},
+	{"pan2", "PAN2", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"lvl2", "LEVEL 2", FADER, -144.f, 10.f, "dB", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr}
+};
+static const Param A_VSS3[] = {
+	{"preset", "PRESET", LIST, 0.f, 108.0f, "", L_VSS3_0},
+	{"load", "LOAD", INT, 0.0f, 1.0f, "", nullptr},
+	{"erpdly", "ERPDLY", LIN, 0.0f, 100.0f, "ms", nullptr},
+	{"ertype", "ERTYPE", LIST, 0.f, 23.0f, "", L_VSS3_3},
+	{"ersize", "ERSIZE", LIST, 0.f, 2.0f, "", L_VSS3_4},
+	{"erpos", "ERPOS", LIST, 0.f, 1.0f, "", L_VSS3_5},
+	{"erbal", "ERBAL", LIN, -100.0f, 100.0f, "", nullptr},
+	{"erlc", "ERLC", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"ercol", "ERCOL", LIN, -40.0f, 40.0f, "", nullptr},
+	{"erlvl", "EARLY", FADER, -144.f, 10.f, "dB", nullptr},
+	{"rvtype", "RVTYPE", LIST, 0.f, 5.0f, "", L_VSS3_10},
+	{"rvwide", "RVWIDE", LIST, 0.f, 3.0f, "", L_VSS3_11},
+	{"rvpdly", "PRE", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"dcy", "DECAY", LIN, 0.1f, 20.0f, "s", nullptr},
+	{"diff", "DIFFUSE", LIN, -50.0f, 50.0f, "", nullptr},
+	{"rvbal", "RVBAL", LIN, -100.0f, 100.0f, "", nullptr},
+	{"rvlvl", "RVLVL", FADER, -144.f, 10.f, "dB", nullptr},
+	{"ldcy", "LDCY", LIN, 0.1f, 2.5f, "", nullptr},
+	{"lmdcy", "LMDCY", LIN, 0.1f, 2.5f, "", nullptr},
+	{"hmdcy", "HMDCY", LIN, 0.1f, 2.5f, "", nullptr},
+	{"hdcy", "HDCY", LIN, 0.1f, 2.5f, "", nullptr},
+	{"hsoft", "HSOFT", LIN, -50.0f, 50.0f, "", nullptr},
+	{"lxo", "LXO", LOG, 20.0f, 500.0f, "Hz", nullptr},
+	{"mxo", "MXO", LOG, 200.0f, 2000.0f, "Hz", nullptr},
+	{"hxo", "HXO", LOG, 500.0f, 20000.0f, "Hz", nullptr},
+	{"lshv", "LSHV", LOG, 20.0f, 200.0f, "Hz", nullptr},
+	{"hcut", "HCUT", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"mtype", "MTYPE", LIST, 0.f, 5.0f, "", L_VSS3_27},
+	{"mrate", "MRATE", LIN, -100.0f, 100.0f, "", nullptr},
+	{"mwid", "MWID", LIN, 0.0f, 200.0f, "", nullptr},
+	{"view", "VIEW", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_BPLATE[] = {
+	{"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr},
+	{"size", "SIZE", INT, 0.0f, 100.0f, "ms", nullptr},
+	{"dcy", "DECAY", LOG, 0.2f, 5.0f, "s", nullptr},
+	{"mult", "MULT", LOG, 0.5f, 2.0f, "", nullptr},
+	{"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr},
+	{"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr},
+	{"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr},
+	{"xover", "XOVER", LOG, 20.0f, 500.0f, "Hz", nullptr},
+	{"mdep", "MDEP", LIN, 1.0f, 50.0f, "", nullptr},
+	{"msdp", "MSDP", INT, 0.0f, 100.0f, "", nullptr},
+	{"diff", "DIFFUSE", INT, 1.0f, 30.0f, "", nullptr}
+};
+static const Param A_GEQ[] = {
+	{"type", "TYPE", LIST, 0.f, 1.0f, "", L_GEQ_0},
+	{"20", "20", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"25", "25", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"31", "31", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"40", "40", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"50", "50", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"63", "63", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"80", "80", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"100", "100", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"125", "125", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"160", "160", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"200", "200", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"250", "250", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"315", "315", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"400", "400", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"500", "500", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"630", "630", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"800", "800", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"1k", "1K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"1k25", "1K25", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"1k6", "1K6", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"2k", "2K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"2k5", "2K5", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"3k15", "3K15", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"4k", "4K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"5k", "5K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"6k3", "6K3", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"8k", "8K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"10k", "10K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"12k5", "12K5", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"16k", "16K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"20k", "20K", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"TRIM", "TRIM", LIN, -15.0f, 15.0f, "dB", nullptr}
+};
+static const Param A_PIA[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"gain", "GAIN", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"31", "31", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"63", "63", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"125", "125", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"250", "250", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"500", "500", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"1k", "1K", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"2k", "2K", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"4k", "4K", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"8k", "8K", LIN, -12.0f, 12.0f, "dB", nullptr},
+	{"16k", "16K", LIN, -12.0f, 12.0f, "dB", nullptr}
+};
+static const Param A_DOUBLE[] = {
+	{"mode", "MODE", LIST, 0.f, 4.0f, "", L_DOUBLE_0},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"sprd", "SPREAD", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_PCORR[] = {
+	{"spd", "SPEED", LIN, 1.0f, 100.0f, "", nullptr},
+	{"amnt", "AMOUNT", LIN, 0.0f, 50.0f, "", nullptr},
+	{"a4", "A4", LIN, 410.0f, 470.0f, "", nullptr},
+	{"_c", "_C", INT, 0.0f, 1.0f, "", nullptr},
+	{"_db", "_DB", INT, 0.0f, 1.0f, "", nullptr},
+	{"_d", "_D", INT, 0.0f, 1.0f, "", nullptr},
+	{"_eb", "_EB", INT, 0.0f, 1.0f, "", nullptr},
+	{"_e", "_E", INT, 0.0f, 1.0f, "", nullptr},
+	{"_f", "_F", INT, 0.0f, 1.0f, "", nullptr},
+	{"_gb", "_GB", INT, 0.0f, 1.0f, "", nullptr},
+	{"_g", "_G", INT, 0.0f, 1.0f, "", nullptr},
+	{"_ab", "_AB", INT, 0.0f, 1.0f, "", nullptr},
+	{"_a", "_A", INT, 0.0f, 1.0f, "", nullptr},
+	{"_bb", "_BB", INT, 0.0f, 1.0f, "", nullptr},
+	{"_b", "_B", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_LIMITER[] = {
+	{"gin", "IN", LIN, 0.0f, 18.0f, "dB", nullptr},
+	{"gout", "OUT", LIN, -18.0f, 0.0f, "", nullptr},
+	{"sqz", "SQZ", INT, 0.0f, 100.0f, "", nullptr},
+	{"knee", "KNEE", INT, 0.0f, 10.0f, "", nullptr},
+	{"again", "AGAIN", INT, 0.0f, 1.0f, "", nullptr},
+	{"att", "ATTACK", LIN, 0.05f, 1.0f, "ms", nullptr},
+	{"rel", "RELEASE", LOG, 20.0f, 2000.0f, "ms", nullptr}
+};
+static const Param A_DE_S2[] = {
+	{"lo", "LO", LIN, 0.0f, 50.0f, "", nullptr},
+	{"hi", "HI", LIN, 0.0f, 50.0f, "", nullptr},
+	{"los", "LOS", LIN, 0.0f, 50.0f, "", nullptr},
+	{"his", "HIS", LIN, 0.0f, 50.0f, "", nullptr},
+	{"gdr", "GDR", LIST, 0.f, 1.0f, "", L_DE_S2_4},
+	{"mode", "MODE", LIST, 0.f, 1.0f, "", L_DE_S2_5}
+};
+static const Param A_ENHANCE[] = {
+	{"stlv", "STLV", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"lmf", "LMF", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"lmvl", "LMVL", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"st", "ST", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"m", "M", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"bass", "BASS", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"mid", "MID", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"high", "TREBLE", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"g", "GAIN", LIN, -112.0f, 12.0f, "dB", nullptr},
+	{"solo", "SOLO", INT, 0.0f, 1.0f, "", nullptr},
+	{"bassf", "BASSF", LIN, 1.0f, 50.0f, "", nullptr},
+	{"midq", "MIDQ", LIN, 1.0f, 50.0f, "", nullptr},
+	{"highf", "HIGHF", LIN, 1.0f, 50.0f, "", nullptr}
+};
+static const Param A_EXCITER[] = {
+	{"tune", "TUNE", LOG, 1000.0f, 10000.0f, "Hz", nullptr},
+	{"peak", "PEAK", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"zfill", "ZFILL", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"timbre", "TIMBRE", LIN, -50.0f, 50.0f, "", nullptr},
+	{"harm", "HARM", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"dry", "DRY", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_P_BASS[] = {
+	{"int", "INTENS", LIN, -24.0f, 6.0f, "dB", nullptr},
+	{"bass", "BASS", LIN, -60.0f, 0.0f, "dB", nullptr},
+	{"solo", "SOLO", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_ROTARY[] = {
+	{"sw", "SPEED", LIST, 0.f, 2.0f, "", L_ROTARY_0},
+	{"lo", "LO", LOG, 0.1f, 3.999f, "Hz", nullptr},
+	{"hi", "HI", LOG, 4.0f, 10.0f, "Hz", nullptr},
+	{"bal", "BALANCE", LIN, -100.0f, 100.0f, "", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"dist", "DIST", LIN, 0.0f, 100.0f, "", nullptr},
+	{"dac", "DAC", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"hac", "HAC", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_PHASER[] = {
+	{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr},
+	{"phase", "PHASE", INT, 0.0f, 180.0f, "", nullptr},
+	{"wave", "WAVE", INT, -50.0f, 50.0f, "", nullptr},
+	{"range", "RANGE", INT, 2.0f, 98.0f, "%", nullptr},
+	{"depth", "DEPTH", INT, 0.0f, 100.0f, "%", nullptr},
+	{"emod", "EMOD", INT, -100.0f, 100.0f, "", nullptr},
+	{"att", "ATTACK", LOG, 10.0f, 1000.0f, "ms", nullptr},
+	{"hld", "HLD", LOG, 10.0f, 2000.0f, "ms", nullptr},
+	{"rel", "RELEASE", LOG, 10.0f, 1000.0f, "ms", nullptr},
+	{"mix", "MIX", INT, 0.0f, 100.0f, "%", nullptr},
+	{"stg", "STAGES", INT, 2.0f, 12.0f, "", nullptr},
+	{"reso", "RESO", INT, 0.0f, 80.0f, "%", nullptr}
+};
+static const Param A_PANNER[] = {
+	{"att", "ATTACK", LOG, 10.0f, 1000.0f, "ms", nullptr},
+	{"hld", "HLD", LOG, 10.0f, 2000.0f, "ms", nullptr},
+	{"rel", "RELEASE", LOG, 10.0f, 1000.0f, "ms", nullptr},
+	{"espd", "ESPD", INT, 0.0f, 100.0f, "%", nullptr},
+	{"edep", "EDEP", INT, 0.0f, 100.0f, "%", nullptr},
+	{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr},
+	{"phase", "PHASE", INT, 0.0f, 180.0f, "", nullptr},
+	{"wave", "WAVE", INT, -50.0f, 50.0f, "", nullptr},
+	{"depth", "DEPTH", INT, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_TAPE[] = {
+	{"spd", "SPEED", LOG, 7.5f, 30.0f, "", nullptr},
+	{"low", "BASS", INT, 0.0f, 1.0f, "", nullptr},
+	{"hi", "HI", INT, 0.0f, 1.0f, "", nullptr},
+	{"out", "OUT", LIN, -12.0f, 12.0f, "dB", nullptr}
+};
+static const Param A_MOOD[] = {
+	{"fbase", "FREQ", LOG, 20.0f, 15000.0f, "Hz", nullptr},
+	{"filt", "FILT", LIST, 0.f, 3.0f, "", L_MOOD_1},
+	{"slope", "SLOPE", LIST, 0.f, 1.0f, "", L_MOOD_2},
+	{"reso", "RESO", LIN, 0.0f, 10.0f, "", nullptr},
+	{"drv", "DRIVE", LIN, 0.0f, 10.0f, "", nullptr},
+	{"env", "ENV", LIN, -100.0f, 100.0f, "%", nullptr},
+	{"att", "ATTACK", LOG, 10.0f, 250.0f, "ms", nullptr},
+	{"hld", "HLD", LOG, 1.0f, 500.0f, "ms", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 10.0f, "%", nullptr},
+	{"spd", "SPEED", LOG, 0.05f, 20.0f, "Hz", nullptr},
+	{"phase", "PHASE", INT, 0.0f, 180.0f, "", nullptr},
+	{"wave", "WAVE", LIST, 0.f, 6.0f, "", L_MOOD_11}
+};
+static const Param A_SUB[] = {
+	{"rng", "RANGE", LIST, 0.f, 2.0f, "", L_SUB_0},
+	{"oct1", "OCT 1", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"oct2", "OCT 2", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_RACKAMP[] = {
+	{"pre", "PRE", LIN, 0.0f, 10.0f, "", nullptr},
+	{"buzz", "BUZZ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"punch", "PUNCH", LIN, 0.0f, 10.0f, "", nullptr},
+	{"crunch", "CRUNCH", LIN, 0.0f, 10.0f, "", nullptr},
+	{"out", "OUT", LIN, 0.0f, 10.0f, "", nullptr},
+	{"leq", "LEQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"cab", "CAB", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_UKROCK[] = {
+	{"gain", "GAIN", LIN, 0.0f, 10.0f, "", nullptr},
+	{"bass", "BASS", LIN, 0.0f, 10.0f, "", nullptr},
+	{"mid", "MID", LIN, 0.0f, 10.0f, "", nullptr},
+	{"treb", "TREBLE", LIN, 0.0f, 10.0f, "", nullptr},
+	{"mstr", "MASTER", LIN, 0.0f, 10.0f, "", nullptr},
+	{"out", "OUT", LIN, 0.0f, 10.0f, "", nullptr},
+	{"cab", "CAB", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_ANGEL[] = {
+	{"gain", "GAIN", LIN, 0.0f, 10.0f, "", nullptr},
+	{"bass", "BASS", LIN, 0.0f, 10.0f, "", nullptr},
+	{"mid", "MID", LIN, 0.0f, 10.0f, "", nullptr},
+	{"treb", "TREBLE", LIN, 0.0f, 10.0f, "", nullptr},
+	{"mstr", "MASTER", LIN, 0.0f, 10.0f, "", nullptr},
+	{"out", "OUT", LIN, 0.0f, 10.0f, "", nullptr},
+	{"cab", "CAB", INT, 0.0f, 1.0f, "", nullptr},
+	{"midb", "MIDB", INT, 0.0f, 1.0f, "", nullptr},
+	{"bri", "BRI", INT, 0.0f, 1.0f, "", nullptr},
+	{"bt", "BT", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_JAZZC[] = {
+	{"vol", "VOLUME", LIN, 0.0f, 10.0f, "", nullptr},
+	{"bass", "BASS", LIN, 0.0f, 10.0f, "", nullptr},
+	{"mid", "MID", LIN, 0.0f, 10.0f, "", nullptr},
+	{"treb", "TREBLE", LIN, 0.0f, 10.0f, "", nullptr},
+	{"out", "OUT", LIN, 0.0f, 10.0f, "", nullptr},
+	{"bri", "BRI", INT, 0.0f, 1.0f, "", nullptr},
+	{"cab", "CAB", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_DELUXE[] = {
+	{"vol", "VOLUME", LIN, 1.0f, 10.0f, "", nullptr},
+	{"bass", "BASS", LIN, 1.0f, 10.0f, "", nullptr},
+	{"treb", "TREBLE", LIN, 1.0f, 10.0f, "", nullptr},
+	{"out", "OUT", LIN, 1.0f, 10.0f, "", nullptr},
+	{"sag", "SAG", LIN, 1.0f, 10.0f, "", nullptr},
+	{"cab", "CAB", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_BODY[] = {
+	{"body", "BODY", LIN, 0.0f, 100.0f, "", nullptr}
+};
+static const Param A_SOUL[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"lf", "LO FREQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr},
+	{"lmf", "LMF", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lmf3", "LMF3", INT, 0.0f, 1.0f, "", nullptr},
+	{"lmq", "LMQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lmg", "LMG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"hmf", "HMF", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hmf3", "HMF3", INT, 0.0f, 1.0f, "", nullptr},
+	{"hmq", "HMQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hmg", "HMG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"hf", "HI FREQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hg", "HI GAIN", LIN, -5.0f, 5.0f, "", nullptr}
+};
+static const Param A_E88[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"lf", "LO FREQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr},
+	{"lq", "LQ", LIST, 0.f, 1.0f, "", L_E88_3},
+	{"lt", "LT", LIST, 0.f, 1.0f, "", L_E88_4},
+	{"lmf", "LMF", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lmg", "LMG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"lmq", "LMQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hmf", "HMF", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hmg", "HMG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"hmq", "HMQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hf", "HI FREQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hg", "HI GAIN", LIN, -5.0f, 5.0f, "", nullptr},
+	{"hq", "HQ", LIST, 0.f, 1.0f, "", L_E88_13},
+	{"ht", "HT", LIST, 0.f, 1.0f, "", L_E88_14}
+};
+static const Param A_E84[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"g", "GAIN", LIN, -20.0f, 20.0f, "dB", nullptr},
+	{"lf", "LO FREQ", LIST, 0.f, 4.0f, "", L_E84_2},
+	{"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr},
+	{"mf", "MF", LIST, 0.f, 6.0f, "", L_E84_4},
+	{"mg", "MG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"mq", "MQ", LIST, 0.f, 1.0f, "", L_E84_6},
+	{"hf", "HI FREQ", LIST, 0.f, 3.0f, "", L_E84_7},
+	{"hg", "HI GAIN", LIN, -5.0f, 5.0f, "", nullptr}
+};
+static const Param A_F110[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"peq", "PEQ", INT, 0.0f, 1.0f, "", nullptr},
+	{"lmf", "LMF", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lmg", "LMG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"lmq", "LMQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"lmf3", "LMF3", INT, 0.0f, 1.0f, "", nullptr},
+	{"hmf", "HMF", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hmg", "HMG", LIN, -5.0f, 5.0f, "", nullptr},
+	{"hmq", "HMQ", LIN, 0.0f, 10.0f, "", nullptr},
+	{"hmf3", "HMF3", INT, 0.0f, 1.0f, "", nullptr},
+	{"lf", "LO FREQ", LIST, 0.f, 5.0f, "", L_F110_10},
+	{"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr},
+	{"hf", "HI FREQ", LIST, 0.f, 5.0f, "", L_F110_12},
+	{"hg", "HI GAIN", LIN, -5.0f, 5.0f, "", nullptr},
+	{"g", "GAIN", LIN, -18.0f, 18.0f, "", nullptr}
+};
+static const Param A_PULSAR[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"eq1", "EQ1", INT, 0.0f, 1.0f, "", nullptr},
+	{"1lb", "1LB", LIN, 0.0f, 10.0f, "", nullptr},
+	{"1latt", "1LATT", LIN, 0.0f, 10.0f, "", nullptr},
+	{"1lf", "1LF", LIST, 0.f, 3.0f, "", L_PULSAR_4},
+	{"1hw", "1HW", LIN, 0.0f, 10.0f, "", nullptr},
+	{"1hb", "1HB", LIN, 0.0f, 10.0f, "", nullptr},
+	{"1hf", "1HF", LIST, 0.f, 6.0f, "", L_PULSAR_7},
+	{"1hatt", "1HATT", LIN, 0.0f, 10.0f, "", nullptr},
+	{"1hattf", "1HATTF", LIST, 0.f, 2.0f, "", L_PULSAR_9},
+	{"5lb", "5LB", LIN, 0.0f, 10.0f, "", nullptr},
+	{"5lf", "5LF", LIST, 0.f, 4.0f, "", L_PULSAR_11},
+	{"5md", "5MD", LIN, 0.0f, 10.0f, "", nullptr},
+	{"5mf", "5MF", LIST, 0.f, 10.0f, "", L_PULSAR_13},
+	{"5hb", "5HB", LIN, 0.0f, 10.0f, "", nullptr},
+	{"5hf", "5HF", LIST, 0.f, 4.0f, "", L_PULSAR_15}
+};
+static const Param A_MACH4[] = {
+	{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr},
+	{"sub", "SUB", LIN, -5.0f, 5.0f, "", nullptr},
+	{"40", "40", LIN, -5.0f, 5.0f, "", nullptr},
+	{"160", "160", LIN, -5.0f, 5.0f, "", nullptr},
+	{"650", "650", LIN, -5.0f, 5.0f, "", nullptr},
+	{"2k5", "2K5", LIN, -5.0f, 5.0f, "", nullptr},
+	{"air", "AIR", LIN, 0.0f, 10.0f, "", nullptr},
+	{"airm", "AIRM", LIST, 0.f, 5.0f, "", L_MACH4_7},
+	{"again", "AGAIN", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_C5_CMB[] = {
+	{"thr", "THRESH", LIN, -40.0f, 0.0f, "dB", nullptr},
+	{"gain", "GAIN", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"ratio", "RATIO", LIST, 0.f, 13.0f, "", L_C5_CMB_2},
+	{"slope", "SLOPE", LIST, 0.f, 1.0f, "", L_C5_CMB_3},
+	{"att", "ATTACK", LIN, 0.0f, 20.0f, "", nullptr},
+	{"rel", "RELEASE", LOG, 20.0f, 3000.0f, "ms", nullptr},
+	{"arel", "AREL", INT, 0.0f, 1.0f, "", nullptr},
+	{"sbc", "SBC", LIN, 1.0f, 10.0f, "", nullptr},
+	{"sbcon", "SBCON", INT, 0.0f, 1.0f, "", nullptr},
+	{"thr_1", "THR_1", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"thr_2", "THR_2", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"thr_3", "THR_3", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"thr_4", "THR_4", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"thr_5", "THR_5", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"gain_1", "GAIN_1", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"gain_2", "GAIN_2", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"gain_3", "GAIN_3", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"gain_4", "GAIN_4", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"gain_5", "GAIN_5", LIN, -10.0f, 10.0f, "dB", nullptr},
+	{"byp_1", "BYP_1", INT, 0.0f, 1.0f, "", nullptr},
+	{"byp_2", "BYP_2", INT, 0.0f, 1.0f, "", nullptr},
+	{"byp_3", "BYP_3", INT, 0.0f, 1.0f, "", nullptr},
+	{"byp_4", "BYP_4", INT, 0.0f, 1.0f, "", nullptr},
+	{"byp_5", "BYP_5", INT, 0.0f, 1.0f, "", nullptr},
+	{"width_1", "WIDTH_1", LIN, -50.0f, 50.0f, "", nullptr},
+	{"width_2", "WIDTH_2", LIN, -50.0f, 50.0f, "", nullptr},
+	{"width_3", "WIDTH_3", LIN, -50.0f, 50.0f, "", nullptr},
+	{"width_4", "WIDTH_4", LIN, -50.0f, 50.0f, "", nullptr},
+	{"width_5", "WIDTH_5", LIN, -50.0f, 50.0f, "", nullptr},
+	{"mix", "MIX", LIN, 0.0f, 100.0f, "", nullptr},
+	{"$bdsolo", "$BDSOLO", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_SUB_M[] = {
+	{"freq", "FREQ", LIN, 45.0f, 67.5f, "Hz", nullptr},
+	{"bd1", "BD1", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"bd2", "BD2", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"bd3", "BD3", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"bd4", "BD4", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"bd5", "BD5", LIN, 0.0f, 100.0f, "%", nullptr}
+};
+static const Param A_V_IMG[] = {
+	{"st", "ST", LIN, 0.0f, 100.0f, "%", nullptr},
+	{"gain", "GAIN", LIN, -6.0f, 6.0f, "dB", nullptr},
+	{"mode", "MODE", LIST, 0.f, 1.0f, "", L_V_IMG_2},
+	{"deep", "DEEP", INT, 0.0f, 1.0f, "", nullptr}
+};
+static const Param A_SPKMAN[] = {
+	{"hpf", "HPF", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"hptype", "HPTYPE", LIST, 0.f, 10.0f, "", L_SPKMAN_1},
+	{"lpf", "LPF", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"lptype", "LPTYPE", LIST, 0.f, 10.0f, "", L_SPKMAN_3},
+	{"tiltf", "TILTF", LOG, 100.0f, 10000.0f, "Hz", nullptr},
+	{"tiltg", "TILTG", LIN, -6.0f, 6.0f, "dB", nullptr},
+	{"phase", "PHASE", LIN, 0.0f, 180.0f, "", nullptr},
+	{"invert ", "INVERT ", INT, 0.0f, 1.0f, "", nullptr},
+	{"dist", "DIST", LIN, 0.0f, 5.0f, "", nullptr},
+	{"pos", "POS", LIN, -5.0f, 5.0f, "", nullptr},
+	{"dyneq", "DYNEQ", INT, 0.0f, 1.0f, "", nullptr},
+	{"dynthr", "DYNTHR", LIN, -60.0f, 0.0f, "dB", nullptr},
+	{"deqratio", "DEQRATIO", LIST, 0.f, 6.0f, "", L_SPKMAN_12},
+	{"deqatt", "DEQATT", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"deqrel", "DEQREL", LOG, 20.0f, 4000.0f, "ms", nullptr},
+	{"deqfilt", "DEQFILT", LIST, 0.f, 5.0f, "", L_SPKMAN_15},
+	{"deqg", "DEQG", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"deqf", "DEQF", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"deqq", "DEQQ", LOG, 0.44f, 10.0f, "", nullptr},
+	{"deqmode", "DEQMODE", LIST, 0.f, 1.0f, "", L_SPKMAN_19},
+	{"lim", "LIM", INT, 0.0f, 1.0f, "", nullptr},
+	{"limthr", "LIMTHR", LIN, -24.0f, 0.0f, "dB", nullptr},
+	{"limrms", "LIMRMS", INT, 0.0f, 1.0f, "", nullptr},
+	{"limrel", "LIMREL", LOG, 50.0f, 2000.0f, "ms", nullptr}
+};
+static const Param A_DEQ3[] = {
+	{"1-thr", "1-THR", LIN, -60.0f, 0.0f, "dB", nullptr},
+	{"1-ratio", "1-RATIO", LIST, 0.f, 6.0f, "", L_DEQ3_1},
+	{"1-att", "1-ATT", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"1-rel", "1-REL", LOG, 20.0f, 4000.0f, "ms", nullptr},
+	{"1-filt", "1-FILT", LIST, 0.f, 5.0f, "", L_DEQ3_4},
+	{"1-g", "1-G", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"1-f", "1-F", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"1-q", "1-Q", LOG, 0.44f, 10.0f, "", nullptr},
+	{"1-mode", "1-MODE", LIST, 0.f, 1.0f, "", L_DEQ3_8},
+	{"2-thr", "2-THR", LIN, -60.0f, 0.0f, "dB", nullptr},
+	{"2-ratio", "2-RATIO", LIST, 0.f, 6.0f, "", L_DEQ3_10},
+	{"2-att", "2-ATT", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"2-rel", "2-REL", LOG, 20.0f, 4000.0f, "ms", nullptr},
+	{"2-filt", "2-FILT", LIST, 0.f, 5.0f, "", L_DEQ3_13},
+	{"2-g", "2-G", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"2-f", "2-F", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"2-q", "2-Q", LOG, 0.44f, 10.0f, "", nullptr},
+	{"2-mode", "2-MODE", LIST, 0.f, 1.0f, "", L_DEQ3_17},
+	{"3-thr", "3-THR", LIN, -60.0f, 0.0f, "dB", nullptr},
+	{"3-ratio", "3-RATIO", LIST, 0.f, 6.0f, "", L_DEQ3_19},
+	{"3-att", "3-ATT", LIN, 0.0f, 200.0f, "ms", nullptr},
+	{"3-rel", "3-REL", LOG, 20.0f, 4000.0f, "ms", nullptr},
+	{"3-filt", "3-FILT", LIST, 0.f, 5.0f, "", L_DEQ3_22},
+	{"3-g", "3-G", LIN, -15.0f, 15.0f, "dB", nullptr},
+	{"3-f", "3-F", LOG, 20.0f, 20000.0f, "Hz", nullptr},
+	{"3-q", "3-Q", LOG, 0.44f, 10.0f, "", nullptr},
+	{"3-mode", "3-MODE", LIST, 0.f, 1.0f, "", L_DEQ3_26}
+};
 
 static const Model MODELS[] = {
-	{"NONE", "None", false, 0, {}, -1, 0, nullptr},
-	{"HALL", "Hall Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.2f, 5.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", INT, 0.0f, 100.0f, "", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 11, K_HALL},
-	{"ROOM", "Room Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.3f, 25.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", LIN, 4.0f, 76.0f, "m", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 15, K_ROOM},
-	{"CHAMBER", "Chamber Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.3f, 25.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", LIN, 4.0f, 76.0f, "m", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 15, K_CHAMBER},
-	{"PLATE", "Plate Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.3f, 25.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", LIN, 4.0f, 76.0f, "m", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 15, K_PLATE},
-	{"CONCERT", "Concert Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.3f, 29.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", LIN, 20.0f, 76.0f, "m", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 17, K_CONCERT},
-	{"AMBI", "Ambiance", true, 4, {{"dcy", "DECAY", LOG, 0.2f, 7.3f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", LIN, 2.0f, 100.0f, "m", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 9, K_AMBI},
-	{"V-ROOM", "Vintage Room", true, 4, {{"dcy", "DECAY", LOG, 0.1f, 20.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", INT, 0.0f, 50.0f, "", nullptr}, {"dens", "DENSITY", LIN, 1.0f, 30.0f, "", nullptr}}, -1, 14, K_V_ROOM},
-	{"V-REV", "Vintage Reverb", true, 4, {{"dcy", "DECAY", LIN, 0.4f, 4.5f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 120.0f, "ms", nullptr}, {"lmult", "LO MULT", LOG, 0.5f, 2.0f, "", nullptr}, {"hc", "HI CUT", LOG, 5000.0f, 20000.0f, "Hz", nullptr}}, -1, 9, K_V_REV},
-	{"V-PLATE", "Vintage Plate", true, 4, {{"dcy", "DECAY", LIN, 1.0f, 6.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 250.0f, "ms", nullptr}, {"lc", "LO CUT", LOG, 20.0f, 400.0f, "Hz", nullptr}, {"col", "COLOR", LIN, -20.0f, 20.0f, "", nullptr}}, -1, 4, K_V_PLATE},
-	{"GATED", "Gated Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.14f, 1.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"att", "ATTACK", INT, 4.0f, 30.0f, "", nullptr}, {"dens", "DENSITY", INT, 0.0f, 100.0f, "", nullptr}}, -1, 9, K_GATED},
-	{"REVERSE", "Reverse Reverb", true, 4, {{"dcy", "DECAY", LOG, 0.14f, 1.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"rise", "RISE", INT, 4.0f, 50.0f, "", nullptr}, {"diff", "DIFFUSE", INT, 0.0f, 30.0f, "", nullptr}}, -1, 8, K_REVERSE},
-	{"DEL/REV", "Delay/Reverb", true, 4, {{"time", "TIME", LIN, 0.0f, 3000.0f, "ms", nullptr}, {"feed", "FEEDBACK", LIN, 0.0f, 100.0f, "%", nullptr}, {"dcy", "DECAY", LOG, 0.1f, 5.0f, "s", nullptr}, {"d2r", "DLY>REV", LIN, 0.0f, 100.0f, "%", nullptr}}, 0, 11, K_DEL_REV},
-	{"SHIMMER", "Shimmer Reverb", true, 4, {{"dcy", "DECAY", LOG, 1.0f, 20.0f, "s", nullptr}, {"shim", "SHIMMER", LIN, 0.0f, 100.0f, "%", nullptr}, {"pdel", "PRE", INT, 0.0f, 250.0f, "ms", nullptr}, {"shine", "SHINE", LIN, 0.0f, 100.0f, "%", nullptr}}, -1, 8, K_SHIMMER},
-	{"SPRING", "Spring Reverb", true, 4, {{"dcy", "DECAY", LOG, 1.5f, 6.0f, "s", nullptr}, {"dens", "DENSITY", LIN, 1.0f, 30.0f, "", nullptr}, {"low", "BASS", LIN, 1.0f, 50.0f, "", nullptr}, {"high", "TREBLE", LIN, 1.0f, 50.0f, "", nullptr}}, -1, 4, K_SPRING},
-	{"DIMCRS", "Dimension CRS", true, 4, {{"sw1", "SW1", INT, 0.0f, 1.0f, "", nullptr}, {"sw2", "SW2", INT, 0.0f, 1.0f, "", nullptr}, {"sw3", "SW3", INT, 0.0f, 1.0f, "", nullptr}, {"sw4", "SW4", INT, 0.0f, 1.0f, "", nullptr}}, -1, 6, K_DIMCRS},
-	{"CHORUS", "Stereo Chorus", true, 4, {{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr}, {"depl", "DEPTH L", LIN, 0.0f, 100.0f, "%", nullptr}, {"depr", "DEPTH R", LIN, 0.0f, 100.0f, "%", nullptr}, {"sprd", "SPREAD", LIN, 0.0f, 100.0f, "%", nullptr}}, -1, 11, K_CHORUS},
-	{"FLANGER", "Stereo Flanger", true, 4, {{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr}, {"depl", "DEPTH L", LIN, 0.0f, 100.0f, "%", nullptr}, {"feed", "FEEDBACK", LIN, -90.0f, 90.0f, "%", nullptr}, {"phase", "PHASE", LIN, 0.0f, 180.0f, "", nullptr}}, -1, 12, K_FLANGER},
-	{"ST-DL", "Stereo Delay", true, 4, {{"time", "TIME", LIN, 1.0f, 3000.0f, "ms", nullptr}, {"feed", "FEEDBACK", LIN, 0.0f, 100.0f, "%", nullptr}, {"fhc", "FB HICUT", LOG, 200.0f, 20000.0f, "Hz", nullptr}, {"hc", "HI CUT", LOG, 200.0f, 20000.0f, "Hz", nullptr}}, 0, 10, K_ST_DL},
-	{"TAP-DL", "UltraTap Delay", true, 3, {{"time", "TIME", LIN, 1.0f, 2000.0f, "ms", nullptr}, {"slp", "SLOPE", LIN, -6.0f, 6.0f, "dB", nullptr}, {"diff", "DIFFUSE", LIN, 0.0f, 100.0f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, 0, 10, K_TAP_DL},
-	{"TAPE-DL", "Tape Delay", true, 4, {{"time", "TIME", LIN, 60.0f, 650.0f, "ms", nullptr}, {"sust", "SUSTAIN", LIN, 0.0f, 100.0f, "%", nullptr}, {"drv", "DRIVE", LIN, 0.0f, 100.0f, "%", nullptr}, {"wf", "FLUTTER", LIN, 0.0f, 100.0f, "%", nullptr}}, 0, 4, K_TAPE_DL},
-	{"OILCAN", "OilCan Delay", true, 4, {{"time", "TIME", LIN, 0.0f, 10.0f, "", nullptr}, {"sust", "SUSTAIN", LIN, 0.0f, 10.0f, "%", nullptr}, {"wb", "WOBBLE", LIN, 0.0f, 10.0f, "%", nullptr}, {"tone", "TONE", LIN, 0.0f, 10.0f, "%", nullptr}}, -1, 4, K_OILCAN},
-	{"BBD-DL", "BBD Delay", true, 2, {{"dly", "DELAY", LIN, 0.0f, 100.0f, "", nullptr}, {"feed", "FEEDBACK", LIN, 0.0f, 100.0f, "%", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 2, K_BBD_DL},
-	{"PITCH", "Stereo Pitch", true, 4, {{"semi", "SEMI", INT, -12.0f, 12.0f, "", nullptr}, {"cent", "CENT", INT, -50.0f, 50.0f, "", nullptr}, {"dly", "DELAY", LIN, 0.0f, 500.0f, "ms", nullptr}, {"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr}}, -1, 6, K_PITCH},
-	{"D-PITCH", "Dual Pitch", true, 4, {{"semi1", "SEMI 1", INT, -12.0f, 12.0f, "", nullptr}, {"semi2", "SEMI 2", INT, -12.0f, 12.0f, "", nullptr}, {"lvl1", "LEVEL 1", FADER, -144.f, 10.f, "dB", nullptr}, {"lvl2", "LEVEL 2", FADER, -144.f, 10.f, "dB", nullptr}}, -1, 12, K_D_PITCH},
-	{"VSS3", "VSS3 Reverb", true, 4, {{"dcy", "DECAY", LIN, 0.1f, 20.0f, "s", nullptr}, {"rvpdly", "PRE", LIN, 0.0f, 200.0f, "ms", nullptr}, {"diff", "DIFFUSE", LIN, -50.0f, 50.0f, "", nullptr}, {"erlvl", "EARLY", FADER, -144.f, 10.f, "dB", nullptr}}, -1, 32, K_VSS3},
-	{"BPLATE", "Blue Plate", true, 4, {{"dcy", "DECAY", LOG, 0.2f, 5.0f, "s", nullptr}, {"pdel", "PRE", INT, 0.0f, 200.0f, "ms", nullptr}, {"size", "SIZE", INT, 0.0f, 100.0f, "ms", nullptr}, {"damp", "DAMP", LOG, 1000.0f, 20000.0f, "Hz", nullptr}}, -1, 11, K_BPLATE},
-	{"GEQ", "Graphic EQ", false, 4, {{"63", "63", LIN, -15.0f, 15.0f, "dB", nullptr}, {"250", "250", LIN, -15.0f, 15.0f, "dB", nullptr}, {"1k", "1K", LIN, -15.0f, 15.0f, "dB", nullptr}, {"4k", "4K", LIN, -15.0f, 15.0f, "dB", nullptr}}, -1, 33, K_GEQ},
-	{"PIA", "PIA 560 GEQ", false, 4, {{"63", "63", LIN, -12.0f, 12.0f, "dB", nullptr}, {"250", "250", LIN, -12.0f, 12.0f, "dB", nullptr}, {"1k", "1K", LIN, -12.0f, 12.0f, "dB", nullptr}, {"4k", "4K", LIN, -12.0f, 12.0f, "dB", nullptr}}, -1, 12, K_PIA},
-	{"DOUBLE", "Double Vocal", false, 2, {{"mix", "MIX", LIN, 0.0f, 100.0f, "%", nullptr}, {"sprd", "SPREAD", LIN, 0.0f, 100.0f, "%", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 3, K_DOUBLE},
-	{"PCORR", "Pitch Fix", false, 4, {{"spd", "SPEED", LIN, 1.0f, 100.0f, "", nullptr}, {"amnt", "AMOUNT", LIN, 0.0f, 50.0f, "", nullptr}, {"a4", "A4", LIN, 410.0f, 470.0f, "", nullptr}, {"_c", "_C", INT, 0.0f, 1.0f, "", nullptr}}, -1, 15, K_PCORR},
-	{"LIMITER", "Precision Limiter", false, 4, {{"gin", "IN", LIN, 0.0f, 18.0f, "dB", nullptr}, {"gout", "OUT", LIN, -18.0f, 0.0f, "", nullptr}, {"att", "ATTACK", LIN, 0.05f, 1.0f, "ms", nullptr}, {"rel", "RELEASE", LOG, 20.0f, 2000.0f, "ms", nullptr}}, -1, 7, K_LIMITER},
-	{"DE-S2", "2-Band DeEsser", false, 4, {{"lo", "LO", LIN, 0.0f, 50.0f, "", nullptr}, {"hi", "HI", LIN, 0.0f, 50.0f, "", nullptr}, {"los", "LOS", LIN, 0.0f, 50.0f, "", nullptr}, {"his", "HIS", LIN, 0.0f, 50.0f, "", nullptr}}, -1, 6, K_DE_S2},
-	{"ENHANCE", "Ultra Enhancer", false, 4, {{"stlv", "STLV", LIN, -100.0f, 100.0f, "%", nullptr}, {"lmf", "LMF", LIN, -100.0f, 100.0f, "%", nullptr}, {"lmvl", "LMVL", LIN, -100.0f, 100.0f, "%", nullptr}, {"st", "ST", LIN, -100.0f, 100.0f, "%", nullptr}}, -1, 13, K_ENHANCE},
-	{"EXCITER", "Exciter", false, 4, {{"tune", "TUNE", LOG, 1000.0f, 10000.0f, "Hz", nullptr}, {"peak", "PEAK", LIN, 0.0f, 100.0f, "%", nullptr}, {"zfill", "ZFILL", LIN, 0.0f, 100.0f, "%", nullptr}, {"timbre", "TIMBRE", LIN, -50.0f, 50.0f, "", nullptr}}, -1, 7, K_EXCITER},
-	{"P-BASS", "Psycho Bass", false, 3, {{"int", "INTENS", LIN, -24.0f, 6.0f, "dB", nullptr}, {"bass", "BASS", LIN, -60.0f, 0.0f, "dB", nullptr}, {"solo", "SOLO", INT, 0.0f, 1.0f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 4, K_P_BASS},
-	{"ROTARY", "Rotary Speaker", false, 4, {{"sw", "SPEED", LIST, 0.f, 2.f, "", L_ROTARY_0}, {"lo", "LO", LOG, 0.1f, 3.999f, "Hz", nullptr}, {"hi", "HI", LOG, 4.0f, 10.0f, "Hz", nullptr}, {"bal", "BALANCE", LIN, -100.0f, 100.0f, "", nullptr}}, -1, 8, K_ROTARY},
-	{"PHASER", "Phaser", false, 4, {{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr}, {"depth", "DEPTH", INT, 0.0f, 100.0f, "%", nullptr}, {"reso", "RESO", INT, 0.0f, 80.0f, "%", nullptr}, {"stg", "STAGES", INT, 2.0f, 12.0f, "", nullptr}}, -1, 12, K_PHASER},
-	{"PANNER", "Tremolo Panner", false, 4, {{"spd", "SPEED", LOG, 0.05f, 5.0f, "Hz", nullptr}, {"depth", "DEPTH", INT, 0.0f, 100.0f, "%", nullptr}, {"phase", "PHASE", INT, 0.0f, 180.0f, "", nullptr}, {"wave", "WAVE", INT, -50.0f, 50.0f, "", nullptr}}, -1, 9, K_PANNER},
-	{"TAPE", "Tape Machine", false, 3, {{"spd", "SPEED", LOG, 7.5f, 30.0f, "", nullptr}, {"low", "BASS", INT, 0.0f, 1.0f, "", nullptr}, {"hi", "HI", INT, 0.0f, 1.0f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 5, K_TAPE},
-	{"MOOD", "Mood Filter", false, 4, {{"fbase", "FREQ", LOG, 20.0f, 15000.0f, "Hz", nullptr}, {"reso", "RESO", LIN, 0.0f, 10.0f, "", nullptr}, {"drv", "DRIVE", LIN, 0.0f, 10.0f, "", nullptr}, {"env", "ENV", LIN, -100.0f, 100.0f, "%", nullptr}}, -1, 13, K_MOOD},
-	{"SUB", "Sub Octaver", false, 2, {{"oct1", "OCT 1", LIN, 0.0f, 100.0f, "%", nullptr}, {"oct2", "OCT 2", LIN, 0.0f, 100.0f, "%", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 3, K_SUB},
-	{"RACKAMP", "Rack Amp", false, 4, {{"pre", "PRE", LIN, 0.0f, 10.0f, "", nullptr}, {"buzz", "BUZZ", LIN, 0.0f, 10.0f, "", nullptr}, {"punch", "PUNCH", LIN, 0.0f, 10.0f, "", nullptr}, {"crunch", "CRUNCH", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 7, K_RACKAMP},
-	{"UKROCK", "UK Rock Amp", false, 4, {{"gain", "GAIN", LIN, 0.0f, 10.0f, "", nullptr}, {"bass", "BASS", LIN, 0.0f, 10.0f, "", nullptr}, {"mid", "MID", LIN, 0.0f, 10.0f, "", nullptr}, {"treb", "TREBLE", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 7, K_UKROCK},
-	{"ANGEL", "Angel Amp", false, 4, {{"gain", "GAIN", LIN, 0.0f, 10.0f, "", nullptr}, {"bass", "BASS", LIN, 0.0f, 10.0f, "", nullptr}, {"mid", "MID", LIN, 0.0f, 10.0f, "", nullptr}, {"treb", "TREBLE", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 10, K_ANGEL},
-	{"JAZZC", "Jazz Clean Amp", false, 4, {{"vol", "VOLUME", LIN, 0.0f, 10.0f, "", nullptr}, {"bass", "BASS", LIN, 0.0f, 10.0f, "", nullptr}, {"mid", "MID", LIN, 0.0f, 10.0f, "", nullptr}, {"treb", "TREBLE", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 7, K_JAZZC},
-	{"DELUXE", "Deluxe Amp", false, 4, {{"vol", "VOLUME", LIN, 1.0f, 10.0f, "", nullptr}, {"bass", "BASS", LIN, 1.0f, 10.0f, "", nullptr}, {"treb", "TREBLE", LIN, 1.0f, 10.0f, "", nullptr}, {"out", "OUT", LIN, 1.0f, 10.0f, "", nullptr}}, -1, 6, K_DELUXE},
-	{"BODY", "Bodyrez", false, 1, {{"body", "BODY", LIN, 0.0f, 100.0f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 1, K_BODY},
-	{"SOUL", "Soul Analogue", false, 4, {{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr}, {"lf", "LO FREQ", LIN, 0.0f, 10.0f, "", nullptr}, {"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr}, {"lmf", "LMF", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 13, K_SOUL},
-	{"E88", "Even 88 Formant", false, 4, {{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr}, {"lf", "LO FREQ", LIN, 0.0f, 10.0f, "", nullptr}, {"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr}, {"lmf", "LMF", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 15, K_E88},
-	{"E84", "Even 84", false, 4, {{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr}, {"g", "GAIN", LIN, -20.0f, 20.0f, "dB", nullptr}, {"lg", "LO GAIN", LIN, -5.0f, 5.0f, "", nullptr}, {"mg", "MG", LIN, -5.0f, 5.0f, "", nullptr}}, -1, 9, K_E84},
-	{"F110", "Fortissimo110", false, 4, {{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr}, {"peq", "PEQ", INT, 0.0f, 1.0f, "", nullptr}, {"lmf", "LMF", LIN, 0.0f, 10.0f, "", nullptr}, {"lmg", "LMG", LIN, -5.0f, 5.0f, "", nullptr}}, -1, 16, K_F110},
-	{"PULSAR", "Pulsar", false, 4, {{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr}, {"eq1", "EQ1", INT, 0.0f, 1.0f, "", nullptr}, {"1lb", "1LB", LIN, 0.0f, 10.0f, "", nullptr}, {"1latt", "1LATT", LIN, 0.0f, 10.0f, "", nullptr}}, -1, 17, K_PULSAR},
-	{"MACH4", "Mach EQ4", false, 4, {{"mix", "MIX", LIN, 0.0f, 125.0f, "%", nullptr}, {"sub", "SUB", LIN, -5.0f, 5.0f, "", nullptr}, {"40", "40", LIN, -5.0f, 5.0f, "", nullptr}, {"160", "160", LIN, -5.0f, 5.0f, "", nullptr}}, -1, 9, K_MACH4},
-	{"C5-CMB", "Combinator", false, 4, {{"thr", "THRESH", LIN, -40.0f, 0.0f, "dB", nullptr}, {"gain", "GAIN", LIN, -10.0f, 10.0f, "dB", nullptr}, {"att", "ATTACK", LIN, 0.0f, 20.0f, "", nullptr}, {"rel", "RELEASE", LOG, 20.0f, 3000.0f, "ms", nullptr}}, -1, 32, K_C5_CMB},
-	{"SUB-M", "Sub Monster", false, 4, {{"freq", "FREQ", LIN, 45.0f, 67.5f, "Hz", nullptr}, {"bd1", "BD1", LIN, 0.0f, 100.0f, "%", nullptr}, {"bd2", "BD2", LIN, 0.0f, 100.0f, "%", nullptr}, {"bd3", "BD3", LIN, 0.0f, 100.0f, "%", nullptr}}, -1, 7, K_SUB_M},
-	{"V-IMG", "Velvet Imager", false, 3, {{"st", "ST", LIN, 0.0f, 100.0f, "%", nullptr}, {"gain", "GAIN", LIN, -6.0f, 6.0f, "dB", nullptr}, {"deep", "DEEP", INT, 0.0f, 1.0f, "", nullptr}, {"", "", LIN, 0.f, 1.f, "", nullptr}}, -1, 5, K_V_IMG},
-	{"SPKMAN", "Speaker Manager", false, 4, {{"hpf", "HPF", LOG, 20.0f, 20000.0f, "Hz", nullptr}, {"lpf", "LPF", LOG, 20.0f, 20000.0f, "Hz", nullptr}, {"tiltf", "TILTF", LOG, 100.0f, 10000.0f, "Hz", nullptr}, {"tiltg", "TILTG", LIN, -6.0f, 6.0f, "dB", nullptr}}, -1, 24, K_SPKMAN},
-	{"DEQ3", "Triple Dynamic EQ", false, 4, {{"1-thr", "1-THR", LIN, -60.0f, 0.0f, "dB", nullptr}, {"1-att", "1-ATT", LIN, 0.0f, 200.0f, "ms", nullptr}, {"1-rel", "1-REL", LOG, 20.0f, 4000.0f, "ms", nullptr}, {"1-g", "1-G", LIN, -15.0f, 15.0f, "dB", nullptr}}, -1, 27, K_DEQ3},
+	{"NONE", "None", false, 0, nullptr, 0, {-1, -1, -1, -1}, -1, 0, nullptr},
+	{"HALL", "Hall Reverb", true, 10, A_HALL, 4, {2, 0, 1, 3}, -1, 11, K_HALL},
+	{"ROOM", "Room Reverb", true, 15, A_ROOM, 4, {2, 0, 1, 4}, -1, 15, K_ROOM},
+	{"CHAMBER", "Chamber Reverb", true, 15, A_CHAMBER, 4, {2, 0, 1, 4}, -1, 15, K_CHAMBER},
+	{"PLATE", "Plate Reverb", true, 15, A_PLATE, 4, {2, 0, 1, 4}, -1, 15, K_PLATE},
+	{"CONCERT", "Concert Reverb", true, 17, A_CONCERT, 4, {2, 0, 1, 4}, -1, 17, K_CONCERT},
+	{"AMBI", "Ambiance", true, 9, A_AMBI, 4, {2, 0, 1, 4}, -1, 9, K_AMBI},
+	{"V-ROOM", "Vintage Room", true, 14, A_V_ROOM, 4, {2, 0, 1, 3}, -1, 14, K_V_ROOM},
+	{"V-REV", "Vintage Reverb", true, 9, A_V_REV, 4, {1, 0, 2, 6}, -1, 9, K_V_REV},
+	{"V-PLATE", "Vintage Plate", true, 4, A_V_PLATE, 4, {1, 0, 2, 3}, -1, 4, K_V_PLATE},
+	{"GATED", "Gated Reverb", true, 9, A_GATED, 4, {2, 0, 1, 3}, -1, 9, K_GATED},
+	{"REVERSE", "Reverse Reverb", true, 8, A_REVERSE, 4, {2, 0, 1, 3}, -1, 8, K_REVERSE},
+	{"DEL/REV", "Delay/Reverb", true, 11, A_DEL_REV, 4, {0, 1, 7, 4}, 0, 11, K_DEL_REV},
+	{"SHIMMER", "Shimmer Reverb", true, 8, A_SHIMMER, 4, {2, 6, 0, 7}, -1, 8, K_SHIMMER},
+	{"SPRING", "Spring Reverb", true, 4, A_SPRING, 4, {0, 1, 2, 3}, -1, 4, K_SPRING},
+	{"DIMCRS", "Dimension CRS", true, 6, A_DIMCRS, 4, {0, 1, 2, 3}, -1, 6, K_DIMCRS},
+	{"CHORUS", "Stereo Chorus", true, 11, A_CHORUS, 4, {10, 7, 8, 9}, -1, 11, K_CHORUS},
+	{"FLANGER", "Stereo Flanger", true, 12, A_FLANGER, 4, {10, 7, 11, 9}, -1, 12, K_FLANGER},
+	{"ST-DL", "Stereo Delay", true, 10, A_ST_DL, 4, {0, 5, 7, 9}, 0, 10, K_ST_DL},
+	{"TAP-DL", "UltraTap Delay", true, 9, A_TAP_DL, 4, {0, 1, 6, 3}, 0, 10, K_TAP_DL},
+	{"TAPE-DL", "Tape Delay", true, 4, A_TAPE_DL, 4, {0, 1, 2, 3}, 0, 4, K_TAPE_DL},
+	{"OILCAN", "OilCan Delay", true, 4, A_OILCAN, 4, {0, 1, 2, 3}, -1, 4, K_OILCAN},
+	{"BBD-DL", "BBD Delay", true, 2, A_BBD_DL, 2, {0, 1, -1, -1}, -1, 2, K_BBD_DL},
+	{"PITCH", "Stereo Pitch", true, 6, A_PITCH, 4, {0, 1, 2, 5}, -1, 6, K_PITCH},
+	{"D-PITCH", "Dual Pitch", true, 12, A_D_PITCH, 4, {0, 5, 4, 9}, -1, 12, K_D_PITCH},
+	{"VSS3", "VSS3 Reverb", true, 31, A_VSS3, 4, {13, 12, 14, 9}, -1, 32, K_VSS3},
+	{"BPLATE", "Blue Plate", true, 11, A_BPLATE, 4, {2, 0, 1, 4}, -1, 11, K_BPLATE},
+	{"GEQ", "Graphic EQ", false, 33, A_GEQ, 4, {6, 12, 18, 24}, -1, 33, K_GEQ},
+	{"PIA", "PIA 560 GEQ", false, 12, A_PIA, 4, {3, 5, 7, 9}, -1, 12, K_PIA},
+	{"DOUBLE", "Double Vocal", false, 3, A_DOUBLE, 2, {1, 2, -1, -1}, -1, 3, K_DOUBLE},
+	{"PCORR", "Pitch Fix", false, 15, A_PCORR, 4, {0, 1, 2, 3}, -1, 15, K_PCORR},
+	{"LIMITER", "Precision Limiter", false, 7, A_LIMITER, 4, {0, 1, 5, 6}, -1, 7, K_LIMITER},
+	{"DE-S2", "2-Band DeEsser", false, 6, A_DE_S2, 4, {0, 1, 2, 3}, -1, 6, K_DE_S2},
+	{"ENHANCE", "Ultra Enhancer", false, 13, A_ENHANCE, 4, {0, 1, 2, 3}, -1, 13, K_ENHANCE},
+	{"EXCITER", "Exciter", false, 7, A_EXCITER, 4, {0, 1, 2, 3}, -1, 7, K_EXCITER},
+	{"P-BASS", "Psycho Bass", false, 3, A_P_BASS, 3, {0, 1, 2, -1}, -1, 4, K_P_BASS},
+	{"ROTARY", "Rotary Speaker", false, 8, A_ROTARY, 4, {0, 1, 2, 3}, -1, 8, K_ROTARY},
+	{"PHASER", "Phaser", false, 12, A_PHASER, 4, {0, 4, 11, 10}, -1, 12, K_PHASER},
+	{"PANNER", "Tremolo Panner", false, 9, A_PANNER, 4, {5, 8, 6, 7}, -1, 9, K_PANNER},
+	{"TAPE", "Tape Machine", false, 4, A_TAPE, 4, {0, 1, 2, 3}, -1, 5, K_TAPE},
+	{"MOOD", "Mood Filter", false, 12, A_MOOD, 4, {0, 3, 4, 5}, -1, 13, K_MOOD},
+	{"SUB", "Sub Octaver", false, 3, A_SUB, 2, {1, 2, -1, -1}, -1, 3, K_SUB},
+	{"RACKAMP", "Rack Amp", false, 7, A_RACKAMP, 4, {0, 1, 2, 3}, -1, 7, K_RACKAMP},
+	{"UKROCK", "UK Rock Amp", false, 7, A_UKROCK, 4, {0, 1, 2, 3}, -1, 7, K_UKROCK},
+	{"ANGEL", "Angel Amp", false, 10, A_ANGEL, 4, {0, 1, 2, 3}, -1, 10, K_ANGEL},
+	{"JAZZC", "Jazz Clean Amp", false, 7, A_JAZZC, 4, {0, 1, 2, 3}, -1, 7, K_JAZZC},
+	{"DELUXE", "Deluxe Amp", false, 6, A_DELUXE, 4, {0, 1, 2, 3}, -1, 6, K_DELUXE},
+	{"BODY", "Bodyrez", false, 1, A_BODY, 1, {0, -1, -1, -1}, -1, 1, K_BODY},
+	{"SOUL", "Soul Analogue", false, 13, A_SOUL, 4, {0, 1, 2, 3}, -1, 13, K_SOUL},
+	{"E88", "Even 88 Formant", false, 15, A_E88, 4, {0, 1, 2, 5}, -1, 15, K_E88},
+	{"E84", "Even 84", false, 9, A_E84, 4, {0, 1, 3, 5}, -1, 9, K_E84},
+	{"F110", "Fortissimo110", false, 15, A_F110, 4, {0, 1, 2, 3}, -1, 16, K_F110},
+	{"PULSAR", "Pulsar", false, 16, A_PULSAR, 4, {0, 1, 2, 3}, -1, 17, K_PULSAR},
+	{"MACH4", "Mach EQ4", false, 9, A_MACH4, 4, {0, 1, 2, 3}, -1, 9, K_MACH4},
+	{"C5-CMB", "Combinator", false, 31, A_C5_CMB, 4, {0, 1, 4, 5}, -1, 32, K_C5_CMB},
+	{"SUB-M", "Sub Monster", false, 6, A_SUB_M, 4, {0, 1, 2, 3}, -1, 7, K_SUB_M},
+	{"V-IMG", "Velvet Imager", false, 4, A_V_IMG, 3, {0, 1, 3, -1}, -1, 5, K_V_IMG},
+	{"SPKMAN", "Speaker Manager", false, 24, A_SPKMAN, 4, {0, 2, 4, 5}, -1, 24, K_SPKMAN},
+	{"DEQ3", "Triple Dynamic EQ", false, 27, A_DEQ3, 4, {0, 2, 3, 5}, -1, 27, K_DEQ3},
 };
 static const int NUM_MODELS = sizeof(MODELS) / sizeof(MODELS[0]);
 

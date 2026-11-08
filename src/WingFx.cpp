@@ -20,17 +20,13 @@ static const NVGcolor SLOT_COLOURS[8] = {nvgRGB(0xff, 0x6b, 0x5b), nvgRGB(0x3d, 
 /** A knob's value as the effect's parameter (the model of the slot shown). */
 struct FxQuantity : ParamQuantity {
 	int j = 0, f = FMIX;
-	const F::Param* param(int* modelOut = nullptr) {
+	const F::Param* param() {
 		WingFx* m = dynamic_cast<WingFx*>(module);
 		WingLink* h = m ? m->hostSafe() : nullptr;
-		FxSlot* x = hostFx(h, m ? m->page * NPAGE + j : 0);
+		FxSlot* x = hostFx(h, m ? m->first + j : 0);
 		if (!x)
 			return nullptr;
-		const F::Model& M = F::MODELS[x->model];
-		if (modelOut)
-			*modelOut = x->model;
-		int k = f - FP1;
-		return k < M.nShow ? &M.show[k] : nullptr;
+		return m->knob(x->model, f - FP1);
 	}
 	std::string getLabel() override {
 		if (f == FMIX)
@@ -48,6 +44,9 @@ struct FxQuantity : ParamQuantity {
 };
 
 WingFx::WingFx() {
+	for (int m = 0; m < F::NUM_MODELS; m++)
+		for (int k = 0; k < 4; k++)
+			choice[m][k] = -1;
 	config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 	for (int j = 0; j < NPAGE; j++) {
 		configSwitch(fxPid(j, FON), 0.f, 1.f, 1.f, string::f("Slot %d on", j + 1), {"Off", "On"});
@@ -63,7 +62,7 @@ WingFx::WingFx() {
 		for (int k = 0; k < 5; k++)
 			configInput(fxCv(j, k), string::f("Slot %d %s CV (0–10 V)", j + 1, cvn[k]));
 	}
-	configButton(PAGE_DOWN_PARAM, "Slots back (FX 1–4 … 13–16)");
+	configButton(PAGE_DOWN_PARAM, "Slots back");
 	configButton(PAGE_UP_PARAM, "Slots on");
 	configButton(TAP_PARAM, "TAP tempo");
 	configSwitch(SYNC_PARAM, 0.f, 1.f, 1.f, "SYNC", {"Off: the WING's tempo (tap on the WING)", "On: the delays take Rack's tempo"});
@@ -73,15 +72,46 @@ WingFx::WingFx() {
 
 json_t* WingFx::dataToJson() {
 	json_t* root = Satellite::dataToJson();
-	json_object_set_new(root, "page", json_integer(page));
+	json_object_set_new(root, "first", json_integer(first));
+	json_object_set_new(root, "slotStep", json_integer(slotStep));
+	json_t* ch = json_object();
+	for (int m = 1; m < F::NUM_MODELS; m++) {
+		bool any = false;
+		json_t* a = json_array();
+		for (int k = 0; k < 4; k++) {
+			int c = choice[m][k];
+			any |= c >= 0;
+			json_array_append_new(a, c >= 0 ? json_string(F::MODELS[m].all[c].key) : json_null());
+		}
+		if (any)
+			json_object_set_new(ch, F::MODELS[m].mdl, a);
+		else
+			json_decref(a);
+	}
+	json_object_set_new(root, "knobs", ch);
 	json_object_set_new(root, "ppqIn", json_integer(ppqIn));
 	json_object_set_new(root, "ppqOut", json_integer(ppqOut));
 	return root;
 }
 void WingFx::dataFromJson(json_t* root) {
 	Satellite::dataFromJson(root);
-	if (json_t* j = json_object_get(root, "page"))
-		page = clamp((int) json_integer_value(j), 0, NSLOT / NPAGE - 1);
+	if (json_t* j = json_object_get(root, "first"))
+		first = clamp((int) json_integer_value(j), 0, NSLOT - NPAGE);
+	if (json_t* j = json_object_get(root, "slotStep"))
+		slotStep = json_integer_value(j) == 1 ? 1 : 4;
+	if (json_t* ch = json_object_get(root, "knobs")) {
+		const char* key;
+		json_t* a;
+		json_object_foreach(ch, key, a) {
+			int m = F::modelIndex(key);
+			if (m <= 0)
+				continue;
+			for (int k = 0; k < 4 && k < (int) json_array_size(a); k++) {
+				json_t* v = json_array_get(a, k);
+				choice[m][k] = json_is_string(v) ? F::findKey(F::MODELS[m], json_string_value(v)) : -1;
+			}
+		}
+	}
 	if (json_t* j = json_object_get(root, "ppqIn"))
 		ppqIn = clamp((int) json_integer_value(j), 1, 24);
 	if (json_t* j = json_object_get(root, "ppqOut"))
@@ -89,7 +119,7 @@ void WingFx::dataFromJson(json_t* root) {
 }
 
 // ---------------------------------------------------------------- widgets
-static int slotOf(WingFx* m, int j) { return (m ? m->page.load() : 0) * NPAGE + j; }
+static int slotOf(WingFx* m, int j) { return (m ? m->first.load() : 0) + j; }
 
 /** The slot's head: colour bar, FX n, PREMIUM / STANDARD. */
 struct HeadWidget : Widget {
@@ -193,10 +223,9 @@ struct LabelWidget : Widget {
 			if (!module)
 				name = MOCK[k];
 			else if (FxSlot* x = hostFx(module->hostSafe(), slotOf(module, j))) {
-				const F::Model& M = F::MODELS[x->model];
-				if (k < M.nShow) {
-					name = M.show[k].label;
-					value = F::panelText(M.show[k], F::toValue(M.show[k], module->params[fxPid(j, FP1 + k)].getValue()));
+				if (const F::Param* p = module->knob(x->model, k)) {
+					name = p->label;
+					value = F::panelText(*p, F::toValue(*p, module->params[fxPid(j, FP1 + k)].getValue()));
 				}
 			}
 			float cx = box.size.x / 2;
@@ -214,9 +243,8 @@ struct FxDisplay : Widget {
 		if (layer == 1) {
 			NVGcontext* vg = args.vg;
 			float x = mm2px(3.f);
-			int p = module ? module->page.load() : 0;
-			text(vg, boldFont(), x, mm2px(4.6f), string::f("FX %d – %d", p * NPAGE + 1, p * NPAGE + NPAGE), 12.f, WHITE,
-			     NVG_ALIGN_LEFT, 0.5f);
+			int p = module ? module->first.load() : 0;
+			text(vg, boldFont(), x, mm2px(4.6f), string::f("FX %d – %d", p + 1, p + NPAGE), 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
 			if (!module) {
 				Widget::drawLayer(args, layer);
 				return;
@@ -224,8 +252,7 @@ struct FxDisplay : Widget {
 			WingLink* h = module->hostSafe();
 			bool sync = module->params[WingFx::SYNC_PARAM].getValue() > 0.5f;
 			if (!h)
-				text(vg, boldFont(), x, mm2px(8.1f), "●  right-click › Connect to WING-LINK (or dock me on its left)",
-				     6.4f, WARN, NVG_ALIGN_LEFT, 0.3f);
+				text(vg, boldFont(), x, mm2px(8.1f), "●  right-click › Connect to WING-LINK", 6.4f, WARN, NVG_ALIGN_LEFT, 0.3f);
 			else if (!hostLinked(h, module))
 				text(vg, boldFont(), x, mm2px(8.1f), "●  WING-LINK already has a WING-FX", 6.4f, WARN, NVG_ALIGN_LEFT, 0.3f);
 			else
@@ -251,6 +278,25 @@ struct FxDisplay : Widget {
 	}
 };
 
+/** SLOTS step: 1 or 4 (a click switches). */
+struct FxStep : OpaqueWidget {
+	WingFx* module = nullptr;
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 1)
+			text(args.vg, boldFont(), box.size.x / 2, box.size.y / 2 + 5.f, string::f("%d", module ? module->slotStep.load() : 4),
+			     14.f, WHITE, NVG_ALIGN_CENTER, 0.f);
+		OpaqueWidget::drawLayer(args, layer);
+	}
+	void onButton(const ButtonEvent& e) override {
+		if (module && e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
+			module->slotStep = module->slotStep == 4 ? 1 : 4;
+			e.consume(this);
+			return;
+		}
+		OpaqueWidget::onButton(e);
+	}
+};
+
 struct TempoWidget : Widget {
 	WingFx* module = nullptr;
 	void drawLayer(const DrawArgs& args, int layer) override {
@@ -265,6 +311,40 @@ struct TempoWidget : Widget {
 			     WHITE, NVG_ALIGN_CENTER, 0.6f);
 		}
 		Widget::drawLayer(args, layer);
+	}
+};
+
+/** A parameter knob: right-click picks which of the effect's parameters it turns (kept per effect). */
+struct FxKnob : GSmallKnob {
+	int j = 0, k = 0;
+	void appendContextMenu(Menu* menu) override {
+		WingFx* m = dynamic_cast<WingFx*>(module);
+		WingLink* h = m ? m->hostSafe() : nullptr;
+		FxSlot* x = hostFx(h, m ? m->first + j : 0);
+		if (!m || !x)
+			return;
+		int model = x->model, kk = k;
+		const F::Model& M = F::MODELS[model];
+		if (M.nAll == 0)
+			return;
+		menu->addChild(new MenuSeparator);
+		menu->addChild(createSubmenuItem(string::f("Knob %d turns", k + 1), m->knob(model, k) ? m->knob(model, k)->label : "–",
+		                                 [=](Menu* sub) {
+			sub->addChild(createMenuLabel(string::f("%s (kept for every %s)", M.name, M.mdl)));
+			int def = M.show[kk];
+			sub->addChild(createCheckMenuItem(def >= 0 ? string::f("Default: %s", M.all[def].label) : "Default: –", "",
+			                                  [=]() { return m->choice[model][kk] < 0; }, [=]() {
+				                                  m->choice[model][kk] = -1;
+				                                  m->refresh = true;
+			                                  }));
+			sub->addChild(new MenuSeparator);
+			for (int i = 0; i < M.nAll; i++)
+				sub->addChild(createCheckMenuItem(M.all[i].label, M.all[i].unit, [=]() { return m->choice[model][kk] == i; },
+				                                  [=]() {
+					                                  m->choice[model][kk] = i;
+					                                  m->refresh = true;
+				                                  }));
+		}));
 	}
 };
 
@@ -294,6 +374,9 @@ struct WingFxWidget : ModuleWidget {
 		area(d, L::DISPLAY);
 		addParam(createParamCentered<VCVBezel>(mm(L::PAGE_DOWN), module, WingFx::PAGE_DOWN_PARAM));
 		addParam(createParamCentered<VCVBezel>(mm(L::PAGE_UP), module, WingFx::PAGE_UP_PARAM));
+		FxStep* st = new FxStep;
+		st->module = module;
+		area(st, L::STEP);
 		const float* on[NPAGE] = {L::ON1, L::ON2, L::ON3, L::ON4};
 		const float* mix[NPAGE] = {L::MIX1, L::MIX2, L::MIX3, L::MIX4};
 		const float* head[NPAGE] = {L::HEAD1, L::HEAD2, L::HEAD3, L::HEAD4};
@@ -319,7 +402,10 @@ struct WingFxWidget : ModuleWidget {
 			area(mw, model[j]);
 			addParam(createParamCentered<GMediumKnob>(mm(mix[j]), module, fxPid(j, FMIX)));
 			for (int k = 0; k < 4; k++) {
-				addParam(createParamCentered<GSmallKnob>(mm(pk[j][k]), module, fxPid(j, FP1 + k)));
+				FxKnob* kn = createParamCentered<FxKnob>(mm(pk[j][k]), module, fxPid(j, FP1 + k));
+				kn->j = j;
+				kn->k = k;
+				addParam(kn);
 				LabelWidget* l = new LabelWidget;
 				l->module = module;
 				l->j = j;
@@ -362,6 +448,11 @@ struct WingFxWidget : ModuleWidget {
 				}
 			}));
 		};
+		menu->addChild(createSubmenuItem("SLOTS steps", string::f("%d", m->slotStep.load()), [=](Menu* sub) {
+			for (int v : {1, 4})
+				sub->addChild(createCheckMenuItem(v == 1 ? "1 (one slot)" : "4 (FX 1–4, 5–8 …)", "",
+				                                  [=]() { return m->slotStep.load() == v; }, [=]() { m->slotStep = v; }));
+		}));
 		res("CLOCK IN resolution", &m->ppqIn);
 		res("CLOCK OUT resolution", &m->ppqOut);
 		menu->addChild(createMenuLabel("SYNC on: the delays take Rack's tempo (CLOCK IN or TAP)"));

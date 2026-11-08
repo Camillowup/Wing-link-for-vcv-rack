@@ -56,6 +56,21 @@ int main() {
 	// icons
 	CHECK(iconText(204) == "DRM 4" && iconText(16) == "");
 	CHECK(nextIconGroup(204) == 300 && nextIconGroup(614) == 0 && nextIconGroup(-1) == 0);
+	// targets: every fader / mute / pan CC back to its target
+	for (int ty = T_CH; ty < NUM_TGT; ty++)
+		for (int n = 1; n <= TGT_COUNT[ty]; n++) {
+			Tgt t = tgt(ty, n), back;
+			int cc = tgtCc(t), what = -1;
+			CHECK(cc >= 0 && cc < 128);
+			for (int w = 0; w < (ty == T_DCA ? 2 : 3); w++) {
+				int ch = ty == T_DCA ? 3 + w : w;
+				CHECK(ccTgt(ch, cc, &back, &what) && back == t && what == w);
+			}
+		}
+	for (int k = 1; k <= 48; k++)
+		CHECK(tgtCc(inputTgt(k)) == ccOf(k));
+	CHECK(tgtNode(tgt(T_BUS, 3)) == "bus.3" && tgtLabel(tgt(T_DCA, 12)) == "DCA 12" && tgtLabel(Tgt()) == "–");
+	CHECK(tgtCc(tgt(T_MAIN, 3)) == 102 && tgtCc(tgt(T_MTX, 8)) == 111);
 	// FX
 	CHECK(number("10k02", &v) && near(v, 10020.f));
 	CHECK(number("2k5", &v) && near(v, 2500.f));
@@ -88,9 +103,12 @@ int main() {
 	CHECK(inGroups == wingfx::NUM_MODELS - 1);
 	for (int i = 0; i < wingfx::NUM_MODELS; i++) {
 		const wingfx::Model& M = wingfx::MODELS[i];
-		for (int k = 0; k < M.nShow; k++) {
-			const wingfx::Param& P = M.show[k];
+		for (int k = 0; k < M.nShow; k++)
+			CHECK(M.show[k] >= 0 && M.show[k] < M.nAll && wingfx::knobParam(M, k, -1) == &M.all[M.show[k]]);
+		for (int a = 0; a < M.nAll; a++) {
+			const wingfx::Param& P = M.all[a];
 			CHECK(P.key[0] != 0);
+			CHECK(wingfx::findKey(M, P.key) >= 0);
 			for (int j = 0; j <= 10; j++) {
 				float n = j / 10.f;
 				float v = wingfx::toValue(P, n);
@@ -102,7 +120,8 @@ int main() {
 			}
 		}
 		if (M.timeParam >= 0)
-			CHECK(std::string(M.show[M.timeParam].key) == "time");
+			CHECK(std::string(M.all[M.timeParam].key) == "time");
+		CHECK(wingfx::knobParam(M, 0, M.nAll - 1) == (M.nAll ? &M.all[M.nAll - 1] : nullptr));
 	}
 	CHECK(wingfx::modelIndex("HALL") > 0 && wingfx::modelIndex("\"ST-DL\"") > 0 && wingfx::modelIndex("XYZ") == 0);
 	std::printf(fails ? "%d failed\n" : "all passed\n", fails);

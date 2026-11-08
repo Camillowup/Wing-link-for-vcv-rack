@@ -65,6 +65,79 @@ inline int inputOfCc(int cc) {
 	return 0;
 }
 
+// ---------------------------------------------------------------- what a strip controls
+// A strip follows START CH (AUTO: an input 1..48) or is set to any channel, aux, bus, main, matrix or DCA.
+enum TgtType { T_NONE = 0, T_CH, T_AUX, T_BUS, T_MAIN, T_MTX, T_DCA, NUM_TGT };
+static const char* const TGT_NODE[NUM_TGT] = {"", "ch", "aux", "bus", "main", "mtx", "dca"};
+static const char* const TGT_LABEL[NUM_TGT] = {"", "CH", "AUX", "BUS", "MAIN", "MTX", "DCA"};
+static const char* const TGT_NAME[NUM_TGT] = {"", "Channel", "Aux", "Bus", "Main", "Matrix", "DCA"};
+static const int TGT_COUNT[NUM_TGT] = {0, 40, 8, 16, 4, 8, 16};
+
+struct Tgt {
+	int type = T_NONE, n = 0;
+	bool ok() const { return type > T_NONE && type < NUM_TGT && n >= 1 && n <= TGT_COUNT[type]; }
+	bool operator==(const Tgt& o) const { return type == o.type && n == o.n; }
+	bool audio() const { return type == T_CH || type == T_AUX; }  // takes USB audio, has bus sends
+	bool pan() const { return ok() && type != T_DCA; }
+	bool solo() const { return ok() && type != T_DCA; }
+};
+inline Tgt tgt(int type, int n) {
+	Tgt t;
+	t.type = type;
+	t.n = n;
+	return t;
+}
+/** Input k (1..48) of the WING COMPACT: CH 1–40, then AUX 1–8. */
+inline Tgt inputTgt(int k) { return k >= 1 && k <= 40 ? tgt(T_CH, k) : (k >= 41 && k <= 48 ? tgt(T_AUX, k - 40) : Tgt()); }
+inline std::string tgtNode(const Tgt& t) {
+	char b[16];
+	std::snprintf(b, sizeof b, "%s.%d", TGT_NODE[t.type], t.n);
+	return b;
+}
+inline std::string tgtLabel(const Tgt& t) {
+	if (!t.ok())
+		return "–";
+	char b[16];
+	std::snprintf(b, sizeof b, "%s %d", TGT_LABEL[t.type], t.n);
+	return b;
+}
+
+/** The CC of a target's fader / mute / pan (MIDI channels 1 / 2 / 3; DCA: faders 4, mutes 5); −1 if none. */
+inline int tgtCc(const Tgt& t) {
+	switch (t.type) {
+		case T_CH: return t.n <= 20 ? 11 + t.n : 43 + (t.n - 20);
+		case T_AUX: return 69 + t.n;
+		case T_BUS: return 77 + t.n;
+		case T_MAIN: return t.n <= 2 ? 93 + t.n : 99 + t.n;  // 94, 95, 102, 103
+		case T_MTX: return 103 + t.n;
+		case T_DCA: return 11 + t.n;
+		default: return -1;
+	}
+}
+/** What a CC on MIDI channel ch (0-based, 0..4) moves: the target and what (0 fader, 1 mute, 2 pan). */
+inline bool ccTgt(int ch, int cc, Tgt* t, int* what) {
+	if (ch == 3 || ch == 4) {
+		if (cc < 12 || cc > 27)
+			return false;
+		*t = tgt(T_DCA, cc - 11);
+		*what = ch == 3 ? 0 : 1;
+		return true;
+	}
+	if (ch > 2)
+		return false;
+	*what = ch;
+	if (cc >= 12 && cc <= 31) *t = tgt(T_CH, cc - 11);
+	else if (cc >= 44 && cc <= 63) *t = tgt(T_CH, cc - 43 + 20);
+	else if (cc >= 70 && cc <= 77) *t = tgt(T_AUX, cc - 69);
+	else if (cc >= 78 && cc <= 93) *t = tgt(T_BUS, cc - 77);
+	else if (cc == 94 || cc == 95) *t = tgt(T_MAIN, cc - 93);
+	else if (cc == 102 || cc == 103) *t = tgt(T_MAIN, cc - 99);
+	else if (cc >= 104 && cc <= 111) *t = tgt(T_MTX, cc - 103);
+	else
+		return false;
+	return true;
+}
+
 // ---------------------------------------------------------------- the fader law (position 0..1 <-> dB)
 // As the X32 / WING faders: 0.75 = 0 dB, 1 = +10 dB, 0.5 = −10, 0.25 = −30, 0.0625 = −60, 0 = −∞ (the protocol's
 // examples: 0 dB = 0.75, −1 = 0.725, +3 = 0.825).
@@ -127,6 +200,8 @@ inline std::vector<uint8_t> sysex(int cmd, const std::string& text) {
 /** "/ch.33." + what, e.g. set(33, "fdr=-5.5") or set(33, "mute=1,pan=-30"). */
 inline std::vector<uint8_t> set(int k, const std::string& what) { return sysex(SET, "/" + node(k) + "." + what); }
 inline std::vector<uint8_t> get(int k, const std::string& what) { return sysex(GET, "/" + node(k) + "." + what); }
+inline std::vector<uint8_t> setPath(const std::string& path) { return sysex(SET, "/" + path); }
+inline std::vector<uint8_t> getPath(const std::string& path) { return sysex(GET, "/" + path); }
 
 /** A name as the WING takes it: at most 16 characters, ASCII, quoted when it holds a space or a comma. */
 inline std::string nameText(const std::string& name) {

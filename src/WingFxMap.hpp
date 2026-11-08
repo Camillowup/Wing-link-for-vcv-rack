@@ -52,7 +52,10 @@ inline std::string wingText(const Param& p, float v) {
 	switch (p.curve) {
 		case LIST: {
 			int i = (int) v, c = listSize(p);
-			return (i >= 0 && i < c) ? p.list[i] : "";
+			if (i < 0 || i >= c)
+				return "";
+			std::string t = p.list[i];
+			return t.find_first_of(" ,") != std::string::npos ? "\"" + t + "\"" : t;
 		}
 		case INT: std::snprintf(b, sizeof b, "%d", (int) std::round(v)); return b;
 		case FADER: return wingproto::dbText(v);
@@ -70,8 +73,10 @@ inline std::string wingText(const Param& p, float v) {
 /** The value for the panel: "2.4 s", "8k0 Hz" → "8.0 kHz", "35 %". */
 inline std::string panelText(const Param& p, float v) {
 	char b[32];
-	if (p.curve == LIST)
-		return wingText(p, v);
+	if (p.curve == LIST) {
+		int i = (int) v;
+		return (i >= 0 && i < listSize(p)) ? p.list[i] : "";
+	}
 	if (p.curve == FADER)
 		return v <= -89.9f ? "-inf dB" : wingproto::dbText(v) + " dB";
 	std::string u = p.unit ? p.unit : "";
@@ -93,8 +98,12 @@ inline bool parseValue(const Param& p, const std::string& text, float* v) {
 	if (p.curve == LIST) {
 		std::string t;
 		for (char c : text)
-			if (c != '"' && c != ' ' && c != '\n')
+			if (c != '"' && c != '\n' && c != '\r')
 				t += c;
+		while (!t.empty() && t.back() == ' ')
+			t.pop_back();
+		while (!t.empty() && t[0] == ' ')
+			t.erase(0, 1);
 		for (int i = 0; i < listSize(p); i++)
 			if (t == p.list[i]) {
 				*v = (float) i;
@@ -103,6 +112,23 @@ inline bool parseValue(const Param& p, const std::string& text, float* v) {
 		return false;
 	}
 	return wingproto::number(text, v);
+}
+
+/** The parameter on knob k (0..3): the one picked for it (choice: index into all, −1: none), else the default. */
+inline const Param* knobParam(const Model& M, int k, int choice) {
+	if (choice >= 0 && choice < M.nAll)
+		return &M.all[choice];
+	if (k >= 0 && k < 4 && M.show[k] >= 0)
+		return &M.all[M.show[k]];
+	return nullptr;
+}
+
+/** A parameter by its key (index into all), −1 if the model has none (or it doesn't turn). */
+inline int findKey(const Model& M, const char* key) {
+	for (int i = 0; i < M.nAll; i++)
+		if (!std::strcmp(M.all[i].key, key))
+			return i;
+	return -1;
 }
 
 /** The model with this name on the WING (index into MODELS), 0 (NONE) if unknown. */

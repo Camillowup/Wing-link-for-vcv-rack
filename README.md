@@ -31,6 +31,14 @@ im Look des GENRA-Plugins.
 
 ## Bedienung
 
+- **Spur frei belegen**: Rechtsklick auf das Display einer Spur › *WING channel*: *Auto* (folgt START CH) oder fest
+  ein Kanal, Aux, Bus, Main, Matrix oder DCA. Feste Spuren bleiben stehen, wenn START CH wandert (• im Display).
+  Auf Bus, Main und Matrix sind FX 1 / FX 2 grau, auf DCA auch PAN und SOLO; AUDIO wirkt nur auf Kanäle und Aux.
+- **SD-Recorder** (WING-LIVE-Karte): die beiden Karten oben antippen startet bzw. stoppt die Aufnahme auf SD 1 oder
+  SD 2, getrennt. Rot = Aufnahme mit laufender Zeit, sonst die freie Zeit. **TRACKS 8 / 16**: so viele Spuren nimmt
+  die WING beim Start auf.
+- **STEP** neben START CH: − / + springen um 1 oder um 8 Kanäle (antippen oder Rechtsklick).
+
 - **START CH − / +**: Ab welchem WING-Kanal die Spuren liegen (Standard CH 33). CH 41–48 sind an der WING die
   AUX-Kanäle 1–8.
 - **Farbbalken** einer Spur anklicken: nächste Farbe. **Icon** anklicken: nächste Icon-Gruppe. Rechtsklick auf die
@@ -44,7 +52,8 @@ im Look des GENRA-Plugins.
 
 ![WING-FX](docs/panel_fx.png)
 
-- Zeigt 4 FX-Plätze, **SLOTS − / +** blättert durch FX 1–16.
+- Zeigt 4 FX-Plätze, **SLOTS − / +** blättert durch FX 1–16, um 1 oder 4 Plätze (**STEP**, antippen).
+- Rechtsklick auf einen der vier Parameter-Regler: welchen Parameter des Effekts er dreht (pro Effekt gespeichert).
 - **Effekt wählen**: aufs Modell klicken › *PREMIUM* (Hall, Delay, Modulation, Pitch – nur auf FX 1–8) oder
   *STANDARD* (EQ, Dynamik, Amps …).
 - **ON**, **MIX** und vier Parameter je Effekt (die Namen wechseln mit dem Effekt), alles in beide Richtungen und

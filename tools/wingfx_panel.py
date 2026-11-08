@@ -42,16 +42,19 @@ class FxPanel(wl.Panel):
 
 p = FxPanel("fx")
 p.header("WING-FX", "EXPANDER · WING EFFECTS")
-DISP = (X0 + 0.4, 10.6, 78.0, 11.2)
+DISP = (X0 + 0.4, 10.6, 74.0, 11.2)
 p.e(f'<rect x="{DISP[0]:.2f}" y="{DISP[1]}" width="{DISP[2]}" height="{DISP[3]}" rx="1" fill="{wl.DARK}" '
     f'stroke="{wl.LINE}" stroke-width="0.3"/>')
 p.area("DISPLAY", *DISP)
 bx = DISP[0] + DISP[2]
-p.button("PAGE_DOWN", bx + 6.2, 15.4)
-p.button("PAGE_UP", bx + 15.0, 15.4)
-p.text(bx + 10.6, 9.2, "SLOTS", 1.4, wl.DIM, 700, "middle", 0.25)
-p.text(bx + 6.2, 21.6, "−", 1.9, wl.TXT, 800)
-p.text(bx + 15.0, 21.6, "+", 1.9, wl.TXT, 800)
+p.button("PAGE_DOWN", bx + 5.2, 15.4)
+p.button("PAGE_UP", bx + 22.7, 15.4)
+p.text(bx + 13.95, 9.2, "SLOTS", 1.4, wl.DIM, 700, "middle", 0.25)
+p.text(bx + 5.2, 21.6, "−", 1.9, wl.TXT, 800)
+p.text(bx + 22.7, 21.6, "+", 1.9, wl.TXT, 800)
+p.e(f'<rect x="{bx + 10.8:.2f}" y="12.2" width="6.3" height="6.4" rx="0.8" fill="{wl.DARK}" stroke="{wl.LINE}" stroke-width="0.3"/>')
+p.area("STEP", bx + 10.8, 12.2, 6.3, 6.4)  # the step (1 or 4): the module writes it; a click switches
+p.text(bx + 13.95, 21.6, "STEP", 1.3, wl.DIM, 700, "middle", 0.2)
 
 for i in range(4):
     n = i + 1
@@ -142,6 +145,8 @@ x, y, w, h = p.areas["DISPLAY"]
 put("FX 1 – 4", x + 3, y + 4.6, 3.4, "#ffffff", 800, "start", 0.2)
 put("●  LINKED TO WING-LINK  ·  SYNC: RACK TEMPO", x + 3, y + 8.1, 1.5, wl.ACC, 700, "start", 0.2)
 put("CLOCK IN 16THS  ·  FX 2 TIME = 1/4", x + 3, y + 10.2, 1.4, wl.DIM, 600, "start", 0.2)
+x, y, w, h = p.areas["STEP"]
+put("4", x + w / 2, y + 4.4, 3.0, "#ffffff", 800)
 x, y, w, h = p.areas["TEMPO"]
 put("124.0", x + w / 2, y + 4.8, 2.6, "#ffffff", 800)
 svg = sys.argv[2].rsplit(".", 1)[0] + ".svg"
