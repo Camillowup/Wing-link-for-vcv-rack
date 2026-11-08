@@ -7,4 +7,5 @@ void init(Plugin* p) {
 	pluginInstance = p;
 	p->addModel(modelWingLink);
 	p->addModel(modelWingLinkX);
+	p->addModel(modelWingFx);
 }

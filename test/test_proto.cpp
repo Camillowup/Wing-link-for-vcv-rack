@@ -1,5 +1,7 @@
 // Tests for src/WingProto.hpp (no Rack): g++ -std=c++11 -Isrc test/test_proto.cpp && ./a.out
 #include "WingProto.hpp"
+#include "WingFxMap.hpp"
+#include <sstream>
 #include <cassert>
 #include <cstdio>
 using namespace wingproto;
@@ -54,6 +56,55 @@ int main() {
 	// icons
 	CHECK(iconText(204) == "DRM 4" && iconText(16) == "");
 	CHECK(nextIconGroup(204) == 300 && nextIconGroup(614) == 0 && nextIconGroup(-1) == 0);
+	// FX
+	CHECK(number("10k02", &v) && near(v, 10020.f));
+	CHECK(number("2k5", &v) && near(v, 2500.f));
+	CHECK(number("1k", &v) && near(v, 1000.f));
+	int sl = 0, pa = 0;
+	CHECK(fxCc(8, 12, &sl, &pa) == FXCC_ON && sl == 1);
+	CHECK(fxCc(15, 71, &sl, &pa) == FXCC_MIX && sl == 16);
+	CHECK(fxCc(9, 72, &sl, &pa) == FXCC_MODEL && sl == 10);
+	CHECK(fxCc(8, 15, &sl, &pa) == FXCC_PARAM && sl == 1 && pa == 1);
+	CHECK(fxCc(8, 44, &sl, &pa) == FXCC_PARAM && pa == 18);
+	CHECK(fxCc(12, 102, &sl, &pa) == FXCC_PARAM && sl == 13 && pa == 24);
+	CHECK(fxCc(2, 12, &sl, &pa) == FXCC_NONE);
+	int ch = 0, cc = 0;
+	fxOnCc(10, &ch, &cc);
+	CHECK(ch == 9 && cc == 70);
+	CHECK(fxSet(3, "mdl=HALL")[7] == 'f');
+	// the effect models: every model in a group exists, in the right tab; knob <-> value round trips
+	int inGroups = 0;
+	for (int g = 0; g < wingfx::NUM_GROUPS; g++) {
+		std::istringstream ss(wingfx::GROUPS[g].models);
+		std::string m;
+		while (ss >> m) {
+			int i = wingfx::modelIndex(m);
+			CHECK(i > 0);
+			if (i > 0)
+				CHECK(wingfx::MODELS[i].premium == wingfx::GROUPS[g].premium);
+			inGroups++;
+		}
+	}
+	CHECK(inGroups == wingfx::NUM_MODELS - 1);
+	for (int i = 0; i < wingfx::NUM_MODELS; i++) {
+		const wingfx::Model& M = wingfx::MODELS[i];
+		for (int k = 0; k < M.nShow; k++) {
+			const wingfx::Param& P = M.show[k];
+			CHECK(P.key[0] != 0);
+			for (int j = 0; j <= 10; j++) {
+				float n = j / 10.f;
+				float v = wingfx::toValue(P, n);
+				float back = wingfx::toNorm(P, v);
+				if (P.curve == wingfx::LIN || P.curve == wingfx::LOG)
+					CHECK(near(back, n, 1e-3f));
+				float v2;
+				CHECK(wingfx::parseValue(P, wingfx::wingText(P, v), &v2));
+			}
+		}
+		if (M.timeParam >= 0)
+			CHECK(std::string(M.show[M.timeParam].key) == "time");
+	}
+	CHECK(wingfx::modelIndex("HALL") > 0 && wingfx::modelIndex("\"ST-DL\"") > 0 && wingfx::modelIndex("XYZ") == 0);
 	std::printf(fails ? "%d failed\n" : "all passed\n", fails);
 	return fails ? 1 : 0;
 }

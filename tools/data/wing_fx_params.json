@@ -1,0 +1,6992 @@
+[
+ {
+  "name": "None",
+  "sec": "STD",
+  "params": [],
+  "mdl": "NONE"
+ },
+ {
+  "name": "External",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "egrp",
+    "raw": "str [OFF, LCL, AUX, A, B, C, SC, USB, CRD, MOD, PLAY, AES] ext grp",
+    "type": "str",
+    "list": [
+     "OFF",
+     "LCL",
+     "AUX",
+     "A",
+     "B",
+     "C",
+     "SC",
+     "USB",
+     "CRD",
+     "MOD",
+     "PLAY",
+     "AES"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "ein",
+    "raw": "int [1...64] ext in",
+    "type": "int",
+    "min": 1.0,
+    "max": 64.0,
+    "desc": "ext in"
+   },
+   {
+    "idx": 3,
+    "key": "emode",
+    "raw": "str [M, ST, M/S] ext mode",
+    "type": "str",
+    "list": [
+     "M",
+     "ST",
+     "M/S"
+    ]
+   },
+   {
+    "idx": 4,
+    "key": "lat",
+    "raw": "int [0...200] latency",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "latency"
+   },
+   {
+    "idx": 5,
+    "key": "trim",
+    "raw": "linf [-18, 18, 361] dB, trim",
+    "type": "linf",
+    "min": -18.0,
+    "max": 18.0,
+    "steps": 361,
+    "desc": "dB, trim"
+   }
+  ],
+  "mdl": "EXT"
+ },
+ {
+  "name": "Graphic EQ",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "type",
+    "raw": "str [STD, TRU] geq type",
+    "type": "str",
+    "list": [
+     "STD",
+     "TRU"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "20",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 3,
+    "key": "25",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 4,
+    "key": "31",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 5,
+    "key": "40",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 6,
+    "key": "50",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 7,
+    "key": "63",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 8,
+    "key": "80",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 9,
+    "key": "100",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 10,
+    "key": "125",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 11,
+    "key": "160",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 12,
+    "key": "200",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 13,
+    "key": "250",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 14,
+    "key": "315",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 15,
+    "key": "400",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 16,
+    "key": "500",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 17,
+    "key": "630",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 18,
+    "key": "800",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 19,
+    "key": "1k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 20,
+    "key": "1k25",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 21,
+    "key": "1k6",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 22,
+    "key": "2k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 23,
+    "key": "2k5",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 24,
+    "key": "3k15",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 25,
+    "key": "4k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 26,
+    "key": "5k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 27,
+    "key": "6k3",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 28,
+    "key": "8k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 29,
+    "key": "10k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 30,
+    "key": "12k5",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 31,
+    "key": "16k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 32,
+    "key": "20k",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   },
+   {
+    "idx": 33,
+    "key": "TRIM",
+    "raw": "linf [-15, 15, 121] dB",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 121,
+    "desc": "dB"
+   }
+  ],
+  "mdl": "GEQ"
+ },
+ {
+  "name": "PIA 560 GEQ",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "gain",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 3,
+    "key": "31",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 4,
+    "key": "63",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 5,
+    "key": "125",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 6,
+    "key": "250",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 7,
+    "key": "500",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 8,
+    "key": "1k",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 9,
+    "key": "2k",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 10,
+    "key": "4k",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 11,
+    "key": "8k",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   },
+   {
+    "idx": 12,
+    "key": "16k",
+    "raw": "linf [-12, 12, 241] dB",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB"
+   }
+  ],
+  "mdl": "PIA"
+ },
+ {
+  "name": "Triple Dynamic EQ",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "1-thr",
+    "raw": "linf [-60, 0, 121] dB, threshold 1",
+    "type": "linf",
+    "min": -60.0,
+    "max": 0.0,
+    "steps": 121,
+    "desc": "dB, threshold 1"
+   },
+   {
+    "idx": 2,
+    "key": "1-ratio",
+    "raw": "str [1.20, 1.30, 1.50, 2.00, 3.00, 5.00, 10.00] ms, ratio 1",
+    "type": "str",
+    "list": [
+     "1.20",
+     "1.30",
+     "1.50",
+     "2.00",
+     "3.00",
+     "5.00",
+     "10.00"
+    ]
+   },
+   {
+    "idx": 3,
+    "key": "1-att",
+    "raw": "linf [0.00, 200.00, 201] ms, att 1",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, att 1"
+   },
+   {
+    "idx": 4,
+    "key": "1-rel",
+    "raw": "logf [20.00, 4000.00, 130] ms, rel 1",
+    "type": "logf",
+    "min": 20.0,
+    "max": 4000.0,
+    "steps": 130,
+    "desc": "ms, rel 1"
+   },
+   {
+    "idx": 5,
+    "key": "1-filt",
+    "raw": "str [OFF, BP, LP6, LP12, HP6, HP12]",
+    "type": "str",
+    "list": [
+     "OFF",
+     "BP",
+     "LP6",
+     "LP12",
+     "HP6",
+     "HP12"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "1-g",
+    "raw": "linf [-15.00, 15.00, 301] dB, gain 1",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 301,
+    "desc": "dB, gain 1"
+   },
+   {
+    "idx": 7,
+    "key": "1-f",
+    "raw": "logf [20, 20000, 961] Hz, freq 1",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 961,
+    "desc": "Hz, freq 1"
+   },
+   {
+    "idx": 8,
+    "key": "1-q",
+    "raw": "logf [0.44, 10.00, 181] qual 1",
+    "type": "logf",
+    "min": 0.44,
+    "max": 10.0,
+    "steps": 181,
+    "desc": "qual 1"
+   },
+   {
+    "idx": 9,
+    "key": "1-mode",
+    "raw": "str [low, high] mode 1",
+    "type": "str",
+    "list": [
+     "low",
+     "high"
+    ]
+   },
+   {
+    "idx": 10,
+    "key": "2-thr",
+    "raw": "linf [-60, 0, 121] dB, threshold 2",
+    "type": "linf",
+    "min": -60.0,
+    "max": 0.0,
+    "steps": 121,
+    "desc": "dB, threshold 2"
+   },
+   {
+    "idx": 11,
+    "key": "2-ratio",
+    "raw": "str [1.20, 1.30, 1.50, 2.00, 3.00, 5.00, 10.00] ms, ratio 2",
+    "type": "str",
+    "list": [
+     "1.20",
+     "1.30",
+     "1.50",
+     "2.00",
+     "3.00",
+     "5.00",
+     "10.00"
+    ]
+   },
+   {
+    "idx": 12,
+    "key": "2-att",
+    "raw": "linf [0.00, 200.00, 201] ms, att 2",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, att 2"
+   },
+   {
+    "idx": 13,
+    "key": "2-rel",
+    "raw": "logf [20.00, 4000.00, 130] ms, rel 2",
+    "type": "logf",
+    "min": 20.0,
+    "max": 4000.0,
+    "steps": 130,
+    "desc": "ms, rel 2"
+   },
+   {
+    "idx": 14,
+    "key": "2-filt",
+    "raw": "str [OFF, BP, LP6, LP12, HP6, HP12]",
+    "type": "str",
+    "list": [
+     "OFF",
+     "BP",
+     "LP6",
+     "LP12",
+     "HP6",
+     "HP12"
+    ]
+   },
+   {
+    "idx": 15,
+    "key": "2-g",
+    "raw": "linf [-15.00, 15.00, 301] dB, gain 2",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 301,
+    "desc": "dB, gain 2"
+   },
+   {
+    "idx": 16,
+    "key": "2-f",
+    "raw": "logf [20, 20000, 961] Hz, freq 2",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 961,
+    "desc": "Hz, freq 2"
+   },
+   {
+    "idx": 17,
+    "key": "2-q",
+    "raw": "logf [0.44, 10.00, 181] qual 2",
+    "type": "logf",
+    "min": 0.44,
+    "max": 10.0,
+    "steps": 181,
+    "desc": "qual 2"
+   },
+   {
+    "idx": 18,
+    "key": "2-mode",
+    "raw": "str [low, high] mode 2",
+    "type": "str",
+    "list": [
+     "low",
+     "high"
+    ]
+   },
+   {
+    "idx": 19,
+    "key": "3-thr",
+    "raw": "linf [-60, 0, 121] dB, threshold 3",
+    "type": "linf",
+    "min": -60.0,
+    "max": 0.0,
+    "steps": 121,
+    "desc": "dB, threshold 3"
+   },
+   {
+    "idx": 20,
+    "key": "3-ratio",
+    "raw": "str [1.20, 1.30, 1.50, 2.00, 3.00, 5.00, 10.00] ms, ratio 3",
+    "type": "str",
+    "list": [
+     "1.20",
+     "1.30",
+     "1.50",
+     "2.00",
+     "3.00",
+     "5.00",
+     "10.00"
+    ]
+   },
+   {
+    "idx": 21,
+    "key": "3-att",
+    "raw": "linf [0.00, 200.00, 201] ms, att 3",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, att 3"
+   },
+   {
+    "idx": 22,
+    "key": "3-rel",
+    "raw": "logf [20.00, 4000.00, 130] ms, rel 3",
+    "type": "logf",
+    "min": 20.0,
+    "max": 4000.0,
+    "steps": 130,
+    "desc": "ms, rel 3"
+   },
+   {
+    "idx": 23,
+    "key": "3-filt",
+    "raw": "str [OFF, BP, LP6, LP12, HP6, HP12]",
+    "type": "str",
+    "list": [
+     "OFF",
+     "BP",
+     "LP6",
+     "LP12",
+     "HP6",
+     "HP12"
+    ]
+   },
+   {
+    "idx": 24,
+    "key": "3-g",
+    "raw": "linf [-15.00, 15.00, 301] dB, gain 3",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 301,
+    "desc": "dB, gain 3"
+   },
+   {
+    "idx": 25,
+    "key": "3-f",
+    "raw": "logf [20, 20000, 961] Hz, freq 3",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 961,
+    "desc": "Hz, freq 3"
+   },
+   {
+    "idx": 26,
+    "key": "3-q",
+    "raw": "logf [0.44, 10.00, 181] qual 3",
+    "type": "logf",
+    "min": 0.44,
+    "max": 10.0,
+    "steps": 181,
+    "desc": "qual 3"
+   },
+   {
+    "idx": 27,
+    "key": "3-mode",
+    "raw": "str [low, high] mode 3",
+    "type": "str",
+    "list": [
+     "low",
+     "high"
+    ]
+   }
+  ],
+  "mdl": "DEQ3"
+ },
+ {
+  "name": "Combinator",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "thr",
+    "raw": "linf [-40, 0, 401] dB, threshold",
+    "type": "linf",
+    "min": -40.0,
+    "max": 0.0,
+    "steps": 401,
+    "desc": "dB, threshold"
+   },
+   {
+    "idx": 2,
+    "key": "gain",
+    "raw": "linf [-10, 10, 201] dB, gain",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, gain"
+   },
+   {
+    "idx": 3,
+    "key": "ratio",
+    "raw": "str [1.1, 1.2, 1.3, 1.5, 1.7, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 7.0, 10.0, 100.0] ms, ratio",
+    "type": "str",
+    "list": [
+     "1.1",
+     "1.2",
+     "1.3",
+     "1.5",
+     "1.7",
+     "2.0",
+     "2.5",
+     "3.0",
+     "3.5",
+     "4.0",
+     "5.0",
+     "7.0",
+     "10.0",
+     "100.0"
+    ]
+   },
+   {
+    "idx": 4,
+    "key": "slope",
+    "raw": "str [24, 48] dB/Oct, slope",
+    "type": "str",
+    "list": [
+     "24",
+     "48"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "bandse l",
+    "raw": "int [1..5] selected band",
+    "type": "int",
+    "desc": "selected band"
+   },
+   {
+    "idx": 6,
+    "key": "att",
+    "raw": "linf [0, 20, 21] attack",
+    "type": "linf",
+    "min": 0.0,
+    "max": 20.0,
+    "steps": 21,
+    "desc": "attack"
+   },
+   {
+    "idx": 7,
+    "key": "rel",
+    "raw": "logf [20, 3000, 201] ms, release",
+    "type": "logf",
+    "min": 20.0,
+    "max": 3000.0,
+    "steps": 201,
+    "desc": "ms, release"
+   },
+   {
+    "idx": 8,
+    "key": "arel",
+    "raw": "int [0, 1] auto release",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "auto release"
+   },
+   {
+    "idx": 9,
+    "key": "sbc",
+    "raw": "linf [1, 10, 10] sbc speed",
+    "type": "linf",
+    "min": 1.0,
+    "max": 10.0,
+    "steps": 10,
+    "desc": "sbc speed"
+   },
+   {
+    "idx": 10,
+    "key": "sbcon",
+    "raw": "int [0, 1] sbc on",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "sbc on"
+   },
+   {
+    "idx": 11,
+    "key": "thr_1",
+    "raw": "linf [-10, 10, 201] dB, 1-THR",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 1-THR"
+   },
+   {
+    "idx": 12,
+    "key": "thr_2",
+    "raw": "linf [-10, 10, 201] dB, 2-THR",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 2-THR"
+   },
+   {
+    "idx": 13,
+    "key": "thr_3",
+    "raw": "linf [-10, 10, 201] dB, 3-THR",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 3-THR"
+   },
+   {
+    "idx": 14,
+    "key": "thr_4",
+    "raw": "linf [-10, 10, 201] dB, 4-THR",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 4-THR"
+   },
+   {
+    "idx": 15,
+    "key": "thr_5",
+    "raw": "linf [-10, 10, 201] dB, 5-THR",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 5-THR"
+   },
+   {
+    "idx": 16,
+    "key": "gain_1",
+    "raw": "linf [-10, 10, 201] dB, 1-GAIN",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 1-GAIN"
+   },
+   {
+    "idx": 17,
+    "key": "gain_2",
+    "raw": "linf [-10, 10, 201] dB, 2-GAIN",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 2-GAIN"
+   },
+   {
+    "idx": 18,
+    "key": "gain_3",
+    "raw": "linf [-10, 10, 201] dB, 3-GAIN",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 3-GAIN"
+   },
+   {
+    "idx": 19,
+    "key": "gain_4",
+    "raw": "linf [-10, 10, 201] dB, 4-GAIN",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 4-GAIN"
+   },
+   {
+    "idx": 20,
+    "key": "gain_5",
+    "raw": "linf [-10, 10, 201] dB, 5-GAIN",
+    "type": "linf",
+    "min": -10.0,
+    "max": 10.0,
+    "steps": 201,
+    "desc": "dB, 5-GAIN"
+   },
+   {
+    "idx": 21,
+    "key": "byp_1",
+    "raw": "int [0, 1], 1-BYP",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "1-BYP"
+   },
+   {
+    "idx": 22,
+    "key": "byp_2",
+    "raw": "int [0, 1], 2-BYP",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "2-BYP"
+   },
+   {
+    "idx": 23,
+    "key": "byp_3",
+    "raw": "int [0, 1], 3-BYP",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "3-BYP"
+   },
+   {
+    "idx": 24,
+    "key": "byp_4",
+    "raw": "int [0, 1], 4-BYP",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "4-BYP"
+   },
+   {
+    "idx": 25,
+    "key": "byp_5",
+    "raw": "int [0, 1], 5-BYP",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "5-BYP"
+   },
+   {
+    "idx": 26,
+    "key": "width_1",
+    "raw": "linf [-50, 50, 101], 1-XOVER",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "1-XOVER"
+   },
+   {
+    "idx": 27,
+    "key": "width_2",
+    "raw": "linf [-50, 50, 101], 2-XOVER",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "2-XOVER"
+   },
+   {
+    "idx": 28,
+    "key": "width_3",
+    "raw": "linf [-50, 50, 101], 3-XOVER",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "3-XOVER"
+   },
+   {
+    "idx": 29,
+    "key": "width_4",
+    "raw": "linf [-50, 50, 101], 4-XOVER",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "4-XOVER"
+   },
+   {
+    "idx": 30,
+    "key": "width_5",
+    "raw": "linf [-50, 50, 101], 5-XOVER",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "5-XOVER"
+   },
+   {
+    "idx": 31,
+    "key": "mix",
+    "raw": "linf [0, 100, 101], mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "mix"
+   },
+   {
+    "idx": 32,
+    "key": "$bdsolo",
+    "raw": "int [0, 1] band solo",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "band solo"
+   }
+  ],
+  "mdl": "C5-CMB"
+ },
+ {
+  "name": "Precision Limiter",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "gin",
+    "raw": "linf [0, 18, 73] dB, in gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 18.0,
+    "steps": 73,
+    "desc": "dB, in gain"
+   },
+   {
+    "idx": 2,
+    "key": "gout",
+    "raw": "linf [-18, 0, 73] dB out gain",
+    "type": "linf",
+    "min": -18.0,
+    "max": 0.0,
+    "steps": 73,
+    "desc": "dB out gain"
+   },
+   {
+    "idx": 3,
+    "key": "sqz",
+    "raw": "int [0...100] squeeze",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "squeeze"
+   },
+   {
+    "idx": 4,
+    "key": "knee",
+    "raw": "int [0...10] knee",
+    "type": "int",
+    "min": 0.0,
+    "max": 10.0,
+    "desc": "knee"
+   },
+   {
+    "idx": 5,
+    "key": "again",
+    "raw": "int [0, 1] auto gain",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "auto gain"
+   },
+   {
+    "idx": 6,
+    "key": "att",
+    "raw": "linf [.05, 1, 95] ms, attack",
+    "type": "linf",
+    "min": 0.05,
+    "max": 1.0,
+    "steps": 95,
+    "desc": "ms, attack"
+   },
+   {
+    "idx": 7,
+    "key": "rel",
+    "raw": "logf [20, 2000, 101] ms, release",
+    "type": "logf",
+    "min": 20.0,
+    "max": 2000.0,
+    "steps": 101,
+    "desc": "ms, release"
+   }
+  ],
+  "mdl": "LIMITER"
+ },
+ {
+  "name": "Speaker Manager",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "hpf",
+    "raw": "logf [20.00, 20000.00, 961] Hz, high",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 961,
+    "desc": "Hz, high"
+   },
+   {
+    "idx": 2,
+    "key": "hptype",
+    "raw": "str [FLAT, BW6, BW12, BS12, LR12, BW18, BW24, BS24, LR24, BW48, LR48] type",
+    "type": "str",
+    "list": [
+     "FLAT",
+     "BW6",
+     "BW12",
+     "BS12",
+     "LR12",
+     "BW18",
+     "BW24",
+     "BS24",
+     "LR24",
+     "BW48",
+     "LR48"
+    ]
+   },
+   {
+    "idx": 3,
+    "key": "lpf",
+    "raw": "logf [20.00, 20000.00, 961] Hz, low",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 961,
+    "desc": "Hz, low"
+   },
+   {
+    "idx": 4,
+    "key": "lptype",
+    "raw": "str [FLAT, BW6, BW12, BS12, LR12, BW18, BW24, BS24, LR24, BW48, LR48] type",
+    "type": "str",
+    "list": [
+     "FLAT",
+     "BW6",
+     "BW12",
+     "BS12",
+     "LR12",
+     "BW18",
+     "BW24",
+     "BS24",
+     "LR24",
+     "BW48",
+     "LR48"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "tiltf",
+    "raw": "logf [100.00, 10000.00, 121] Hz, tilt",
+    "type": "logf",
+    "min": 100.0,
+    "max": 10000.0,
+    "steps": 121,
+    "desc": "Hz, tilt"
+   },
+   {
+    "idx": 6,
+    "key": "tiltg",
+    "raw": "linf [-6.00, 6.00, 121] dB, tilt gain",
+    "type": "linf",
+    "min": -6.0,
+    "max": 6.0,
+    "steps": 121,
+    "desc": "dB, tilt gain"
+   },
+   {
+    "idx": 7,
+    "key": "phase",
+    "raw": "linf [0.00, 180.00, 37] phase",
+    "type": "linf",
+    "min": 0.0,
+    "max": 180.0,
+    "steps": 37,
+    "desc": "phase"
+   },
+   {
+    "idx": 8,
+    "key": "invert ",
+    "raw": "int [0, 1] invert",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "invert"
+   },
+   {
+    "idx": 9,
+    "key": "dist",
+    "raw": "linf [0.00, 5.00, 501] mtrs, distance",
+    "type": "linf",
+    "min": 0.0,
+    "max": 5.0,
+    "steps": 501,
+    "desc": "mtrs, distance"
+   },
+   {
+    "idx": 10,
+    "key": "pos",
+    "raw": "linf [-5.00, 5.00, 1001] mtrs, pos.",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 1001,
+    "desc": "mtrs, pos."
+   },
+   {
+    "idx": 11,
+    "key": "dyneq",
+    "raw": "int [0, 1] deq",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "deq"
+   },
+   {
+    "idx": 12,
+    "key": "dynthr",
+    "raw": "linf [-60.00, 0.00, 121] dB, threshold",
+    "type": "linf",
+    "min": -60.0,
+    "max": 0.0,
+    "steps": 121,
+    "desc": "dB, threshold"
+   },
+   {
+    "idx": 13,
+    "key": "deqratio",
+    "raw": "str [1.20, 1.30, 1.50, 2.00, 3.00, 5.00, 10.00] ratio",
+    "type": "str",
+    "list": [
+     "1.20",
+     "1.30",
+     "1.50",
+     "2.00",
+     "3.00",
+     "5.00",
+     "10.00"
+    ]
+   },
+   {
+    "idx": 14,
+    "key": "deqatt",
+    "raw": "linf [0.00, 200.00, 201] ms, attack",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, attack"
+   },
+   {
+    "idx": 15,
+    "key": "deqrel",
+    "raw": "logf [20.00, 4000.00, 130] ms, release",
+    "type": "logf",
+    "min": 20.0,
+    "max": 4000.0,
+    "steps": 130,
+    "desc": "ms, release"
+   },
+   {
+    "idx": 16,
+    "key": "deqfilt",
+    "raw": "str [OFF, BP, LP6, LP12, HP6, HP12]",
+    "type": "str",
+    "list": [
+     "OFF",
+     "BP",
+     "LP6",
+     "LP12",
+     "HP6",
+     "HP12"
+    ]
+   },
+   {
+    "idx": 17,
+    "key": "deqg",
+    "raw": "linf [-15.00, 15.00, 301] dB, gain",
+    "type": "linf",
+    "min": -15.0,
+    "max": 15.0,
+    "steps": 301,
+    "desc": "dB, gain"
+   },
+   {
+    "idx": 18,
+    "key": "deqf",
+    "raw": "logf [20.00, 20000.00, 961] Hz, freq",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 961,
+    "desc": "Hz, freq"
+   },
+   {
+    "idx": 19,
+    "key": "deqq",
+    "raw": "logf [0.44, 10.00, 181] qual",
+    "type": "logf",
+    "min": 0.44,
+    "max": 10.0,
+    "steps": 181,
+    "desc": "qual"
+   },
+   {
+    "idx": 20,
+    "key": "deqmode",
+    "raw": "str [low, high] mode",
+    "type": "str",
+    "list": [
+     "low",
+     "high"
+    ]
+   },
+   {
+    "idx": 21,
+    "key": "lim",
+    "raw": "int [0, 1] limiter",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "limiter"
+   },
+   {
+    "idx": 22,
+    "key": "limthr",
+    "raw": "linf [-24.00, 0.00, 241] dB, threshold",
+    "type": "linf",
+    "min": -24.0,
+    "max": 0.0,
+    "steps": 241,
+    "desc": "dB, threshold"
+   },
+   {
+    "idx": 23,
+    "key": "limrms",
+    "raw": "int [0, 1] rms",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "rms"
+   },
+   {
+    "idx": 24,
+    "key": "limrel",
+    "raw": "logf [50.00, 2000.00, 121] ms, release",
+    "type": "logf",
+    "min": 50.0,
+    "max": 2000.0,
+    "steps": 121,
+    "desc": "ms, release"
+   }
+  ],
+  "mdl": "SPKMAN"
+ },
+ {
+  "name": "2-Band DeEsser",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "lo",
+    "raw": "linf [0, 50, 51] low",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "low"
+   },
+   {
+    "idx": 2,
+    "key": "hi",
+    "raw": "linf [0, 50, 51] high",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "high"
+   },
+   {
+    "idx": 3,
+    "key": "los",
+    "raw": "linf [0, 50, 51] low (s)",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "low (s)"
+   },
+   {
+    "idx": 4,
+    "key": "his",
+    "raw": "linf [0, 50, 51] high (s)",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "high (s)"
+   },
+   {
+    "idx": 5,
+    "key": "gdr",
+    "raw": "str [FEMALE, MALE] gender",
+    "type": "str",
+    "list": [
+     "FEMALE",
+     "MALE"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "mode",
+    "raw": "str [STEREO, MID/SIDE] mode",
+    "type": "str",
+    "list": [
+     "STEREO",
+     "MID/SIDE"
+    ]
+   }
+  ],
+  "mdl": "DE-S2"
+ },
+ {
+  "name": "Ultra Enhancer",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "stlv",
+    "raw": "linf [-100, 100, 201] %, st lvl",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, st lvl"
+   },
+   {
+    "idx": 2,
+    "key": "lmf",
+    "raw": "linf [-100, 100, 201] %, lmf spread",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, lmf spread"
+   },
+   {
+    "idx": 3,
+    "key": "lmvl",
+    "raw": "linf [-100, 100, 201] %, mono lvl",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, mono lvl"
+   },
+   {
+    "idx": 4,
+    "key": "st",
+    "raw": "linf [-100, 100, 201] %, st pan",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, st pan"
+   },
+   {
+    "idx": 5,
+    "key": "m",
+    "raw": "linf [-100, 100, 201] %, mono pan",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, mono pan"
+   },
+   {
+    "idx": 6,
+    "key": "bass",
+    "raw": "linf [0, 100, 101] %, bass gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, bass gain"
+   },
+   {
+    "idx": 7,
+    "key": "mid",
+    "raw": "linf [0, 100, 101] %, mid gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mid gain"
+   },
+   {
+    "idx": 8,
+    "key": "high",
+    "raw": "linf [0, 100, 101] %, high gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, high gain"
+   },
+   {
+    "idx": 9,
+    "key": "g",
+    "raw": "linf [-112, 12, 241] dB, gain",
+    "type": "linf",
+    "min": -112.0,
+    "max": 12.0,
+    "steps": 241,
+    "desc": "dB, gain"
+   },
+   {
+    "idx": 10,
+    "key": "solo",
+    "raw": "int [0, 1] solo",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "solo"
+   },
+   {
+    "idx": 11,
+    "key": "bassf",
+    "raw": "linf [1, 50, 50] bass freq",
+    "type": "linf",
+    "min": 1.0,
+    "max": 50.0,
+    "steps": 50,
+    "desc": "bass freq"
+   },
+   {
+    "idx": 12,
+    "key": "midq",
+    "raw": "linf [1, 50, 50] mid Q",
+    "type": "linf",
+    "min": 1.0,
+    "max": 50.0,
+    "steps": 50,
+    "desc": "mid Q"
+   },
+   {
+    "idx": 13,
+    "key": "highf",
+    "raw": "linf [1, 50, 50] high freq",
+    "type": "linf",
+    "min": 1.0,
+    "max": 50.0,
+    "steps": 50,
+    "desc": "high freq"
+   }
+  ],
+  "mdl": "ENHANCE"
+ },
+ {
+  "name": "Exciter",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "tune",
+    "raw": "logf [1000, 10000, 51] Hz, tune",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 10000.0,
+    "steps": 51,
+    "desc": "Hz, tune"
+   },
+   {
+    "idx": 2,
+    "key": "peak",
+    "raw": "linf [0, 100, 101] %, peak",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, peak"
+   },
+   {
+    "idx": 3,
+    "key": "zfill",
+    "raw": "linf [0, 100, 101] %, zfill",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, zfill"
+   },
+   {
+    "idx": 4,
+    "key": "timbre",
+    "raw": "linf [-50, 50, 101] timbre",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "timbre"
+   },
+   {
+    "idx": 5,
+    "key": "harm",
+    "raw": "linf [0, 100, 101] %, harm",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, harm"
+   },
+   {
+    "idx": 6,
+    "key": "mix",
+    "raw": "linf [0, 100, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 7,
+    "key": "dry",
+    "raw": "int [0, 1] dry",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "dry"
+   }
+  ],
+  "mdl": "EXCITER"
+ },
+ {
+  "name": "Psycho Bass",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "int",
+    "raw": "linf [-24, 6, 61] dB, intensity",
+    "type": "linf",
+    "min": -24.0,
+    "max": 6.0,
+    "steps": 61,
+    "desc": "dB, intensity"
+   },
+   {
+    "idx": 2,
+    "key": "bass",
+    "raw": "linf [-60, 0, 121] dB, bass gain",
+    "type": "linf",
+    "min": -60.0,
+    "max": 0.0,
+    "steps": 121,
+    "desc": "dB, bass gain"
+   },
+   {
+    "idx": 3,
+    "key": "xf",
+    "raw": "logf [32, 200. 51] Hz, X/O freq",
+    "type": "logf",
+    "min": 32.0,
+    "bad": "32, 200. 51",
+    "desc": "Hz, X/O freq"
+   },
+   {
+    "idx": 4,
+    "key": "solo",
+    "raw": "int [0, 1] solo",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "solo"
+   }
+  ],
+  "mdl": "P-BASS"
+ },
+ {
+  "name": "Sub Octaver",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "rng",
+    "raw": "str [LOW, MID, HIGH] range",
+    "type": "str",
+    "list": [
+     "LOW",
+     "MID",
+     "HIGH"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "oct1",
+    "raw": "linf [0, 100, 101] %, octave 1",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, octave 1"
+   },
+   {
+    "idx": 3,
+    "key": "oct2",
+    "raw": "linf [0, 100, 101] %, octave 2",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, octave 2"
+   }
+  ],
+  "mdl": "SUB"
+ },
+ {
+  "name": "Sub Monster",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "[0, 100, 101] %mix",
+    "type": "?"
+   },
+   {
+    "idx": 2,
+    "key": "freq",
+    "raw": "linf [45, 67.5, 226] Hz, freq",
+    "type": "linf",
+    "min": 45.0,
+    "max": 67.5,
+    "steps": 226,
+    "desc": "Hz, freq"
+   },
+   {
+    "idx": 3,
+    "key": "bd1",
+    "raw": "linf [0, 100, 101] %, band 1",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, band 1"
+   },
+   {
+    "idx": 4,
+    "key": "bd2",
+    "raw": "linf [0, 100, 101] %, band 2",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, band 2"
+   },
+   {
+    "idx": 5,
+    "key": "bd3",
+    "raw": "linf [0, 100, 101] %, band 3",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, band 3"
+   },
+   {
+    "idx": 6,
+    "key": "bd4",
+    "raw": "linf [0, 100, 101] %, band 4",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, band 4"
+   },
+   {
+    "idx": 7,
+    "key": "bd5",
+    "raw": "linf [0, 100, 101] %, band 5",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, band 5"
+   }
+  ],
+  "mdl": "SUB-M"
+ },
+ {
+  "name": "Velvet Imager",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "wid",
+    "raw": "linf&gt; [-1.00, 1.00, 201] width",
+    "type": "linf",
+    "bad": "&gt; [-1.00, 1.00, 201",
+    "desc": "width"
+   },
+   {
+    "idx": 2,
+    "key": "st",
+    "raw": "linf [0.00, 100.00, 101] %, stereo",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, stereo"
+   },
+   {
+    "idx": 3,
+    "key": "gain",
+    "raw": "linf [-6.00, 6.00, 49] dB, gain",
+    "type": "linf",
+    "min": -6.0,
+    "max": 6.0,
+    "steps": 49,
+    "desc": "dB, gain"
+   },
+   {
+    "idx": 4,
+    "key": "mode",
+    "raw": "str [K, VELVET] mode",
+    "type": "str",
+    "list": [
+     "K",
+     "VELVET"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "deep",
+    "raw": "int [0,1] deep",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "deep"
+   }
+  ],
+  "mdl": "V_IMG"
+ },
+ {
+  "name": "Double Vocal",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mode",
+    "raw": "str [TIGHT, LOOSE, GROUP, DETUNE, THICK] mode",
+    "type": "str",
+    "list": [
+     "TIGHT",
+     "LOOSE",
+     "GROUP",
+     "DETUNE",
+     "THICK"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "mix",
+    "raw": "linf [0, 100, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 3,
+    "key": "sprd",
+    "raw": "linf [0, 100, 101] %, spread",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, spread"
+   }
+  ],
+  "mdl": "DOUBLE"
+ },
+ {
+  "name": "Pitch Fix",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "spd",
+    "raw": "linf [1, 100, 100] speed",
+    "type": "linf",
+    "min": 1.0,
+    "max": 100.0,
+    "steps": 100,
+    "desc": "speed"
+   },
+   {
+    "idx": 2,
+    "key": "amnt",
+    "raw": "linf [0, 50, 51] amount",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "amount"
+   },
+   {
+    "idx": 3,
+    "key": "a4",
+    "raw": "linf [410, 470, 601] A4 pitch",
+    "type": "linf",
+    "min": 410.0,
+    "max": 470.0,
+    "steps": 601,
+    "desc": "A4 pitch"
+   },
+   {
+    "idx": 4,
+    "key": "_c",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 5,
+    "key": "_db",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 6,
+    "key": "_d",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 7,
+    "key": "_eb",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 8,
+    "key": "_e",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 9,
+    "key": "_f",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 10,
+    "key": "_gb",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 11,
+    "key": "_g",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 12,
+    "key": "_ab",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 13,
+    "key": "_a",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 14,
+    "key": "_bb",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   },
+   {
+    "idx": 15,
+    "key": "_b",
+    "raw": "int [0, 1]",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": ""
+   }
+  ],
+  "mdl": "PCORR"
+ },
+ {
+  "name": "Rotary Speaker",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "sw",
+    "raw": "str [STOP, SLOW, FAST]",
+    "type": "str",
+    "list": [
+     "STOP",
+     "SLOW",
+     "FAST"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "lo",
+    "raw": "logf [.1, 3.999, 51] Hz, lo speed",
+    "type": "logf",
+    "min": 0.1,
+    "max": 3.999,
+    "steps": 51,
+    "desc": "Hz, lo speed"
+   },
+   {
+    "idx": 3,
+    "key": "hi",
+    "raw": "logf [4, 10, 51] Hz, hi speed",
+    "type": "logf",
+    "min": 4.0,
+    "max": 10.0,
+    "steps": 51,
+    "desc": "Hz, hi speed"
+   },
+   {
+    "idx": 4,
+    "key": "bal",
+    "raw": "linf [-100, 100, 201] balance",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "balance"
+   },
+   {
+    "idx": 5,
+    "key": "mix",
+    "raw": "linf [0, 100, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 6,
+    "key": "dist",
+    "raw": "linf [0, 100, 101] distance",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "distance"
+   },
+   {
+    "idx": 7,
+    "key": "dac",
+    "raw": "linf [0, 100, 101] %, drum accel",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, drum accel"
+   },
+   {
+    "idx": 8,
+    "key": "hac",
+    "raw": "linf [0, 100, 101] %, horn accel",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, horn accel"
+   }
+  ],
+  "mdl": "ROTARY"
+ },
+ {
+  "name": "Phaser",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "spd",
+    "raw": "logf [.05, 5, 201] Hz, speed",
+    "type": "logf",
+    "min": 0.05,
+    "max": 5.0,
+    "steps": 201,
+    "desc": "Hz, speed"
+   },
+   {
+    "idx": 2,
+    "key": "phase",
+    "raw": "int [0...180] phase",
+    "type": "int",
+    "min": 0.0,
+    "max": 180.0,
+    "desc": "phase"
+   },
+   {
+    "idx": 3,
+    "key": "wave",
+    "raw": "int [-50...50] wave",
+    "type": "int",
+    "min": -50.0,
+    "max": 50.0,
+    "desc": "wave"
+   },
+   {
+    "idx": 4,
+    "key": "range",
+    "raw": "int [2...98] %, range",
+    "type": "int",
+    "min": 2.0,
+    "max": 98.0,
+    "desc": "%, range"
+   },
+   {
+    "idx": 5,
+    "key": "depth",
+    "raw": "int [0...100] %, depth",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "%, depth"
+   },
+   {
+    "idx": 6,
+    "key": "emod",
+    "raw": "int [-100, 100] % env mod",
+    "type": "int",
+    "min": -100.0,
+    "max": 100.0,
+    "desc": "% env mod"
+   },
+   {
+    "idx": 7,
+    "key": "att",
+    "raw": "logf [10, 1000, 201] ms, attack",
+    "type": "logf",
+    "min": 10.0,
+    "max": 1000.0,
+    "steps": 201,
+    "desc": "ms, attack"
+   },
+   {
+    "idx": 8,
+    "key": "hld",
+    "raw": "logf [10, 2000, 201] ms, hold",
+    "type": "logf",
+    "min": 10.0,
+    "max": 2000.0,
+    "steps": 201,
+    "desc": "ms, hold"
+   },
+   {
+    "idx": 9,
+    "key": "rel",
+    "raw": "logf [10, 1000, 201] ms, release",
+    "type": "logf",
+    "min": 10.0,
+    "max": 1000.0,
+    "steps": 201,
+    "desc": "ms, release"
+   },
+   {
+    "idx": 10,
+    "key": "mix",
+    "raw": "int [0...100] %, mix",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 11,
+    "key": "stg",
+    "raw": "int [2...12] stages",
+    "type": "int",
+    "min": 2.0,
+    "max": 12.0,
+    "desc": "stages"
+   },
+   {
+    "idx": 12,
+    "key": "reso",
+    "raw": "int [0...80] %, reso",
+    "type": "int",
+    "min": 0.0,
+    "max": 80.0,
+    "desc": "%, reso"
+   }
+  ],
+  "mdl": "PHASER"
+ },
+ {
+  "name": "Tremolo Panner",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "att",
+    "raw": "logf [10, 1000, 201] ms, attack",
+    "type": "logf",
+    "min": 10.0,
+    "max": 1000.0,
+    "steps": 201,
+    "desc": "ms, attack"
+   },
+   {
+    "idx": 2,
+    "key": "hld",
+    "raw": "logf [10, 2000, 201] ms, hold",
+    "type": "logf",
+    "min": 10.0,
+    "max": 2000.0,
+    "steps": 201,
+    "desc": "ms, hold"
+   },
+   {
+    "idx": 3,
+    "key": "rel",
+    "raw": "logf [10, 1000, 201] ms, release",
+    "type": "logf",
+    "min": 10.0,
+    "max": 1000.0,
+    "steps": 201,
+    "desc": "ms, release"
+   },
+   {
+    "idx": 4,
+    "key": "espd",
+    "raw": "int [0...100] %, env&gt;depth",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "%, env&gt;depth"
+   },
+   {
+    "idx": 5,
+    "key": "edep",
+    "raw": "int [0...100] %, env&gt;depth",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "%, env&gt;depth"
+   },
+   {
+    "idx": 6,
+    "key": "spd",
+    "raw": "logf [.05, 5, 201] Hz, speed",
+    "type": "logf",
+    "min": 0.05,
+    "max": 5.0,
+    "steps": 201,
+    "desc": "Hz, speed"
+   },
+   {
+    "idx": 7,
+    "key": "phase",
+    "raw": "int [0...180] phase",
+    "type": "int",
+    "min": 0.0,
+    "max": 180.0,
+    "desc": "phase"
+   },
+   {
+    "idx": 8,
+    "key": "wave",
+    "raw": "int [-50...50] wave",
+    "type": "int",
+    "min": -50.0,
+    "max": 50.0,
+    "desc": "wave"
+   },
+   {
+    "idx": 9,
+    "key": "depth",
+    "raw": "int [0...100] %, depth",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "%, depth"
+   }
+  ],
+  "mdl": "PANNER"
+ },
+ {
+  "name": "Tape Machine",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "drv",
+    "raw": "Linf [-5.0, 25.0, 61] dB, drive",
+    "type": "?"
+   },
+   {
+    "idx": 2,
+    "key": "spd",
+    "raw": "logf [7.5, 30, 65]",
+    "type": "logf",
+    "min": 7.5,
+    "max": 30.0,
+    "steps": 65,
+    "desc": ""
+   },
+   {
+    "idx": 3,
+    "key": "low",
+    "raw": "int [0, 1] low bump",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "low bump"
+   },
+   {
+    "idx": 4,
+    "key": "hi",
+    "raw": "int [0, 1] high shelv",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "high shelv"
+   },
+   {
+    "idx": 5,
+    "key": "out",
+    "raw": "linf [-12, 12, 97] dB, out gains s",
+    "type": "linf",
+    "min": -12.0,
+    "max": 12.0,
+    "steps": 97,
+    "desc": "dB, out gains s"
+   }
+  ],
+  "mdl": "TAPE"
+ },
+ {
+  "name": "Mood Filter",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "fbase",
+    "raw": "logf [20, 15000, 101] Hz, base",
+    "type": "logf",
+    "min": 20.0,
+    "max": 15000.0,
+    "steps": 101,
+    "desc": "Hz, base"
+   },
+   {
+    "idx": 2,
+    "key": "filt",
+    "raw": "str [LP, HP, BP, NOTCH] type",
+    "type": "str",
+    "list": [
+     "LP",
+     "HP",
+     "BP",
+     "NOTCH"
+    ]
+   },
+   {
+    "idx": 3,
+    "key": "slope",
+    "raw": "str [12, 24] slope",
+    "type": "str",
+    "list": [
+     "12",
+     "24"
+    ]
+   },
+   {
+    "idx": 4,
+    "key": "reso",
+    "raw": "linf [0, 10, 101] reso",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "reso"
+   },
+   {
+    "idx": 5,
+    "key": "drv",
+    "raw": "linf [0, 10, 101] drive",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "drive"
+   },
+   {
+    "idx": 6,
+    "key": "env",
+    "raw": "linf [-100, 100, 201] %, env",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, env"
+   },
+   {
+    "idx": 7,
+    "key": "att",
+    "raw": "logf [10, 250, 101] ms, attack",
+    "type": "logf",
+    "min": 10.0,
+    "max": 250.0,
+    "steps": 101,
+    "desc": "ms, attack"
+   },
+   {
+    "idx": 8,
+    "key": "hld",
+    "raw": "logf [1, 500, 101] ms, hold",
+    "type": "logf",
+    "min": 1.0,
+    "max": 500.0,
+    "steps": 101,
+    "desc": "ms, hold"
+   }
+  ],
+  "mdl": "MOOD"
+ },
+ {
+  "name": "Mood Filter",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 10, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "lfo",
+    "raw": "linf [linf [0, 10, 101] %, lfo",
+    "type": "linf",
+    "bad": "linf [0, 10, 101",
+    "desc": "%, lfo"
+   },
+   {
+    "idx": 6,
+    "key": "spd",
+    "raw": "logf [.05, 20, 301] Hz, speed",
+    "type": "logf",
+    "min": 0.05,
+    "max": 20.0,
+    "steps": 301,
+    "desc": "Hz, speed"
+   },
+   {
+    "idx": 7,
+    "key": "phase",
+    "raw": "int [0...180] phase",
+    "type": "int",
+    "min": 0.0,
+    "max": 180.0,
+    "desc": "phase"
+   },
+   {
+    "idx": 8,
+    "key": "wave",
+    "raw": "str [TRI, SIN, SAW+, SAW-, RMP, SQU, RND] lfo wave",
+    "type": "str",
+    "list": [
+     "TRI",
+     "SIN",
+     "SAW+",
+     "SAW-",
+     "RMP",
+     "SQU",
+     "RND"
+    ]
+   }
+  ],
+  "mdl": "logf [1, 500, 101] ms, release"
+ },
+ {
+  "name": "Bodyrez",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "body",
+    "raw": "linf [0, 100, 101] body",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "body"
+   }
+  ],
+  "mdl": "BODY"
+ },
+ {
+  "name": "Rack Amp",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pre",
+    "raw": "linf [0, 10, 101] preamp",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "preamp"
+   },
+   {
+    "idx": 2,
+    "key": "buzz",
+    "raw": "linf [0, 10, 101] buzz",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "buzz"
+   },
+   {
+    "idx": 3,
+    "key": "punch",
+    "raw": "linf [0, 10, 101] punch",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "punch"
+   },
+   {
+    "idx": 4,
+    "key": "crunch",
+    "raw": "linf [0, 10, 101] crunch",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "crunch"
+   },
+   {
+    "idx": 6,
+    "key": "out",
+    "raw": "linf [0, 10, 101] out gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "out gain"
+   },
+   {
+    "idx": 7,
+    "key": "leq",
+    "raw": "linf [0, 10, 101] low eq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "low eq"
+   },
+   {
+    "idx": 9,
+    "key": "cab",
+    "raw": "int [0, 1] cab sim",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "cab sim"
+   }
+  ],
+  "mdl": "RACKAMP"
+ },
+ {
+  "name": "UK Rock Amp",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "gain",
+    "raw": "linf [0, 10, 101] gains",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "gains"
+   },
+   {
+    "idx": 2,
+    "key": "bass",
+    "raw": "linf [0, 10, 101] bass",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "bass"
+   },
+   {
+    "idx": 3,
+    "key": "mid",
+    "raw": "linf [0, 10, 101] middle",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "middle"
+   },
+   {
+    "idx": 4,
+    "key": "treb",
+    "raw": "linf [0, 10, 101] treble",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "treble"
+   },
+   {
+    "idx": 6,
+    "key": "mstr",
+    "raw": "linf [0, 10, 101] master",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "master"
+   },
+   {
+    "idx": 7,
+    "key": "out",
+    "raw": "linf [0, 10, 101] out gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "out gain"
+   },
+   {
+    "idx": 9,
+    "key": "cab",
+    "raw": "int [0, 1] cab sim",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "cab sim"
+   }
+  ],
+  "mdl": "UKROCK"
+ },
+ {
+  "name": "Angel Amp",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "gain",
+    "raw": "linf [0, 10, 101] gains",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "gains"
+   },
+   {
+    "idx": 2,
+    "key": "bass",
+    "raw": "linf [0, 10, 101] bass",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "bass"
+   },
+   {
+    "idx": 3,
+    "key": "mid",
+    "raw": "linf [0, 10, 101] middle",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "middle"
+   },
+   {
+    "idx": 4,
+    "key": "treb",
+    "raw": "linf [0, 10, 101] treble",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "treble"
+   },
+   {
+    "idx": 6,
+    "key": "mstr",
+    "raw": "linf [0, 10, 101] master",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "master"
+   },
+   {
+    "idx": 7,
+    "key": "out",
+    "raw": "linf [0, 10, 101] out gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "out gain"
+   },
+   {
+    "idx": 9,
+    "key": "cab",
+    "raw": "int [0, 1] cab sim",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "cab sim"
+   },
+   {
+    "idx": 10,
+    "key": "midb",
+    "raw": "int [0, 1] mid boost",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "mid boost"
+   },
+   {
+    "idx": 11,
+    "key": "bri",
+    "raw": "int [0, 1] bright",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "bright"
+   },
+   {
+    "idx": 12,
+    "key": "bt",
+    "raw": "int [0, 1] bottom",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "bottom"
+   }
+  ],
+  "mdl": "ANGEL"
+ },
+ {
+  "name": "Jazz Clean Amp",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "vol",
+    "raw": "linf [0, 10, 101] volume",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "volume"
+   },
+   {
+    "idx": 2,
+    "key": "bass",
+    "raw": "linf [0, 10, 101] bass",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "bass"
+   },
+   {
+    "idx": 3,
+    "key": "mid",
+    "raw": "linf [0, 10, 101] middle",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "middle"
+   },
+   {
+    "idx": 4,
+    "key": "treb",
+    "raw": "linf [0, 10, 101] treble",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "treble"
+   },
+   {
+    "idx": 5,
+    "key": "out",
+    "raw": "linf [0, 10, 101] out gain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "out gain"
+   },
+   {
+    "idx": 6,
+    "key": "bri",
+    "raw": "int [0, 1] bright",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "bright"
+   },
+   {
+    "idx": 7,
+    "key": "cab",
+    "raw": "int [0, 1] cab sim",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "cab sim"
+   }
+  ],
+  "mdl": "JAZZC"
+ },
+ {
+  "name": "Deluxe Amp",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "vol",
+    "raw": "linf [1, 10, 91] volume",
+    "type": "linf",
+    "min": 1.0,
+    "max": 10.0,
+    "steps": 91,
+    "desc": "volume"
+   },
+   {
+    "idx": 2,
+    "key": "bass",
+    "raw": "linf [1, 10, 91] bass",
+    "type": "linf",
+    "min": 1.0,
+    "max": 10.0,
+    "steps": 91,
+    "desc": "bass"
+   },
+   {
+    "idx": 4,
+    "key": "treb",
+    "raw": "linf [1, 10, 91] treble",
+    "type": "linf",
+    "min": 1.0,
+    "max": 10.0,
+    "steps": 91,
+    "desc": "treble"
+   },
+   {
+    "idx": 5,
+    "key": "out",
+    "raw": "linf [1, 10, 91] out gain",
+    "type": "linf",
+    "min": 1.0,
+    "max": 10.0,
+    "steps": 91,
+    "desc": "out gain"
+   },
+   {
+    "idx": 6,
+    "key": "sag",
+    "raw": "linf [1, 10, 91] sag",
+    "type": "linf",
+    "min": 1.0,
+    "max": 10.0,
+    "steps": 91,
+    "desc": "sag"
+   },
+   {
+    "idx": 7,
+    "key": "cab",
+    "raw": "int [0, 1] cab sim",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "cab sim"
+   }
+  ],
+  "mdl": "DELUXE"
+ },
+ {
+  "name": "Soul Analogue",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "lf",
+    "raw": "linf [0, 10, 101] lo freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lo freq"
+   },
+   {
+    "idx": 3,
+    "key": "lg",
+    "raw": "linf [-5, 5, 101] lo gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lo gain"
+   },
+   {
+    "idx": 4,
+    "key": "lmf",
+    "raw": "linf [0, 10, 101] lm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm freq"
+   },
+   {
+    "idx": 5,
+    "key": "lmf3",
+    "raw": "int [0, 1] lm /3",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "lm /3"
+   },
+   {
+    "idx": 6,
+    "key": "lmq",
+    "raw": "linf [0, 10, 101] lm q",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm q"
+   },
+   {
+    "idx": 7,
+    "key": "lmg",
+    "raw": "linf [-5, 5, 101] lm gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lm gain"
+   },
+   {
+    "idx": 8,
+    "key": "hmf",
+    "raw": "linf [0, 10, 101] hm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm freq"
+   },
+   {
+    "idx": 9,
+    "key": "hmf3",
+    "raw": "int [0, 1] hm x3",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "hm x3"
+   },
+   {
+    "idx": 10,
+    "key": "hmq",
+    "raw": "linf [0, 10, 101] hm q",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm q"
+   },
+   {
+    "idx": 11,
+    "key": "hmg",
+    "raw": "linf [-5, 5, 101] hm gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hm gain"
+   },
+   {
+    "idx": 12,
+    "key": "hf",
+    "raw": "linf [0, 10, 101] hf freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hf freq"
+   },
+   {
+    "idx": 13,
+    "key": "hg",
+    "raw": "linf [-5, 5, 101] hf gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hf gain"
+   }
+  ],
+  "mdl": "SOUL"
+ },
+ {
+  "name": "Even 88 Formant",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "lf",
+    "raw": "linf [0, 10, 101] lf freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lf freq"
+   },
+   {
+    "idx": 3,
+    "key": "lg",
+    "raw": "linf [-5, 5, 101] lf gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lf gain"
+   },
+   {
+    "idx": 4,
+    "key": "lq",
+    "raw": "str [LOW, HIGH] lf q",
+    "type": "str",
+    "list": [
+     "LOW",
+     "HIGH"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "lt",
+    "raw": "str [BELL, SHELV] lf type",
+    "type": "str",
+    "list": [
+     "BELL",
+     "SHELV"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "lmf",
+    "raw": "linf [0, 10, 101] lm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm freq"
+   },
+   {
+    "idx": 7,
+    "key": "lmg",
+    "raw": "linf [-5, 5, 101] lm gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lm gain"
+   },
+   {
+    "idx": 8,
+    "key": "lmq",
+    "raw": "linf [0, 10, 101] lm q",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm q"
+   },
+   {
+    "idx": 9,
+    "key": "hmf",
+    "raw": "linf [0, 10, 101] hm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm freq"
+   },
+   {
+    "idx": 10,
+    "key": "hmg",
+    "raw": "linf [-5, 5, 101] hm gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hm gain"
+   },
+   {
+    "idx": 11,
+    "key": "hmq",
+    "raw": "linf [0, 10, 101] hm q",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm q"
+   },
+   {
+    "idx": 12,
+    "key": "hf",
+    "raw": "linf [0, 10, 101] hm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm freq"
+   },
+   {
+    "idx": 13,
+    "key": "hg",
+    "raw": "linf [-5, 5, 101] hf gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hf gain"
+   },
+   {
+    "idx": 14,
+    "key": "hq",
+    "raw": "str [LOW, HIG] hf q",
+    "type": "str",
+    "list": [
+     "LOW",
+     "HIG"
+    ]
+   },
+   {
+    "idx": 15,
+    "key": "ht",
+    "raw": "str [BELL, SHELV] hf type",
+    "type": "str",
+    "list": [
+     "BELL",
+     "SHELV"
+    ]
+   }
+  ],
+  "mdl": "E88"
+ },
+ {
+  "name": "Even 84",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "g",
+    "raw": "linf [-20, 20, 81] dB, gain",
+    "type": "linf",
+    "min": -20.0,
+    "max": 20.0,
+    "steps": 81,
+    "desc": "dB, gain"
+   },
+   {
+    "idx": 3,
+    "key": "lf",
+    "raw": "str [OFF, 35, 60, 110, 220] lf freq",
+    "type": "str",
+    "list": [
+     "OFF",
+     "35",
+     "60",
+     "110",
+     "220"
+    ]
+   },
+   {
+    "idx": 4,
+    "key": "lg",
+    "raw": "linf [-5, 5, 101] lf gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lf gain"
+   },
+   {
+    "idx": 5,
+    "key": "mf",
+    "raw": "str [OFF, 350, 700, 1k6, 3k2, 4k8, 7k2] mid freq",
+    "type": "str",
+    "list": [
+     "OFF",
+     "350",
+     "700",
+     "1k6",
+     "3k2",
+     "4k8",
+     "7k2"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "mg",
+    "raw": "linf [-5, 5, 101] mid gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "mid gain"
+   },
+   {
+    "idx": 7,
+    "key": "mq",
+    "raw": "str [LOW, HIGH] mid q",
+    "type": "str",
+    "list": [
+     "LOW",
+     "HIGH"
+    ]
+   },
+   {
+    "idx": 8,
+    "key": "hf",
+    "raw": "str [10k, 12k, 16k, OFF] hf freq",
+    "type": "str",
+    "list": [
+     "10k",
+     "12k",
+     "16k",
+     "OFF"
+    ]
+   },
+   {
+    "idx": 9,
+    "key": "hg",
+    "raw": "linf [-5, 5, 101] hf gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hf gain"
+   }
+  ],
+  "mdl": "E84"
+ },
+ {
+  "name": "Fortissimo110",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "peq",
+    "raw": "int [0, 1] peq on",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "peq on"
+   },
+   {
+    "idx": 3,
+    "key": "lmf",
+    "raw": "linf [0, 10, 101] lm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm freq"
+   },
+   {
+    "idx": 4,
+    "key": "lmg",
+    "raw": "linf [-5, 5, 101] lm gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lm gain"
+   },
+   {
+    "idx": 5,
+    "key": "lmq",
+    "raw": "linf [0, 10, 101] lm q",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm q"
+   },
+   {
+    "idx": 6,
+    "key": "lmf3",
+    "raw": "int [0, 1] lm /3",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "lm /3"
+   },
+   {
+    "idx": 7,
+    "key": "hmf",
+    "raw": "linf [0, 10, 101] hm freq",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm freq"
+   },
+   {
+    "idx": 8,
+    "key": "hmg",
+    "raw": "linf [-5, 5, 101] hm gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hm gain"
+   },
+   {
+    "idx": 9,
+    "key": "hmq",
+    "raw": "linf [0, 10, 101] hm q",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hm q"
+   },
+   {
+    "idx": 10,
+    "key": "hmf3",
+    "raw": "int [0, 1] hm x3",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "hm x3"
+   },
+   {
+    "idx": 11,
+    "key": "shv",
+    "raw": "inf [0, 1] shv on",
+    "type": "?"
+   },
+   {
+    "idx": 12,
+    "key": "lf",
+    "raw": "str [33, 56, 95, 160, 270, 460] lf freq",
+    "type": "str",
+    "list": [
+     "33",
+     "56",
+     "95",
+     "160",
+     "270",
+     "460"
+    ]
+   },
+   {
+    "idx": 13,
+    "key": "lg",
+    "raw": "linf [-5, 5, 101] lf gain",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "lf gain"
+   },
+   {
+    "idx": 14,
+    "key": "hf",
+    "raw": "str [3k3, 4k7, 6k8, 10k, 15k, 18k] hf freq",
+    "type": "str",
+    "list": [
+     "3k3",
+     "4k7",
+     "6k8",
+     "10k",
+     "15k",
+     "18k"
+    ]
+   },
+   {
+    "idx": 15,
+    "key": "hg",
+    "raw": "linf [-5, 5, 101] hf q",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "hf q"
+   },
+   {
+    "idx": 16,
+    "key": "g",
+    "raw": "linf [-18, 18, 73] gain",
+    "type": "linf",
+    "min": -18.0,
+    "max": 18.0,
+    "steps": 73,
+    "desc": "gain"
+   }
+  ],
+  "mdl": "F110"
+ },
+ {
+  "name": "Pulsar",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "eq1",
+    "raw": "int [0, 1] eq1 on",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "eq1 on"
+   },
+   {
+    "idx": 3,
+    "key": "1lb",
+    "raw": "linf [0, 10, 101] lf boost",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lf boost"
+   },
+   {
+    "idx": 4,
+    "key": "1latt",
+    "raw": "linf [0, 10, 101] lf att",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lf att"
+   },
+   {
+    "idx": 5,
+    "key": "1lf",
+    "raw": "str [20, 30, 60, 100] Hz, lf freq",
+    "type": "str",
+    "list": [
+     "20",
+     "30",
+     "60",
+     "100"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "1hw",
+    "raw": "linf [0, 10, 101] hf wid",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hf wid"
+   },
+   {
+    "idx": 7,
+    "key": "1hb",
+    "raw": "linf [0, 10, 101] hf boost",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hf boost"
+   },
+   {
+    "idx": 8,
+    "key": "1hf",
+    "raw": "str [3k, 4k, 5k, 8k, 10k, 12k, 16k] Hz, hf freq",
+    "type": "str",
+    "list": [
+     "3k",
+     "4k",
+     "5k",
+     "8k",
+     "10k",
+     "12k",
+     "16k"
+    ]
+   },
+   {
+    "idx": 9,
+    "key": "1hatt",
+    "raw": "linf [0, 10, 101] hf att",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "hf att"
+   },
+   {
+    "idx": 10,
+    "key": "1hattf",
+    "raw": "str [5k, 10k, 20k] hf att",
+    "type": "str",
+    "list": [
+     "5k",
+     "10k",
+     "20k"
+    ]
+   },
+   {
+    "idx": 11,
+    "key": "eq5",
+    "raw": "inf [0, 1] eq5 on",
+    "type": "?"
+   },
+   {
+    "idx": 12,
+    "key": "5lb",
+    "raw": "linf [0, 10, 101] lm boost",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "lm boost"
+   },
+   {
+    "idx": 13,
+    "key": "5lf",
+    "raw": "str [200, 300, 500, 700, 1k] Hz, lf freq",
+    "type": "str",
+    "list": [
+     "200",
+     "300",
+     "500",
+     "700",
+     "1k"
+    ]
+   },
+   {
+    "idx": 14,
+    "key": "5md",
+    "raw": "linf [0, 10, 101] mid dip",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "mid dip"
+   },
+   {
+    "idx": 15,
+    "key": "5mf",
+    "raw": "str [200, 300, 500, 700, 1k, 1k5, 2k, 3k, 4k, 5k, 7k] Hz, mid freq",
+    "type": "str",
+    "list": [
+     "200",
+     "300",
+     "500",
+     "700",
+     "1k",
+     "1k5",
+     "2k",
+     "3k",
+     "4k",
+     "5k",
+     "7k"
+    ]
+   },
+   {
+    "idx": 16,
+    "key": "5hb",
+    "raw": "linf [0, 10, 101] HM boost",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "HM boost"
+   },
+   {
+    "idx": 17,
+    "key": "5hf",
+    "raw": "str [1k5, 2k, 3k, 4k, 5k] Hz, hf freq",
+    "type": "str",
+    "list": [
+     "1k5",
+     "2k",
+     "3k",
+     "4k",
+     "5k"
+    ]
+   }
+  ],
+  "mdl": "PULSAR"
+ },
+ {
+  "name": "Mach EQ4",
+  "sec": "STD",
+  "params": [
+   {
+    "idx": 1,
+    "key": "mix",
+    "raw": "linf [0, 125, 126] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 125.0,
+    "steps": 126,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 2,
+    "key": "sub",
+    "raw": "linf [-5, 5, 101] sub",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "sub"
+   },
+   {
+    "idx": 3,
+    "key": "40",
+    "raw": "linf [-5, 5, 101] 40",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "40"
+   },
+   {
+    "idx": 4,
+    "key": "160",
+    "raw": "linf [-5, 5, 101] 160",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "160"
+   },
+   {
+    "idx": 5,
+    "key": "650",
+    "raw": "linf [-5, 5, 101] 650",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "650"
+   },
+   {
+    "idx": 6,
+    "key": "2k5",
+    "raw": "linf [-5, 5, 101] 2k5",
+    "type": "linf",
+    "min": -5.0,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "2k5"
+   },
+   {
+    "idx": 7,
+    "key": "air",
+    "raw": "linf [0, 10, 101] air",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "air"
+   },
+   {
+    "idx": 8,
+    "key": "airm",
+    "raw": "str [OFF, 2k5, 5k, 10k, 20k, 40k] air mode",
+    "type": "str",
+    "list": [
+     "OFF",
+     "2k5",
+     "5k",
+     "10k",
+     "20k",
+     "40k"
+    ]
+   },
+   {
+    "idx": 9,
+    "key": "again",
+    "raw": "int [0, 1] auto",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "auto"
+   }
+  ],
+  "mdl": "MACH4"
+ },
+ {
+  "name": "None",
+  "sec": "PREM",
+  "params": [],
+  "mdl": "NONE"
+ },
+ {
+  "name": "External",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "egrp",
+    "raw": "str [OFF, LCL, AUX, A, B, C, SC, USB, CRD, MOD, PLAY, AES] ext grp",
+    "type": "str",
+    "list": [
+     "OFF",
+     "LCL",
+     "AUX",
+     "A",
+     "B",
+     "C",
+     "SC",
+     "USB",
+     "CRD",
+     "MOD",
+     "PLAY",
+     "AES"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "ein",
+    "raw": "int [1...64] ext in",
+    "type": "int",
+    "min": 1.0,
+    "max": 64.0,
+    "desc": "ext in"
+   },
+   {
+    "idx": 3,
+    "key": "emode",
+    "raw": "str [M, ST, M/S] ext mode",
+    "type": "str",
+    "list": [
+     "M",
+     "ST",
+     "M/S"
+    ]
+   },
+   {
+    "idx": 4,
+    "key": "lat",
+    "raw": "int [0...200] latency",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "latency"
+   },
+   {
+    "idx": 5,
+    "key": "trim",
+    "raw": "linf [-18, 18, 361] dB, trim",
+    "type": "linf",
+    "min": -18.0,
+    "max": 18.0,
+    "steps": 361,
+    "desc": "dB, trim"
+   }
+  ],
+  "mdl": "EXT"
+ },
+ {
+  "name": "Hall Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "int [0...100] hall size",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "hall size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.2, 5, 101] s, decay",
+    "type": "logf",
+    "min": 0.2,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "mult",
+    "raw": "logf [.5, , 101] bass multiplier",
+    "type": "logf",
+    "min": 0.5,
+    "bad": ".5, , 101",
+    "desc": "bass multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1k, 20k, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "shp",
+    "raw": "linf [0, 50, 51] shape",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "shape"
+   },
+   {
+    "idx": 9,
+    "key": "sprd",
+    "raw": "int [0...50] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 10,
+    "key": "diff",
+    "raw": "int [1...30] diffusion",
+    "type": "int",
+    "min": 1.0,
+    "max": 30.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 11,
+    "key": "mspd",
+    "raw": "int [0...100] mod speed",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "mod speed"
+   }
+  ],
+  "mdl": "HALL"
+ },
+ {
+  "name": "Room Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "linf [4, 76, 145] m, room size",
+    "type": "linf",
+    "min": 4.0,
+    "max": 76.0,
+    "steps": 145,
+    "desc": "m, room size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.3, 25, 101] s, decay",
+    "type": "logf",
+    "min": 0.3,
+    "max": 25.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "mult",
+    "raw": "logf [.25, 4, 101] bass multiplier",
+    "type": "logf",
+    "min": 0.25,
+    "max": 4.0,
+    "steps": 101,
+    "desc": "bass multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1k, 20k, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "shp",
+    "raw": "linf [0, 250, 51] shape",
+    "type": "linf",
+    "min": 0.0,
+    "max": 250.0,
+    "steps": 51,
+    "desc": "shape"
+   },
+   {
+    "idx": 9,
+    "key": "sprd",
+    "raw": "int [0...50] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 10,
+    "key": "diff",
+    "raw": "int [0...100] diffusion",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 11,
+    "key": "spin",
+    "raw": "int [0...100] spin",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "spin"
+   },
+   {
+    "idx": 12,
+    "key": "ecl",
+    "raw": "linf [0, 1200, 1201] ms, echo left",
+    "type": "linf",
+    "min": 0.0,
+    "max": 1200.0,
+    "steps": 1201,
+    "desc": "ms, echo left"
+   },
+   {
+    "idx": 13,
+    "key": "ecr",
+    "raw": "linf [0, 1200, 1201] ms, echo right",
+    "type": "linf",
+    "min": 0.0,
+    "max": 1200.0,
+    "steps": 1201,
+    "desc": "ms, echo right"
+   },
+   {
+    "idx": 14,
+    "key": "efl",
+    "raw": "linf [-100, 100, 201] %, feed left",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, feed left"
+   },
+   {
+    "idx": 15,
+    "key": "efr",
+    "raw": "linf [-100, 100, 201] %, feed right",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, feed right"
+   }
+  ],
+  "mdl": "ROOM"
+ },
+ {
+  "name": "Chamber Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "linf [4, 76, 145] m, room size",
+    "type": "linf",
+    "min": 4.0,
+    "max": 76.0,
+    "steps": 145,
+    "desc": "m, room size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.3, 25, 101] s, decay",
+    "type": "logf",
+    "min": 0.3,
+    "max": 25.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "mult",
+    "raw": "logf [.25, 4, 101] bass multiplier",
+    "type": "logf",
+    "min": 0.25,
+    "max": 4.0,
+    "steps": 101,
+    "desc": "bass multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1k, 20k, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "shp",
+    "raw": "linf [0, 250, 51] shape",
+    "type": "linf",
+    "min": 0.0,
+    "max": 250.0,
+    "steps": 51,
+    "desc": "shape"
+   },
+   {
+    "idx": 9,
+    "key": "sprd",
+    "raw": "int [0...50] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 10,
+    "key": "diff",
+    "raw": "int [0...100] diffusion",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 11,
+    "key": "spin",
+    "raw": "int [0...100] spin",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "spin"
+   },
+   {
+    "idx": 12,
+    "key": "ecl",
+    "raw": "linf [0, 300, 301] ms, echo left",
+    "type": "linf",
+    "min": 0.0,
+    "max": 300.0,
+    "steps": 301,
+    "desc": "ms, echo left"
+   },
+   {
+    "idx": 13,
+    "key": "ecr",
+    "raw": "linf [0, 300, 301] ms, echo right",
+    "type": "linf",
+    "min": 0.0,
+    "max": 300.0,
+    "steps": 301,
+    "desc": "ms, echo right"
+   },
+   {
+    "idx": 14,
+    "key": "ell",
+    "raw": "fader lvl dB, echo left",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 15,
+    "key": "elr",
+    "raw": "fader lvl dB, echo right",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   }
+  ],
+  "mdl": "CHAMBER"
+ },
+ {
+  "name": "Plate Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "linf [4, 76, 145] m, room size",
+    "type": "linf",
+    "min": 4.0,
+    "max": 76.0,
+    "steps": 145,
+    "desc": "m, room size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.3, 25, 101] s, decay",
+    "type": "logf",
+    "min": 0.3,
+    "max": 25.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "mult",
+    "raw": "logf [.25, 4, 101] bass multiplier",
+    "type": "logf",
+    "min": 0.25,
+    "max": 4.0,
+    "steps": 101,
+    "desc": "bass multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1k, 20k, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "att",
+    "raw": "linf [0, 100, 101] attack",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "attack"
+   },
+   {
+    "idx": 9,
+    "key": "sprd",
+    "raw": "int [0...50] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 10,
+    "key": "diff",
+    "raw": "int [0...100] diffusion",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 11,
+    "key": "spin",
+    "raw": "int [0...100] spin",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "spin"
+   },
+   {
+    "idx": 12,
+    "key": "ecl",
+    "raw": "linf [0, 1200, 1201] ms, echo left",
+    "type": "linf",
+    "min": 0.0,
+    "max": 1200.0,
+    "steps": 1201,
+    "desc": "ms, echo left"
+   },
+   {
+    "idx": 13,
+    "key": "ecr",
+    "raw": "linf [0, 1200, 1201] ms, echo right",
+    "type": "linf",
+    "min": 0.0,
+    "max": 1200.0,
+    "steps": 1201,
+    "desc": "ms, echo right"
+   },
+   {
+    "idx": 14,
+    "key": "efl",
+    "raw": "linf [-100, 100, 201] %, feed left",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, feed left"
+   },
+   {
+    "idx": 15,
+    "key": "efr",
+    "raw": "linf [-100, 100, 201] %, feed right",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, feed right"
+   }
+  ],
+  "mdl": "PLATE"
+ },
+ {
+  "name": "Concert Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "linf [20, 76, 113] m, room size",
+    "type": "linf",
+    "min": 20.0,
+    "max": 76.0,
+    "steps": 113,
+    "desc": "m, room size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.3, 29, 51] s, decay",
+    "type": "logf",
+    "min": 0.3,
+    "max": 29.0,
+    "steps": 51,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "mult",
+    "raw": "logf [.25, 4, 101] bass multiplier",
+    "type": "logf",
+    "min": 0.25,
+    "max": 4.0,
+    "steps": 101,
+    "desc": "bass multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1k, 20k, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "shp",
+    "raw": "linf [0, 50, 51] shape",
+    "type": "linf",
+    "min": 0.0,
+    "max": 50.0,
+    "steps": 51,
+    "desc": "shape"
+   },
+   {
+    "idx": 9,
+    "key": "sprd",
+    "raw": "int [0...50] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 10,
+    "key": "diff",
+    "raw": "int [1...16] diffusion",
+    "type": "int",
+    "min": 1.0,
+    "max": 16.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 11,
+    "key": "depth",
+    "raw": "int [0, 100] depth",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "depth"
+   },
+   {
+    "idx": 12,
+    "key": "rfl",
+    "raw": "linf [0, 1200, 1201] ms, refl. left",
+    "type": "linf",
+    "min": 0.0,
+    "max": 1200.0,
+    "steps": 1201,
+    "desc": "ms, refl. left"
+   },
+   {
+    "idx": 13,
+    "key": "rfr",
+    "raw": "linf [0, 1200, 1201] ms, refl. right",
+    "type": "linf",
+    "min": 0.0,
+    "max": 1200.0,
+    "steps": 1201,
+    "desc": "ms, refl. right"
+   },
+   {
+    "idx": 14,
+    "key": "rfll",
+    "raw": "fader lvl dB, reflection left",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 15,
+    "key": "rflr",
+    "raw": "fader lvl dB, reflection right",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 16,
+    "key": "spin",
+    "raw": "int [0...100] spin",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "spin"
+   },
+   {
+    "idx": 17,
+    "key": "crs",
+    "raw": "int [1...100] chorus",
+    "type": "int",
+    "min": 1.0,
+    "max": 100.0,
+    "desc": "chorus"
+   }
+  ],
+  "mdl": "CONCERT"
+ },
+ {
+  "name": "Ambiance",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "linf [2, 100, 99] m, room size",
+    "type": "linf",
+    "min": 2.0,
+    "max": 100.0,
+    "steps": 99,
+    "desc": "m, room size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.2, 7.3, 101] s, decay",
+    "type": "logf",
+    "min": 0.2,
+    "max": 7.3,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "tail",
+    "raw": "int [0...100] tail gain",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "tail gain"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1k, 20k, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "diff",
+    "raw": "int [1...30] diffusion",
+    "type": "int",
+    "min": 1.0,
+    "max": 30.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 7,
+    "key": "mod",
+    "raw": "int [1...100] modulation speed",
+    "type": "int",
+    "min": 1.0,
+    "max": 100.0,
+    "desc": "modulation speed"
+   },
+   {
+    "idx": 8,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 9,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   }
+  ],
+  "mdl": "AMBI"
+ },
+ {
+  "name": "VSS3 Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "preset",
+    "raw": "str [Build, Small Booth, Home Room, Dialog Alley, Small Wood Room, A Small Room, Intimate Studio, Small Room, Tight &amp; Natural, Room Conversation, Furnished Room 2, Studio 20x20 ft, Drew Room, Piano Close, Clear Guitar Room, Wide Ambient Chamber, Small Dense Hall, Slap Hall, Acoustic Gtr Ambience, Clear Room, Livingroom, Band Rehearsal Room, The Studio, In The Room, Studio 40x40 ft, Hit Room, Ambient Hall, Stage and Hall, Acoustic Guitar Space, Medium Vocal Hall, Bright Theatre , Big Empty Club, Venue Warm 1, Concert 1, Bright Guitar Hall, Concert Arena, Concert Piano, Piano Hall 1st Row, Empty Arena, Ballad Vocal Hall, Grand Vocal Hall, Large Warm Hall, Back There, WoodHall, Church, Sound Col, 5000 Hall, Cathedral, Large Church, Medium Church, Warm Cathedral, Cologne Cathedral, Drum Plate Stuff, Drum Wood Plate, Piano Plate, Stairway Plate, Slapback Plate, Ambient Plate, Silky Gold Plate, Gold Plate, EMT 141, Leader Of The Band, VocalDry, Vocal Room, VocalWet, Slapback Vox 1, Vocal Hall 1, Vocal Chamber, Bright Male Vox, Vocal Bright, Vocal Deep, Vocal Female, Vocal Deep Male, Large Vocal Hall, Kick &amp; Bass Ambience, Drum Room, Small Perc Room, Drum Room Xpander, Bright Shoe Gaze Snare, Snare Room Bright, Tom-Tom Reverb, Bossa Nova Perc Room, Hard Drum Space, Puk Drum Ambience, Overhead Mics, Dance Snare, Drum Perc Soft 1, Perc Straight Tail, Store Room, Studio Small, The Alley, Near The Wall, WoodFlr, Large Office, Conference Room, Dance Studio, Forest 2, StoneWall, Venue 1, Small Stairway, Forest 1, Airport PA, Small Tower Hall, On The Street, Dark Tunnel, Empty Nightclub, Parking Garage, Parking Distant, Long Swimmingpool] preset",
+    "type": "str",
+    "list": [
+     "Build",
+     "Small Booth",
+     "Home Room",
+     "Dialog Alley",
+     "Small Wood Room",
+     "A Small Room",
+     "Intimate Studio",
+     "Small Room",
+     "Tight &amp; Natural",
+     "Room Conversation",
+     "Furnished Room 2",
+     "Studio 20x20 ft",
+     "Drew Room",
+     "Piano Close",
+     "Clear Guitar Room",
+     "Wide Ambient Chamber",
+     "Small Dense Hall",
+     "Slap Hall",
+     "Acoustic Gtr Ambience",
+     "Clear Room",
+     "Livingroom",
+     "Band Rehearsal Room",
+     "The Studio",
+     "In The Room",
+     "Studio 40x40 ft",
+     "Hit Room",
+     "Ambient Hall",
+     "Stage and Hall",
+     "Acoustic Guitar Space",
+     "Medium Vocal Hall",
+     "Bright Theatre",
+     "Big Empty Club",
+     "Venue Warm 1",
+     "Concert 1",
+     "Bright Guitar Hall",
+     "Concert Arena",
+     "Concert Piano",
+     "Piano Hall 1st Row",
+     "Empty Arena",
+     "Ballad Vocal Hall",
+     "Grand Vocal Hall",
+     "Large Warm Hall",
+     "Back There",
+     "WoodHall",
+     "Church",
+     "Sound Col",
+     "5000 Hall",
+     "Cathedral",
+     "Large Church",
+     "Medium Church",
+     "Warm Cathedral",
+     "Cologne Cathedral",
+     "Drum Plate Stuff",
+     "Drum Wood Plate",
+     "Piano Plate",
+     "Stairway Plate",
+     "Slapback Plate",
+     "Ambient Plate",
+     "Silky Gold Plate",
+     "Gold Plate",
+     "EMT 141",
+     "Leader Of The Band",
+     "VocalDry",
+     "Vocal Room",
+     "VocalWet",
+     "Slapback Vox 1",
+     "Vocal Hall 1",
+     "Vocal Chamber",
+     "Bright Male Vox",
+     "Vocal Bright",
+     "Vocal Deep",
+     "Vocal Female",
+     "Vocal Deep Male",
+     "Large Vocal Hall",
+     "Kick &amp; Bass Ambience",
+     "Drum Room",
+     "Small Perc Room",
+     "Drum Room Xpander",
+     "Bright Shoe Gaze Snare",
+     "Snare Room Bright",
+     "Tom-Tom Reverb",
+     "Bossa Nova Perc Room",
+     "Hard Drum Space",
+     "Puk Drum Ambience",
+     "Overhead Mics",
+     "Dance Snare",
+     "Drum Perc Soft 1",
+     "Perc Straight Tail",
+     "Store Room",
+     "Studio Small",
+     "The Alley",
+     "Near The Wall",
+     "WoodFlr",
+     "Large Office",
+     "Conference Room",
+     "Dance Studio",
+     "Forest 2",
+     "StoneWall",
+     "Venue 1",
+     "Small Stairway",
+     "Forest 1",
+     "Airport PA",
+     "Small Tower Hall",
+     "On The Street",
+     "Dark Tunnel",
+     "Empty Nightclub",
+     "Parking Garage",
+     "Parking Distant",
+     "Long Swimmingpool"
+    ]
+   },
+   {
+    "idx": 2,
+    "key": "load",
+    "raw": "int [0, 1] load",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "load"
+   },
+   {
+    "idx": 3,
+    "key": "erpdly",
+    "raw": "linf [0, 100, 101] ms, er pdly",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "ms, er pdly"
+   },
+   {
+    "idx": 4,
+    "key": "ertype",
+    "raw": "str [ROYAL, THEATRE, CHURCH, GAS, CONCERT, ROYAL2, V1-NEAR, V2-HARD, V3-SPREAD, V4-BUILD, V5-RANDOM, SLAP, CAR, PHONEBTH, BATHROOM, CONFRM9, CONFRM30, GARAGE, SWIMSTDM, AIRPORT, STREET, ALLEY, PIAZA, FOREST], er type",
+    "type": "str",
+    "list": [
+     "ROYAL",
+     "THEATRE",
+     "CHURCH",
+     "GAS",
+     "CONCERT",
+     "ROYAL2",
+     "V1-NEAR",
+     "V2-HARD",
+     "V3-SPREAD",
+     "V4-BUILD",
+     "V5-RANDOM",
+     "SLAP",
+     "CAR",
+     "PHONEBTH",
+     "BATHROOM",
+     "CONFRM9",
+     "CONFRM30",
+     "GARAGE",
+     "SWIMSTDM",
+     "AIRPORT",
+     "STREET",
+     "ALLEY",
+     "PIAZA",
+     "FOREST"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "ersize",
+    "raw": "str [SML, MED, LRG] er size",
+    "type": "str",
+    "list": [
+     "SML",
+     "MED",
+     "LRG"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "erpos",
+    "raw": "str [NEAR, DIST] er position",
+    "type": "str",
+    "list": [
+     "NEAR",
+     "DIST"
+    ]
+   },
+   {
+    "idx": 7,
+    "key": "erbal",
+    "raw": "linf [-100, 100, 201], er balance",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "er balance"
+   },
+   {
+    "idx": 8,
+    "key": "erlc",
+    "raw": "logf [20, 400, 51] Hz, er low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, er low cut"
+   },
+   {
+    "idx": 9,
+    "key": "ercol",
+    "raw": "linf [-40, 40, 81] er color",
+    "type": "linf",
+    "min": -40.0,
+    "max": 40.0,
+    "steps": 81,
+    "desc": "er color"
+   },
+   {
+    "idx": 10,
+    "key": "erlvl",
+    "raw": "fader lvl dB, er level",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 11,
+    "key": "rvtype",
+    "raw": "str [SMOOTH, NATURAL, ALIVE, FAST, X-WIDE, ALIVE2] rev type",
+    "type": "str",
+    "list": [
+     "SMOOTH",
+     "NATURAL",
+     "ALIVE",
+     "FAST",
+     "X-WIDE",
+     "ALIVE2"
+    ]
+   },
+   {
+    "idx": 12,
+    "key": "rvwide",
+    "raw": "str [NARROW, NORMAL, WIDE, X-WIDE] rev wide",
+    "type": "str",
+    "list": [
+     "NARROW",
+     "NORMAL",
+     "WIDE",
+     "X-WIDE"
+    ]
+   },
+   {
+    "idx": 13,
+    "key": "rvpdly",
+    "raw": "linf [0, 200, 201] ms, rev pdly",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, rev pdly"
+   },
+   {
+    "idx": 14,
+    "key": "dcy",
+    "raw": "linf [.1, 20, 280] s, decay",
+    "type": "linf",
+    "min": 0.1,
+    "max": 20.0,
+    "steps": 280,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 15,
+    "key": "diff",
+    "raw": "linf [-50, 50, 101] diffuse",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "diffuse"
+   },
+   {
+    "idx": 16,
+    "key": "rvbal",
+    "raw": "linf [-100, 100, 201] balance",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "balance"
+   },
+   {
+    "idx": 17,
+    "key": "rvlvl",
+    "raw": "fader lvl dB, reverb level",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 18,
+    "key": "ldcy",
+    "raw": "linf [.1, 2.5, 25] low decay",
+    "type": "linf",
+    "min": 0.1,
+    "max": 2.5,
+    "steps": 25,
+    "desc": "low decay"
+   },
+   {
+    "idx": 19,
+    "key": "lmdcy",
+    "raw": "linf [.1, 2.5, 25] lowmid decay",
+    "type": "linf",
+    "min": 0.1,
+    "max": 2.5,
+    "steps": 25,
+    "desc": "lowmid decay"
+   },
+   {
+    "idx": 20,
+    "key": "hmdcy",
+    "raw": "linf [.1, 2.5, 25] mid decay",
+    "type": "linf",
+    "min": 0.1,
+    "max": 2.5,
+    "steps": 25,
+    "desc": "mid decay"
+   },
+   {
+    "idx": 21,
+    "key": "hdcy",
+    "raw": "linf [.1, 2.5, 25] high decay",
+    "type": "linf",
+    "min": 0.1,
+    "max": 2.5,
+    "steps": 25,
+    "desc": "high decay"
+   },
+   {
+    "idx": 22,
+    "key": "hsoft",
+    "raw": "linf [-50, 50, 101] high soft",
+    "type": "linf",
+    "min": -50.0,
+    "max": 50.0,
+    "steps": 101,
+    "desc": "high soft"
+   },
+   {
+    "idx": 23,
+    "key": "lxo",
+    "raw": "logf [20, 500, 113] Hz, low xover",
+    "type": "logf",
+    "min": 20.0,
+    "max": 500.0,
+    "steps": 113,
+    "desc": "Hz, low xover"
+   },
+   {
+    "idx": 24,
+    "key": "mxo",
+    "raw": "logf [200, 2000, 81] Hz, mid xover",
+    "type": "logf",
+    "min": 200.0,
+    "max": 2000.0,
+    "steps": 81,
+    "desc": "Hz, mid xover"
+   },
+   {
+    "idx": 25,
+    "key": "hxo",
+    "raw": "logf [500, 20000, 105] Hz, high xover",
+    "type": "logf",
+    "min": 500.0,
+    "max": 20000.0,
+    "steps": 105,
+    "desc": "Hz, high xover"
+   },
+   {
+    "idx": 26,
+    "key": "lshv",
+    "raw": "logf [20, 200, 81] Hz, low shelf",
+    "type": "logf",
+    "min": 20.0,
+    "max": 200.0,
+    "steps": 81,
+    "desc": "Hz, low shelf"
+   },
+   {
+    "idx": 27,
+    "key": "lsdmp",
+    "raw": "linf [0, -18, 37] dB, low damp",
+    "type": "linf",
+    "min": 0.0,
+    "max": -18.0,
+    "steps": 37,
+    "desc": "dB, low damp"
+   },
+   {
+    "idx": 28,
+    "key": "hcut",
+    "raw": "logf [20, 20000, 241] Hz, high cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 20000.0,
+    "steps": 241,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 29,
+    "key": "mtype",
+    "raw": "str [A, B, C, D, E, F] modulation type",
+    "type": "str",
+    "list": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "E",
+     "F"
+    ]
+   },
+   {
+    "idx": 30,
+    "key": "mrate",
+    "raw": "linf [-100, 100, 201] modulation rate",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "modulation rate"
+   },
+   {
+    "idx": 31,
+    "key": "mwid",
+    "raw": "linf [0, 200, 201] modulation width",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "modulation width"
+   },
+   {
+    "idx": 32,
+    "key": "view",
+    "raw": "int [0, 1] view",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "view"
+   }
+  ],
+  "mdl": "VSS3"
+ },
+ {
+  "name": "Vintage Room",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "int [0...50] size",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.1, 20, 101] s, decay",
+    "type": "logf",
+    "min": 0.1,
+    "max": 20.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "dens",
+    "raw": "linf [1, 30, 30] density",
+    "type": "linf",
+    "min": 1.0,
+    "max": 30.0,
+    "steps": 30,
+    "desc": "density"
+   },
+   {
+    "idx": 5,
+    "key": "erlvl",
+    "raw": "linf [0, 100, 101] %, Early level",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, Early level"
+   },
+   {
+    "idx": 6,
+    "key": "lmult",
+    "raw": "logf [.1, 10, 101] low multiplier",
+    "type": "logf",
+    "min": 0.1,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "low multiplier"
+   },
+   {
+    "idx": 7,
+    "key": "hmult",
+    "raw": "logf [.1, 10, 101] high multiplier",
+    "type": "logf",
+    "min": 0.1,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "high multiplier"
+   },
+   {
+    "idx": 8,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 9,
+    "key": "hc",
+    "raw": "logf [200, 20k, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 10,
+    "key": "frz",
+    "raw": "int [0, 1] freeze",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "freeze"
+   },
+   {
+    "idx": 11,
+    "key": "erl",
+    "raw": "linf [0, 200, 201] ms, er delay left",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, er delay left"
+   },
+   {
+    "idx": 12,
+    "key": "err",
+    "raw": "linf [0, 200, 201] ms, er delay right",
+    "type": "linf",
+    "min": 0.0,
+    "max": 200.0,
+    "steps": 201,
+    "desc": "ms, er delay right"
+   },
+   {
+    "idx": 13,
+    "key": "add",
+    "raw": "int [0, 1] add",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "add"
+   },
+   {
+    "idx": 14,
+    "key": "lvl",
+    "raw": "int [-6, 6, 101] dB, level",
+    "type": "int",
+    "min": -6.0,
+    "max": 101.0,
+    "desc": "dB, level"
+   }
+  ],
+  "mdl": "V-ROOM"
+ },
+ {
+  "name": "Vintage Reverb,",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...120] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 120.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "dcy",
+    "raw": "linf [.4, 4.5, 83] s, decay",
+    "type": "linf",
+    "min": 0.4,
+    "max": 4.5,
+    "steps": 83,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 3,
+    "key": "lmult",
+    "raw": "logf [.5, 2, 51] low multiplier",
+    "type": "logf",
+    "min": 0.5,
+    "max": 2.0,
+    "steps": 51,
+    "desc": "low multiplier"
+   },
+   {
+    "idx": 4,
+    "key": "hmult",
+    "raw": "logf [.25, .67, 51] high multiplier",
+    "type": "logf",
+    "min": 0.25,
+    "max": 0.67,
+    "steps": 51,
+    "desc": "high multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "mod",
+    "raw": "int [0...100] modulation speed",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "modulation speed"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [5000, 20k, 31] Hz, high cut",
+    "type": "logf",
+    "min": 5000.0,
+    "max": 20000.0,
+    "steps": 31,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "out",
+    "raw": "str [FRONT, REAR] output",
+    "type": "str",
+    "list": [
+     "FRONT",
+     "REAR"
+    ]
+   },
+   {
+    "idx": 9,
+    "key": "trans",
+    "raw": "int [0...1] transformer",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "transformer"
+   }
+  ],
+  "mdl": "V-REV"
+ },
+ {
+  "name": "Vintage Plate",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...250] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 250.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "dcy",
+    "raw": "linf [1, 6, 101] s, decay",
+    "type": "linf",
+    "min": 1.0,
+    "max": 6.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 3,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 4,
+    "key": "col",
+    "raw": "linf [-20, 20, 42] color",
+    "type": "linf",
+    "min": -20.0,
+    "max": 20.0,
+    "steps": 42,
+    "desc": "color"
+   }
+  ],
+  "mdl": "V-PLATE"
+ },
+ {
+  "name": "Blue Plate",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "int [0...100] ms, size",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "ms, size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [0.2, 5, 101] s, decay",
+    "type": "logf",
+    "min": 0.2,
+    "max": 5.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "mult",
+    "raw": "logf [0.5, 2, 51] bass multiplier",
+    "type": "logf",
+    "min": 0.5,
+    "max": 2.0,
+    "steps": 51,
+    "desc": "bass multiplier"
+   },
+   {
+    "idx": 5,
+    "key": "damp",
+    "raw": "logf [1000, 20000, 51] Hz, damping",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damping"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 8,
+    "key": "xover",
+    "raw": "logf [20, 500, 51] Hz, xover",
+    "type": "logf",
+    "min": 20.0,
+    "max": 500.0,
+    "steps": 51,
+    "desc": "Hz, xover"
+   },
+   {
+    "idx": 9,
+    "key": "mdep",
+    "raw": "linf [1, 50, 50] modulation depth",
+    "type": "linf",
+    "min": 1.0,
+    "max": 50.0,
+    "steps": 50,
+    "desc": "modulation depth"
+   },
+   {
+    "idx": 10,
+    "key": "msdp",
+    "raw": "int [0...100] modulation speed",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "modulation speed"
+   },
+   {
+    "idx": 11,
+    "key": "diff",
+    "raw": "int [1...30] diffusion",
+    "type": "int",
+    "min": 1.0,
+    "max": 30.0,
+    "desc": "diffusion"
+   }
+  ],
+  "mdl": "BPLATE"
+ },
+ {
+  "name": "Gated Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "att",
+    "raw": "int [4...30] attack",
+    "type": "int",
+    "min": 4.0,
+    "max": 30.0,
+    "desc": "attack"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.14, 1, 101] s, decay",
+    "type": "logf",
+    "min": 0.14,
+    "max": 1.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "dens",
+    "raw": "int [0...100] density",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "density"
+   },
+   {
+    "idx": 5,
+    "key": "diff",
+    "raw": "int [0...100] diffusion",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 6,
+    "key": "sprd",
+    "raw": "int [0...50] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 50.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 7,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 8,
+    "key": "hfs",
+    "raw": "logf [200, 20k, 51] Hz, high freq",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high freq"
+   },
+   {
+    "idx": 9,
+    "key": "hsg",
+    "raw": "linf [-30, 0, 61] dB, high gain",
+    "type": "linf",
+    "min": -30.0,
+    "max": 0.0,
+    "steps": 61,
+    "desc": "dB, high gain"
+   }
+  ],
+  "mdl": "GATED"
+ },
+ {
+  "name": "Reverse Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre-delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre-delay"
+   },
+   {
+    "idx": 2,
+    "key": "rise",
+    "raw": "int [4...50] rise",
+    "type": "int",
+    "min": 4.0,
+    "max": 50.0,
+    "desc": "rise"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [.14, 1, 101] s, decay",
+    "type": "logf",
+    "min": 0.14,
+    "max": 1.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "diff",
+    "raw": "int [0...30] diffusion",
+    "type": "int",
+    "min": 0.0,
+    "max": 30.0,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 5,
+    "key": "sprd",
+    "raw": "int [0...100] spread",
+    "type": "int",
+    "min": 0.0,
+    "max": 100.0,
+    "desc": "spread"
+   },
+   {
+    "idx": 6,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 7,
+    "key": "hfs",
+    "raw": "logf [200, 20k, 51] Hz, high freq",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high freq"
+   },
+   {
+    "idx": 8,
+    "key": "hsg",
+    "raw": "linf [-30, 0, 61] dB, high gain",
+    "type": "linf",
+    "min": -30.0,
+    "max": 0.0,
+    "steps": 61,
+    "desc": "dB, high gain"
+   }
+  ],
+  "mdl": "REVERSE"
+ },
+ {
+  "name": "Delay/Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "time",
+    "raw": "linf [0, 3000, 3000] ms, time",
+    "type": "linf",
+    "min": 0.0,
+    "max": 3000.0,
+    "steps": 3000,
+    "desc": "ms, time"
+   },
+   {
+    "idx": 2,
+    "key": "feed",
+    "raw": "linf [0, 100, 101] %, feed",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, feed"
+   },
+   {
+    "idx": 3,
+    "key": "fhc",
+    "raw": "logf [200, 2000, 51] Hz, feed",
+    "type": "logf",
+    "min": 200.0,
+    "max": 2000.0,
+    "steps": 51,
+    "desc": "Hz, feed"
+   },
+   {
+    "idx": 4,
+    "key": "dly",
+    "raw": "linf [0, 100, 101] %, delay",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, delay"
+   },
+   {
+    "idx": 5,
+    "key": "d2r",
+    "raw": "linf [0, 100, 101] %, delay\u2192rev",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, delay\u2192rev"
+   },
+   {
+    "idx": 6,
+    "key": "pdel",
+    "raw": "int [0...200] ms, pre delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 200.0,
+    "desc": "ms, pre delay"
+   },
+   {
+    "idx": 7,
+    "key": "size",
+    "raw": "int [2...100] size",
+    "type": "int",
+    "min": 2.0,
+    "max": 100.0,
+    "desc": "size"
+   },
+   {
+    "idx": 8,
+    "key": "dcy",
+    "raw": "logf [.1, 5, 51] s, decay",
+    "type": "logf",
+    "min": 0.1,
+    "max": 5.0,
+    "steps": 51,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 9,
+    "key": "damp",
+    "raw": "logf [1000, 20k, 51] Hz, damp",
+    "type": "logf",
+    "min": 1000.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, damp"
+   },
+   {
+    "idx": 10,
+    "key": "rlc",
+    "raw": "logf [20, 400, 51] Hz, rev LC",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, rev LC"
+   },
+   {
+    "idx": 11,
+    "key": "i2r",
+    "raw": "linf [0, 100, 101] %, in\u2192rev",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, in\u2192rev"
+   }
+  ],
+  "mdl": "DEL/REV"
+ },
+ {
+  "name": "Shimmer Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "pdel",
+    "raw": "int [0...250] ms, pre delay",
+    "type": "int",
+    "min": 0.0,
+    "max": 250.0,
+    "desc": "ms, pre delay"
+   },
+   {
+    "idx": 2,
+    "key": "size",
+    "raw": "int [2...50] size",
+    "type": "int",
+    "min": 2.0,
+    "max": 50.0,
+    "desc": "size"
+   },
+   {
+    "idx": 3,
+    "key": "dcy",
+    "raw": "logf [1, 20, 101] s, decay",
+    "type": "logf",
+    "min": 1.0,
+    "max": 20.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 4,
+    "key": "lc",
+    "raw": "logf [25, 250, 51] Hz, low cut",
+    "type": "logf",
+    "min": 25.0,
+    "max": 250.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 5,
+    "key": "hc",
+    "raw": "logf [500, 7000, 51] Hz, high cut",
+    "type": "logf",
+    "min": 500.0,
+    "max": 7000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 6,
+    "key": "damp",
+    "raw": "linf [0, 100, 101] %, damp",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, damp"
+   },
+   {
+    "idx": 7,
+    "key": "shim",
+    "raw": "linf [0, 100, 101] %, shimmer",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, shimmer"
+   },
+   {
+    "idx": 8,
+    "key": "shine",
+    "raw": "linf [0, 100, 101] %, shine",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, shine"
+   }
+  ],
+  "mdl": "SHIMMER"
+ },
+ {
+  "name": "Spring Reverb",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "dcy",
+    "raw": "logf [1.5, 6, 101] s, decay",
+    "type": "logf",
+    "min": 1.5,
+    "max": 6.0,
+    "steps": 101,
+    "desc": "s, decay"
+   },
+   {
+    "idx": 2,
+    "key": "dens",
+    "raw": "linf [1, 30, 30] density",
+    "type": "linf",
+    "min": 1.0,
+    "max": 30.0,
+    "steps": 30,
+    "desc": "density"
+   },
+   {
+    "idx": 3,
+    "key": "low",
+    "raw": "linf [1, 50, 50] bass",
+    "type": "linf",
+    "min": 1.0,
+    "max": 50.0,
+    "steps": 50,
+    "desc": "bass"
+   },
+   {
+    "idx": 4,
+    "key": "high",
+    "raw": "linf [1, 50, 50] treble",
+    "type": "linf",
+    "min": 1.0,
+    "max": 50.0,
+    "steps": 50,
+    "desc": "treble"
+   }
+  ],
+  "mdl": "SPRING"
+ },
+ {
+  "name": "Dimension CRS",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "sw1",
+    "raw": "int [0, 1] sw1",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "sw1"
+   },
+   {
+    "idx": 2,
+    "key": "sw2",
+    "raw": "int [0, 1] sw2",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "sw2"
+   },
+   {
+    "idx": 3,
+    "key": "sw3",
+    "raw": "int [0, 1] sw3",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "sw3"
+   },
+   {
+    "idx": 4,
+    "key": "sw4",
+    "raw": "int [0, 1] sw4",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "sw4"
+   },
+   {
+    "idx": 5,
+    "key": "in",
+    "raw": "str [MONO, STEREO] input",
+    "type": "str",
+    "list": [
+     "MONO",
+     "STEREO"
+    ]
+   },
+   {
+    "idx": 6,
+    "key": "drysw",
+    "raw": "int [0, 1] dry",
+    "type": "int",
+    "min": 0.0,
+    "max": 1.0,
+    "desc": "dry"
+   }
+  ],
+  "mdl": "DIMCRS"
+ },
+ {
+  "name": "Stereo Chorus",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, LC",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, LC"
+   },
+   {
+    "idx": 2,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, HC",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, HC"
+   },
+   {
+    "idx": 3,
+    "key": "wave",
+    "raw": "linf [0, 100, 101] waveform",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "waveform"
+   },
+   {
+    "idx": 4,
+    "key": "phase",
+    "raw": "linf [0, 100, 101] phase",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "phase"
+   },
+   {
+    "idx": 5,
+    "key": "mix",
+    "raw": "linf [0, 100, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 6,
+    "key": "dlyl",
+    "raw": "linf [5, 50, 226] ms, delay l",
+    "type": "linf",
+    "min": 5.0,
+    "max": 50.0,
+    "steps": 226,
+    "desc": "ms, delay l"
+   },
+   {
+    "idx": 7,
+    "key": "dlyr",
+    "raw": "linf [5, 50, 226] ms, delay r",
+    "type": "linf",
+    "min": 5.0,
+    "max": 50.0,
+    "steps": 226,
+    "desc": "ms, delay r"
+   },
+   {
+    "idx": 8,
+    "key": "depl",
+    "raw": "linf [0, 100, 101] %, depth l",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, depth l"
+   },
+   {
+    "idx": 9,
+    "key": "depr",
+    "raw": "linf [0, 100, 101] %, depth r",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, depth r"
+   },
+   {
+    "idx": 10,
+    "key": "sprd",
+    "raw": "linf [0, 100, 101] %, spread",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, spread"
+   },
+   {
+    "idx": 11,
+    "key": "spd",
+    "raw": "logf [.05, 5, 201] Hz, speed",
+    "type": "logf",
+    "min": 0.05,
+    "max": 5.0,
+    "steps": 201,
+    "desc": "Hz, speed"
+   }
+  ],
+  "mdl": "CHORUS"
+ },
+ {
+  "name": "Stereo Flanger",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, LC",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, LC"
+   },
+   {
+    "idx": 2,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, HC",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, HC"
+   },
+   {
+    "idx": 3,
+    "key": "flc",
+    "raw": "logf [20, 400, 51] Hz, feed LC",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, feed LC"
+   },
+   {
+    "idx": 4,
+    "key": "fhc",
+    "raw": "logf [200, 20000, 51] Hz, feed",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, feed"
+   },
+   {
+    "idx": 5,
+    "key": "mix",
+    "raw": "linf [0, 100, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mix"
+   },
+   {
+    "idx": 6,
+    "key": "dlyl",
+    "raw": "linf [5, 20, 196] ms, delay l",
+    "type": "linf",
+    "min": 5.0,
+    "max": 20.0,
+    "steps": 196,
+    "desc": "ms, delay l"
+   },
+   {
+    "idx": 7,
+    "key": "dlyr",
+    "raw": "linf [5, 20, 196] ms, delay r",
+    "type": "linf",
+    "min": 5.0,
+    "max": 20.0,
+    "steps": 196,
+    "desc": "ms, delay r"
+   },
+   {
+    "idx": 8,
+    "key": "depl",
+    "raw": "linf [0, 100, 101] %, depth l",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, depth l"
+   },
+   {
+    "idx": 9,
+    "key": "depr",
+    "raw": "linf [0, 100, 101] %, depth r",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, depth r"
+   },
+   {
+    "idx": 10,
+    "key": "phase",
+    "raw": "linf [0, 180, 181] phase",
+    "type": "linf",
+    "min": 0.0,
+    "max": 180.0,
+    "steps": 181,
+    "desc": "phase"
+   },
+   {
+    "idx": 11,
+    "key": "spd",
+    "raw": "logf [.05, 5, 201] Hz, speed",
+    "type": "logf",
+    "min": 0.05,
+    "max": 5.0,
+    "steps": 201,
+    "desc": "Hz, speed"
+   },
+   {
+    "idx": 12,
+    "key": "feed",
+    "raw": "linf [-90, 90, 181] %, feed",
+    "type": "linf",
+    "min": -90.0,
+    "max": 90.0,
+    "steps": 181,
+    "desc": "%, feed"
+   }
+  ],
+  "mdl": "CHORUS"
+ },
+ {
+  "name": "Stereo Delay",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "time",
+    "raw": "linf [1, 3000, 3000] ms, time",
+    "type": "linf",
+    "min": 1.0,
+    "max": 3000.0,
+    "steps": 3000,
+    "desc": "ms, time"
+   },
+   {
+    "idx": 2,
+    "key": "mode",
+    "raw": "str [ST, X, M] mode",
+    "type": "str",
+    "list": [
+     "ST",
+     "X",
+     "M"
+    ]
+   },
+   {
+    "idx": 3,
+    "key": "fact",
+    "raw": "str [1/4, 1/3, 1/2, 2/3, 3/4, 1, 3/8, 5/4, 4/3, 3/2, 2] factor",
+    "type": "str",
+    "list": [
+     "1/4",
+     "1/3",
+     "1/2",
+     "2/3",
+     "3/4",
+     "1",
+     "3/8",
+     "5/4",
+     "4/3",
+     "3/2",
+     "2"
+    ]
+   },
+   {
+    "idx": 4,
+    "key": "pat",
+    "raw": "str [1/2:1, 2/3:1, 3/4:1, 7/8:1, 1:1, 1:9/8, 1:5/4, 1:4/3, 1:3/2] pattern",
+    "type": "str",
+    "list": [
+     "1/2:1",
+     "2/3:1",
+     "3/4:1",
+     "7/8:1",
+     "1:1",
+     "1:9/8",
+     "1:5/4",
+     "1:4/3",
+     "1:3/2"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "offset",
+    "raw": "int [-50...50] ms, offset",
+    "type": "int",
+    "min": -50.0,
+    "max": 50.0,
+    "desc": "ms, offset"
+   },
+   {
+    "idx": 6,
+    "key": "feed",
+    "raw": "linf [0, 100, 101] %, feed",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, feed"
+   },
+   {
+    "idx": 7,
+    "key": "flc",
+    "raw": "logf [20, 400, 51] Hz, feed L cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, feed L cut"
+   },
+   {
+    "idx": 8,
+    "key": "fhc",
+    "raw": "logf [200, 20000, 51] Hz, feed H cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, feed H cut"
+   },
+   {
+    "idx": 9,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 10,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   }
+  ],
+  "mdl": "ST-DL"
+ },
+ {
+  "name": "UltraTap Delay",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "time",
+    "raw": "linf [1, 2000, 2000] ms, time",
+    "type": "linf",
+    "min": 1.0,
+    "max": 2000.0,
+    "steps": 2000,
+    "desc": "ms, time"
+   },
+   {
+    "idx": 2,
+    "key": "rep",
+    "raw": "int [1..16] repeat",
+    "type": "int",
+    "desc": "repeat"
+   },
+   {
+    "idx": 3,
+    "key": "slp",
+    "raw": "linf [-6, 6, 121] dB, slope",
+    "type": "linf",
+    "min": -6.0,
+    "max": 6.0,
+    "steps": 121,
+    "desc": "dB, slope"
+   },
+   {
+    "idx": 4,
+    "key": "fact",
+    "raw": "str [1/3, 1/2, 2/3, 3/4, 1, 5/4, 4/3, 3/2, 2] factor",
+    "type": "str",
+    "list": [
+     "1/3",
+     "1/2",
+     "2/3",
+     "3/4",
+     "1",
+     "5/4",
+     "4/3",
+     "3/2",
+     "2"
+    ]
+   },
+   {
+    "idx": 5,
+    "key": "pdel",
+    "raw": "linf [0, 500, 501] ms, pre delay",
+    "type": "linf",
+    "min": 0.0,
+    "max": 500.0,
+    "steps": 501,
+    "desc": "ms, pre delay"
+   },
+   {
+    "idx": 6,
+    "key": "mode",
+    "raw": "str [MOVE, JUMP, FOCUS, SPREAD] mode",
+    "type": "str",
+    "list": [
+     "MOVE",
+     "JUMP",
+     "FOCUS",
+     "SPREAD"
+    ]
+   },
+   {
+    "idx": 7,
+    "key": "wid",
+    "raw": "linf [-100, 100, 201] %, width",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, width"
+   },
+   {
+    "idx": 8,
+    "key": "diff",
+    "raw": "linf [0, 100, 101] diffusion",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "diffusion"
+   },
+   {
+    "idx": 9,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 10,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   }
+  ],
+  "mdl": "TAP-DL"
+ },
+ {
+  "name": "Tape Delay",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "time",
+    "raw": "linf [60, 650, 591] ms, time",
+    "type": "linf",
+    "min": 60.0,
+    "max": 650.0,
+    "steps": 591,
+    "desc": "ms, time"
+   },
+   {
+    "idx": 2,
+    "key": "sust",
+    "raw": "linf [0, 100, 101] %, sustain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, sustain"
+   },
+   {
+    "idx": 3,
+    "key": "drv",
+    "raw": "linf [0, 100, 101] %, drive",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, drive"
+   },
+   {
+    "idx": 4,
+    "key": "wf",
+    "raw": "linf [0, 100, 101] %, flutter",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, flutter"
+   }
+  ],
+  "mdl": "TAPE-DL"
+ },
+ {
+  "name": "OilCan Delay",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "time",
+    "raw": "linf [0, 10, 1001] time",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 1001,
+    "desc": "time"
+   },
+   {
+    "idx": 2,
+    "key": "sust",
+    "raw": "linf [0, 10, 101] %, sustain",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "%, sustain"
+   },
+   {
+    "idx": 3,
+    "key": "wb",
+    "raw": "linf [0, 10, 101] %, wobble",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "%, wobble"
+   },
+   {
+    "idx": 4,
+    "key": "tone",
+    "raw": "linf [0, 10, 101] %, tone",
+    "type": "linf",
+    "min": 0.0,
+    "max": 10.0,
+    "steps": 101,
+    "desc": "%, tone"
+   }
+  ],
+  "mdl": "OILCAN"
+ },
+ {
+  "name": "BBD Delay",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "dly",
+    "raw": "linf [0, 100, 1001] time",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 1001,
+    "desc": "time"
+   },
+   {
+    "idx": 2,
+    "key": "feed",
+    "raw": "linf [0, 100, 101] %, feed",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, feed"
+   }
+  ],
+  "mdl": "BBD-DL"
+ },
+ {
+  "name": "Stereo Pitch",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "semi",
+    "raw": "int [-12...12] semitones",
+    "type": "int",
+    "min": -12.0,
+    "max": 12.0,
+    "desc": "semitones"
+   },
+   {
+    "idx": 2,
+    "key": "cent",
+    "raw": "int [-50...50] cent",
+    "type": "int",
+    "min": -50.0,
+    "max": 50.0,
+    "desc": "cent"
+   },
+   {
+    "idx": 3,
+    "key": "dly",
+    "raw": "linf [0, 500, 501] ms, delay",
+    "type": "linf",
+    "min": 0.0,
+    "max": 500.0,
+    "steps": 501,
+    "desc": "ms, delay"
+   },
+   {
+    "idx": 4,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 5,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   },
+   {
+    "idx": 6,
+    "key": "mix",
+    "raw": "linf [0, 100, 101] %, mix",
+    "type": "linf",
+    "min": 0.0,
+    "max": 100.0,
+    "steps": 101,
+    "desc": "%, mix"
+   }
+  ],
+  "mdl": "PITCH"
+ },
+ {
+  "name": "Dual Pitch",
+  "sec": "PREM",
+  "params": [
+   {
+    "idx": 1,
+    "key": "semi1",
+    "raw": "int [-12...12] semitones 1",
+    "type": "int",
+    "min": -12.0,
+    "max": 12.0,
+    "desc": "semitones 1"
+   },
+   {
+    "idx": 2,
+    "key": "cent1",
+    "raw": "int [-50...50] cent 1",
+    "type": "int",
+    "min": -50.0,
+    "max": 50.0,
+    "desc": "cent 1"
+   },
+   {
+    "idx": 3,
+    "key": "dly1",
+    "raw": "linf [0, 500, 501] ms, delay 1",
+    "type": "linf",
+    "min": 0.0,
+    "max": 500.0,
+    "steps": 501,
+    "desc": "ms, delay 1"
+   },
+   {
+    "idx": 4,
+    "key": "pan1",
+    "raw": "linf [-100, 100, 201] %, pan 1",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, pan 1"
+   },
+   {
+    "idx": 5,
+    "key": "lvl1",
+    "raw": "fader lvl 1 dB",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 6,
+    "key": "semi2",
+    "raw": "int [-12...12] semitones 2",
+    "type": "int",
+    "min": -12.0,
+    "max": 12.0,
+    "desc": "semitones 2"
+   },
+   {
+    "idx": 7,
+    "key": "cent2",
+    "raw": "int [-50...50] cent 2",
+    "type": "int",
+    "min": -50.0,
+    "max": 50.0,
+    "desc": "cent 2"
+   },
+   {
+    "idx": 8,
+    "key": "dly2",
+    "raw": "linf [0, 500, 501] ms, delay 2",
+    "type": "linf",
+    "min": 0.0,
+    "max": 500.0,
+    "steps": 501,
+    "desc": "ms, delay 2"
+   },
+   {
+    "idx": 9,
+    "key": "pan2",
+    "raw": "linf [-100, 100, 201] %, pan 2",
+    "type": "linf",
+    "min": -100.0,
+    "max": 100.0,
+    "steps": 201,
+    "desc": "%, pan 2"
+   },
+   {
+    "idx": 10,
+    "key": "lvl2",
+    "raw": "fader lvl 2 dB",
+    "type": "fader",
+    "min": -144,
+    "max": 10,
+    "unit": "dB"
+   },
+   {
+    "idx": 11,
+    "key": "lc",
+    "raw": "logf [20, 400, 51] Hz, low cut",
+    "type": "logf",
+    "min": 20.0,
+    "max": 400.0,
+    "steps": 51,
+    "desc": "Hz, low cut"
+   },
+   {
+    "idx": 12,
+    "key": "hc",
+    "raw": "logf [200, 20000, 51] Hz, high cut",
+    "type": "logf",
+    "min": 200.0,
+    "max": 20000.0,
+    "steps": 51,
+    "desc": "Hz, high cut"
+   }
+  ],
+  "mdl": "D-PITCH"
+ }
+]

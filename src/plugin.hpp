@@ -7,6 +7,7 @@ using namespace rack;
 extern Plugin* pluginInstance;
 extern Model* modelWingLink;
 extern Model* modelWingLinkX;
+extern Model* modelWingFx;
 
 /** The dark knob with the white pointer of the GENRA plugin (res/knob/small*.svg). */
 struct GSmallKnob : RoundKnob {

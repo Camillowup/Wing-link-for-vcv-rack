@@ -1,38 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // WING-LINK – a bridge from VCV Rack to a Behringer WING over one USB cable, in the look of the GENRA plugin.
 //
-//  * Audio: WING-LINK is an audio port of its own (as Rack's Audio module): its 8 AUDIO inputs, and the expander's 8,
+//  * Audio: WING-LINK is an audio port of its own (as Rack's Audio module): its 8 AUDIO inputs, and WING-LINK X's 8,
 //    go to the WING's USB inputs (by default USB 33… for CH 33…, so they never clash with an Audio module on 1–16).
 //  * Control: USB MIDI (the WING's remote-control port, src/WingProto.hpp): faders, pan, mute, solo and two bus sends
 //    both ways; name, colour and icon of every channel from the panel; SYNC also routes the channels to their USB
-//    inputs. The WING sends faders / mutes / pans as CCs when they move; the rest (and exact values) is asked for.
-//  * WING-LINK X docks right of WING-LINK: 8 more channels. WING-LINK does all the work (the expander is its panel).
-// Panel: tools/winglink_panel.py (res/WingLink*.svg + src/WingLinkLayout.hpp).
-#include "plugin.hpp"
-#include "Ui.hpp"
-#include "WingProto.hpp"
+//    inputs. The WING sends faders / mutes / pans / FX as CCs when they move; exact values are asked for by sysex.
+//  * WING-LINK X: 8 more channels. WING-FX: the WING's 16 effects, 4 at a time, and the tempo (Rack clock or tap → the
+//    delays; the delays' time → CLOCK out). Both are WING-LINK's panels: WING-LINK reads and writes them.
+// Panels: tools/winglink_panel.py, tools/wingfx_panel.py.
+#include "WingLink.hpp"
 #include "WingLinkLayout.hpp"
-#include <atomic>
-#include <deque>
-#include <mutex>
 
 namespace winglink {
 
 namespace L = wllayout::wl;
-namespace P = wingproto;
+namespace F = wingfx;
 using namespace wlui;
 
-static const int NS = 8;        // strips per module
-static const int NT = 2 * NS;   // strips with the expander
+// ---------------------------------------------------------------- the WING-LINKs alive (the panels check theirs)
+static std::mutex regMutex;
+static std::set<WingLink*> registry;
 
-// ---------------------------------------------------------------- the panel's parameters (both modules)
-enum Field { FADER, PAN, FX1, FX2, MUTE, SOLO, NF };
-enum ChInput { AUDIO, CV_FDR, CV_PAN, CV_FX1, CV_FX2, NCI };
-enum ChOutput { OUT_FDR, OUT_MUTE, NCO };
-
-static int pid(int j, int f) { return j * NF + f; }
-static int iid(int j, int k) { return j * NCI + k; }
-static int oid(int j, int k) { return j * NCO + k; }
+bool hostAlive(WingLink* h) {
+	std::lock_guard<std::mutex> lock(regMutex);
+	return h && registry.count(h);
+}
 
 struct FaderQuantity : ParamQuantity {
 	std::string getDisplayValueString() override {
@@ -53,7 +46,6 @@ struct PanQuantity : ParamQuantity {
 	}
 };
 
-/** The strips of one module: 8 × (fader, pan, FX 1, FX 2, mute, solo), the jacks; WING-LINK adds its buttons. */
 static void configStrips(Module* m, int base) {
 	for (int j = 0; j < NS; j++) {
 		std::string n = string::f("Strip %d", base + j + 1);
@@ -136,27 +128,7 @@ struct WingAudioPort : audio::Port {
 	}
 };
 
-// ---------------------------------------------------------------- one strip's two-way state
-struct Sync {
-	float wing = NAN;   // what the WING has (as far as we know)
-	float local = NAN;  // what the panel had at the last look
-	float hold = 0.f;   // after a change here: the WING's echoes are ignored this long (s)
-	bool dirty = false; // to send
-};
-
-struct Strip {
-	Sync f[NF];
-	float peak = 0.f, env = 0.f;
-	// name, colour (1..12), icon: set on the panel, sent to the WING (debounced)
-	std::string name;
-	int colour = 0;  // 0 = not set (the WING keeps its own)
-	int icon = -1;   // -1 = not set
-	bool metaDirty = false;
-	float metaWait = 0.f;
-};
-
-struct WingLinkX;
-
+// ---------------------------------------------------------------- WING-LINK
 struct WingLink : Module {
 	enum ParamId { DOWN_PARAM = NS * NF, UP_PARAM, SYNC_PARAM, NUM_PARAMS };
 	enum InputId { NUM_INPUTS = NS * NCI };
@@ -171,33 +143,51 @@ struct WingLink : Module {
 	Strip st[NT];
 	std::mutex metaMutex;  // names (the UI writes them, the engine sends them)
 
+	// ---- the panels linked to it (set by the UI; cleared when one goes)
+	std::atomic<WingLinkX*> xMod{nullptr};
+	std::atomic<WingFx*> fxMod{nullptr};
+
 	// ---- connection
 	midi::InputQueue midiIn;
 	midi::Output midiOut;
 	WingAudioPort port;
 	std::atomic<bool> sysexOk{false}, midiSeen{false};
-	std::string wingIdent;  // the WING's answer to ident (UI shows it)
+	std::string wingIdent;
 	std::mutex identMutex;
 	int lastInDev = -2, lastOutDev = -2;
 	float identTimer = 0.f;
-	bool identWaiting = false;
 
-	// one question at a time: (strip, field)
+	// one question at a time
 	struct Query {
+		int kind;  // 0 strip, 1 FX slot
 		int s, f;
 	};
 	std::deque<Query> queries;
 	bool qWaiting = false;
-	Query qNow{0, 0};
+	Query qNow{0, 0, 0};
 	float qTimer = 0.f, pollTimer = 0.f;
-	std::atomic<bool> pullAll{false}, syncNow{false};
+	std::atomic<bool> pullAll{false}, syncNow{false}, wantReset{false};
 	int sendRR = 0;
 	float sendWait = 0.f;
 	dsp::ClockDivider ctl;
 	dsp::BooleanTrigger downT, upT, syncT;
 	float syncFlash = 0.f;
-	std::atomic<bool> wantReset{false};  // (the menu asks; the engine does it)
-	std::string audioName;               // (UI thread: the audio device's name, looked up now and then)
+	std::string audioName;  // (UI thread)
+
+	// ---- FX and tempo
+	FxSlot fxs[NSLOT];
+	std::atomic<int> fxModelReq[NSLOT];  // the UI picked a model (−1: none)
+	int fxPageSeen = -1;
+	WingFx* fxSeen = nullptr;
+	dsp::BooleanTrigger pageDownT, pageUpT, tapT;
+	dsp::SchmittTrigger clockIn;
+	dsp::PulseGenerator clockOut;
+	double now = 0.0, lastClock = -1.0, lastTap = -10.0;
+	float clockPeriods[4] = {}, tapGaps[4] = {};
+	int nPeriods = 0, nGaps = 0;
+	std::atomic<float> rackBpm{0.f}, wingBpm{0.f};
+	std::atomic<int> wingBpmSlot{-1};
+	float clockPhase = 0.f, tempoTimer = 0.f, tapFlash = 0.f;
 
 	WingLink() : port(this) {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -208,10 +198,28 @@ struct WingLink : Module {
 		ctl.setDivision(32);
 		midiOut.setChannel(-1);
 		midiIn.setChannel(-1);
-		for (int s = 0; s < NT; s++)
-			st[s].name = "";
+		for (int i = 0; i < NSLOT; i++)
+			fxModelReq[i] = -1;
+		std::lock_guard<std::mutex> lock(regMutex);
+		registry.insert(this);
 	}
-	~WingLink() { port.setDriverId(-1); }
+	~WingLink() {
+		{
+			std::lock_guard<std::mutex> lock(regMutex);
+			registry.erase(this);
+		}
+		port.setDriverId(-1);
+	}
+	void onRemove(const RemoveEvent& e) override {
+		{
+			std::lock_guard<std::mutex> lock(regMutex);
+			registry.erase(this);
+		}
+		if (WingLinkX* x = xMod.load())
+			x->host = nullptr;
+		if (WingFx* f = fxMod.load())
+			f->host = nullptr;
+	}
 
 	void onReset() override {
 		wingStart = 33;
@@ -224,26 +232,27 @@ struct WingLink : Module {
 			st[s].colour = 0;
 			st[s].icon = -1;
 		}
-		port.outputOffset = usbStart() - 1;
 	}
 
 	// ---- helpers
-	Module* expander() {
-		Module* m = rightExpander.module;
-		return (m && m->model == modelWingLinkX) ? m : nullptr;
-	}
-	/** The module and its strip number for strip s (0..15), null if the expander isn't there. */
 	Module* owner(int s, int* j) {
 		*j = s % NS;
-		return s < NS ? this : expander();
+		return s < NS ? (Module*) this : (Module*) xMod.load();
 	}
-	int input(int s) { return wingStart + s; }  // the WING input (1..48), > 48: none
+	int input(int s) { return wingStart + s; }
 	bool active(int s) {
 		int j;
 		return input(s) <= P::NUM_IN && owner(s, &j);
 	}
 	int usbStart() { return usbMode.load() > 0 ? usbMode.load() : wingStart.load(); }
 	int usbOf(int s) { return usbStart() + s; }
+	int fxVisible(int slot) {  // its place on WING-FX (0..3), −1 if not shown
+		WingFx* f = fxMod.load();
+		if (!f)
+			return -1;
+		int j = slot - f->page * NPAGE;
+		return (j >= 0 && j < NPAGE) ? j : -1;
+	}
 
 	void send(const std::vector<uint8_t>& bytes) {
 		midi::Message m;
@@ -256,7 +265,7 @@ struct WingLink : Module {
 		midiOut.sendMessage(m);
 	}
 
-	/** After the channels changed (start, connect, load): take the panel as it is, ask the WING for its values. */
+	/** After the channels changed (start, connect, load): take the panels as they are, ask the WING. */
 	void resetSync() {
 		for (int s = 0; s < NT; s++) {
 			int j;
@@ -269,12 +278,18 @@ struct WingLink : Module {
 				y.hold = 0.f;
 			}
 		}
+		for (int k = 0; k < NSLOT; k++)
+			for (int f = 0; f < NFX; f++) {
+				fxs[k].f[f].dirty = false;
+				fxs[k].f[f].hold = 0.f;
+			}
+		fxPageSeen = -1;  // (the FX panel: taken as it is again)
 		queries.clear();
 		qWaiting = false;
 		pullAll = true;
 	}
 
-	/** A value from the WING: onto the panel, unless it was just changed here (or a CV drives it). */
+	// ---- values from the WING
 	void fromWing(int s, int f, float v) {
 		int j;
 		Module* m = owner(s, &j);
@@ -291,8 +306,84 @@ struct WingLink : Module {
 		y.local = v;
 		y.dirty = false;
 	}
+	void fromWingFx(int slot, int f, float n) {
+		FxSlot& x = fxs[slot];
+		Sync& y = x.f[f];
+		if (y.hold > 0.f)
+			return;
+		y.wing = n;
+		x.val[f] = n;
+		x.known[f] = true;
+		int j = fxVisible(slot);
+		WingFx* fm = fxMod.load();
+		if (j < 0 || !fm)
+			return;
+		if (f != FON && fm->inputs[fxCv(j, f - FMIX)].isConnected())
+			return;
+		fm->params[fxPid(j, f)].setValue(n);
+		y.local = n;
+		y.dirty = false;
+	}
+	void setFxModel(int slot, int model) {
+		FxSlot& x = fxs[slot];
+		x.model = model;
+		x.modelKnown = true;
+		for (int f = FP1; f < NFX; f++) {
+			x.known[f] = false;
+			x.f[f].wing = NAN;
+		}
+		fxPageSeen = -1;  // (refresh the panel)
+	}
+	void askFx(int slot, bool model) {
+		if (model)
+			queries.push_back({1, slot, FMODEL});
+		queries.push_back({1, slot, FMIX});
+		int m = fxs[slot].model;
+		for (int k = 0; k < F::MODELS[m].nShow; k++)
+			queries.push_back({1, slot, FP1 + k});
+	}
 
-	// ---- MIDI in
+	void onReply(int cmd, const std::string& text) {
+		if (!qWaiting)
+			return;
+		qWaiting = false;
+		if (cmd != P::GET_REPLY)
+			return;
+		if (qNow.kind == 1) {
+			int slot = qNow.s, f = qNow.f;
+			if (f == FMODEL) {
+				int m = F::modelIndex(text);
+				if (m != fxs[slot].model || !fxs[slot].modelKnown) {
+					setFxModel(slot, m);
+					askFx(slot, false);
+				}
+				return;
+			}
+			float v;
+			if (f == FMIX) {
+				if (P::number(text, &v))
+					fromWingFx(slot, FMIX, clamp(v / 100.f, 0.f, 1.f));
+				return;
+			}
+			const F::Model& M = F::MODELS[fxs[slot].model];
+			int k = f - FP1;
+			if (k < M.nShow && F::parseValue(M.show[k], text, &v))
+				fromWingFx(slot, f, F::toNorm(M.show[k], v));
+			return;
+		}
+		float v;
+		if (!P::number(text, &v))
+			return;
+		int f = qNow.f;
+		if (f == FADER || f == FX1 || f == FX2)
+			v = P::dbToPos(v);
+		else if (f == PAN)
+			v = clamp(v / 100.f, -1.f, 1.f);
+		else
+			v = v >= 0.5f ? 1.f : 0.f;
+		fromWing(qNow.s, f, v);
+	}
+
 	void onMidi(const midi::Message& msg) {
 		if (msg.bytes.empty())
 			return;
@@ -302,48 +393,53 @@ struct WingLink : Module {
 			if (cmd < 0)
 				return;
 			midiSeen = true;
+			sysexOk = true;
 			if (cmd == P::IDENT_REPLY) {
-				sysexOk = true;
-				identWaiting = false;
 				std::lock_guard<std::mutex> lock(identMutex);
 				wingIdent = text;
 				return;
 			}
-			if (cmd == P::GET_REPLY || cmd == P::ERROR_REPLY) {
-				sysexOk = true;
-				if (qWaiting) {
-					qWaiting = false;
-					float v;
-					if (cmd == P::GET_REPLY && P::number(text, &v)) {
-						int f = qNow.f;
-						if (f == FADER || f == FX1 || f == FX2)
-							v = P::dbToPos(v);
-						else if (f == PAN)
-							v = clamp(v / 100.f, -1.f, 1.f);
-						else
-							v = v >= 0.5f ? 1.f : 0.f;
-						fromWing(qNow.s, f, v);
-					}
-				}
-			}
+			if (cmd == P::GET_REPLY || cmd == P::ERROR_REPLY)
+				onReply(cmd, text);
 			return;
 		}
 		if (msg.getStatus() != 0xB)
 			return;
 		midiSeen = true;
-		int ch = msg.getChannel(), k = P::inputOfCc(msg.getNote()), val = msg.getValue();
+		int ch = msg.getChannel(), cc = msg.getNote(), val = msg.getValue();
+		// FX (MIDI channels 9–16)
+		int slot, param;
+		int kind = P::fxCc(ch, cc, &slot, &param);
+		if (kind != P::FXCC_NONE) {
+			slot -= 1;
+			if (kind == P::FXCC_ON)
+				fromWingFx(slot, FON, val >= 64 ? 1.f : 0.f);
+			else if (kind == P::FXCC_MODEL)
+				queries.push_front({1, slot, FMODEL});
+			else if (kind == P::FXCC_MIX) {
+				if (fxs[slot].f[FMIX].hold <= 0.f)
+					queries.push_front({1, slot, FMIX});
+			}
+			else {
+				const F::Model& M = F::MODELS[fxs[slot].model];
+				if (param >= 1 && param <= M.nKeys)
+					for (int k = 0; k < M.nShow; k++)
+						if (!std::strcmp(M.keys[param - 1], M.show[k].key) && fxs[slot].f[FP1 + k].hold <= 0.f)
+							queries.push_front({1, slot, FP1 + k});
+			}
+			return;
+		}
+		int k = P::inputOfCc(cc);
 		if (k == 0 || ch > 2)
 			return;
 		int s = k - wingStart;
 		if (s < 0 || s >= NT || !active(s))
 			return;
 		if (ch == 0) {
-			// 7 bit: keep the finer value we have when it rounds to the same step
 			float now = st[s].f[FADER].wing;
-			float v = val / 127.f;
 			if (!std::isnan(now) && (int) std::round(now * 127.f) == val)
 				return;
-			fromWing(s, FADER, v);
+			fromWing(s, FADER, val / 127.f);
 		}
 		else if (ch == 1)
 			fromWing(s, MUTE, val >= 64 ? 1.f : 0.f);
@@ -355,7 +451,7 @@ struct WingLink : Module {
 		}
 	}
 
-	// ---- the messages for one field
+	// ---- values to the WING
 	void sendField(int s, int f, float v) {
 		int k = input(s);
 		bool sx = sysexOk;
@@ -378,14 +474,29 @@ struct WingLink : Module {
 				else
 					sendCc(1, P::ccOf(k), v > 0.5f ? 127 : 0);
 				break;
-			case SOLO:
-				send(P::set(k, v > 0.5f ? "$solo=1" : "$solo=0"));
-				break;
+			case SOLO: send(P::set(k, v > 0.5f ? "$solo=1" : "$solo=0")); break;
 			case FX1:
 			case FX2:
 				send(P::set(k, string::f("send.%d.on=1,lvl=", fxBus[f == FX2].load()) + P::dbText(P::posToDb(v))));
 				break;
 		}
+	}
+	void sendFx(int slot, int f, float n) {
+		if (f == FON) {
+			int ch, cc;
+			P::fxOnCc(slot + 1, &ch, &cc);
+			sendCc(ch, cc, n > 0.5f ? 127 : 0);
+			return;
+		}
+		if (f == FMIX) {
+			send(P::fxSet(slot + 1, string::f("fxmix=%d", (int) std::round(n * 100.f))));
+			return;
+		}
+		const F::Model& M = F::MODELS[fxs[slot].model];
+		int k = f - FP1;
+		if (k >= M.nShow)
+			return;
+		send(P::fxSet(slot + 1, std::string(M.show[k].key) + "=" + F::wingText(M.show[k], F::toValue(M.show[k], n))));
 	}
 	std::string queryOf(int f) {
 		switch (f) {
@@ -418,13 +529,170 @@ struct WingLink : Module {
 		return true;
 	}
 
+	// ---- WING-FX: its panel <-> the slots, the tempo
+	void controlFx(float dt, bool connected) {
+		WingFx* fm = fxMod.load();
+		if (fm != fxSeen) {
+			fxSeen = fm;
+			fxPageSeen = -1;
+		}
+		if (!fm)
+			return;
+		if (pageDownT.process(fm->params[WingFx::PAGE_DOWN_PARAM].getValue() > 0.f) && fm->page > 0)
+			fm->page--;
+		if (pageUpT.process(fm->params[WingFx::PAGE_UP_PARAM].getValue() > 0.f) && fm->page < NSLOT / NPAGE - 1)
+			fm->page++;
+		int page = fm->page;
+		if (page != fxPageSeen) {
+			// a new page (or a new model): the panel shows what we know, then we ask
+			fxPageSeen = page;
+			for (int j = 0; j < NPAGE; j++) {
+				int slot = page * NPAGE + j;
+				FxSlot& x = fxs[slot];
+				for (int f = 0; f < NFX; f++) {
+					float v = x.known[f] ? x.val[f] : fm->params[fxPid(j, f)].getValue();
+					fm->params[fxPid(j, f)].setValue(v);
+					x.f[f].local = v;
+					if (!x.known[f])
+						x.f[f].wing = v;
+					x.f[f].dirty = false;
+				}
+				if (connected && sysexOk)
+					askFx(slot, true);
+			}
+		}
+		// the panel's changes (and CV)
+		for (int j = 0; j < NPAGE; j++) {
+			int slot = page * NPAGE + j;
+			FxSlot& x = fxs[slot];
+			for (int k = 0; k < 5; k++)
+				if (fm->inputs[fxCv(j, k)].isConnected())
+					fm->params[fxPid(j, FMIX + k)].setValue(clamp(fm->inputs[fxCv(j, k)].getVoltage() / 10.f, 0.f, 1.f));
+			for (int f = 0; f < NFX; f++) {
+				Sync& y = x.f[f];
+				float v = fm->params[fxPid(j, f)].getValue();
+				if (v != y.local) {
+					y.local = v;
+					x.val[f] = v;
+					x.known[f] = true;
+					if (connected && !(std::fabs(v - y.wing) < 1e-4f)) {
+						y.dirty = true;
+						y.hold = 0.4f;
+					}
+				}
+			}
+			fm->lights[WingFx::ON_LIGHT + j].setBrightness(fm->params[fxPid(j, FON)].getValue() > 0.5f ? 1.f : 0.f);
+		}
+		for (int slot = 0; slot < NSLOT; slot++)
+			for (int f = 0; f < NFX; f++)
+				fxs[slot].f[f].hold = std::max(0.f, fxs[slot].f[f].hold - dt);
+
+		// tempo: TAP
+		if (tapT.process(fm->params[WingFx::TAP_PARAM].getValue() > 0.f)) {
+			double gap = now - lastTap;
+			if (gap > 0.15 && gap < 2.5) {
+				tapGaps[nGaps % 4] = (float) gap;
+				nGaps++;
+				float sum = 0.f;
+				int n = std::min(nGaps, 4);
+				for (int i = 0; i < n; i++)
+					sum += tapGaps[i];
+				rackBpm = 60.f / (sum / n);
+			}
+			else
+				nGaps = 0;
+			lastTap = now;
+			tapFlash = 0.1f;
+		}
+		tapFlash = std::max(0.f, tapFlash - dt);
+		fm->lights[WingFx::TAP_LIGHT].setBrightness(tapFlash > 0.f ? 1.f : 0.f);
+		bool sync = fm->params[WingFx::SYNC_PARAM].getValue() > 0.5f;
+		fm->lights[WingFx::SYNC_LIGHT].setBrightness(sync ? 1.f : 0.f);
+
+		// tempo: SYNC on → the delays take Rack's tempo; off → the first delay's time is the WING's tempo
+		tempoTimer -= dt;
+		if (tempoTimer > 0.f)
+			return;
+		tempoTimer = 0.25f;
+		float wb = 0.f;
+		int wslot = -1;
+		for (int slot = 0; slot < NSLOT; slot++) {
+			FxSlot& x = fxs[slot];
+			const F::Model& M = F::MODELS[x.model];
+			if (M.timeParam < 0)
+				continue;
+			int f = FP1 + M.timeParam;
+			const F::Param& p = M.show[M.timeParam];
+			if (sync && rackBpm > 0.f) {
+				float ms = clamp(60000.f / rackBpm, p.min, p.max);
+				float n = F::toNorm(p, ms);
+				if (!x.known[f] || std::fabs(F::toValue(p, x.val[f]) - ms) >= 1.f) {
+					x.val[f] = n;
+					x.known[f] = true;
+					Sync& y = x.f[f];
+					y.local = n;
+					y.dirty = connected;
+					y.hold = 0.4f;
+					int j = fxVisible(slot);
+					if (j >= 0)
+						fm->params[fxPid(j, f)].setValue(n);
+				}
+			}
+			if (wslot < 0 && x.known[f]) {
+				float ms = F::toValue(p, x.val[f]);
+				if (ms > 1.f) {
+					wb = 60000.f / ms;
+					while (wb < 60.f)
+						wb *= 2.f;
+					while (wb > 240.f)
+						wb /= 2.f;
+					wslot = slot;
+				}
+			}
+		}
+		wingBpm = wb;
+		wingBpmSlot = wslot;
+	}
+
+	/** Per sample: CLOCK in → Rack's tempo, CLOCK out ← the tempo in use. */
+	void processTempo(float dt) {
+		now += dt;
+		WingFx* fm = fxMod.load();
+		if (!fm)
+			return;
+		if (clockIn.process(fm->inputs[WingFx::CLOCK_INPUT].getVoltage(), 0.1f, 1.f)) {
+			if (lastClock >= 0.0) {
+				float per = (float) (now - lastClock) * fm->ppqIn;
+				if (per > 0.12f && per < 3.f) {
+					clockPeriods[nPeriods % 4] = per;
+					nPeriods++;
+					float sum = 0.f;
+					int n = std::min(nPeriods, 4);
+					for (int i = 0; i < n; i++)
+						sum += clockPeriods[i];
+					rackBpm = 60.f / (sum / n);
+				}
+			}
+			lastClock = now;
+		}
+		bool sync = fm->params[WingFx::SYNC_PARAM].getValue() > 0.5f;
+		float bpm = sync ? rackBpm.load() : wingBpm.load();
+		if (bpm > 0.f) {
+			clockPhase += dt * bpm / 60.f * fm->ppqOut;
+			if (clockPhase >= 1.f) {
+				clockPhase -= std::floor(clockPhase);
+				clockOut.trigger(1e-3f);
+			}
+		}
+		fm->outputs[WingFx::CLOCK_OUTPUT].setVoltage(clockOut.process(dt) ? 10.f : 0.f);
+	}
+
 	// ---- the control tick (every 32 samples)
 	void control(float dt) {
 		midiOut.channel = -1;  // (a pick in the MIDI menu may set one: keep our own channels)
 		midiIn.channel = -1;
 		port.outputOffset = clamp(usbStart() - 1, 0, 47);
 
-		// connection: on a new device, ask who's there
 		int inDev = midiIn.getDeviceId(), outDev = midiOut.getDeviceId();
 		if (inDev != lastInDev || outDev != lastOutDev) {
 			lastInDev = inDev;
@@ -432,7 +700,6 @@ struct WingLink : Module {
 			sysexOk = false;
 			midiSeen = false;
 			identTimer = 0.f;
-			identWaiting = false;
 			resetSync();
 		}
 		bool connected = outDev >= 0;
@@ -441,13 +708,11 @@ struct WingLink : Module {
 			if (identTimer <= 0.f) {
 				send(P::sysex(P::IDENT, ""));
 				identTimer = 2.f;
-				identWaiting = true;
 			}
 		}
 
 		if (wantReset.exchange(false))
 			resetSync();
-		// the buttons
 		if (downT.process(params[DOWN_PARAM].getValue() > 0.f) && wingStart > 1) {
 			wingStart--;
 			resetSync();
@@ -471,7 +736,6 @@ struct WingLink : Module {
 			if (!m)
 				continue;
 			bool on = input(s) <= P::NUM_IN;
-			// CV moves the panel
 			auto cv = [&](int in, int f, float v) {
 				if (m->inputs[iid(j, in)].isConnected())
 					m->params[pid(j, f)].setValue(v);
@@ -494,20 +758,26 @@ struct WingLink : Module {
 			}
 			float fd = m->params[pid(j, FADER)].getValue();
 			bool mu = m->params[pid(j, MUTE)].getValue() > 0.5f;
+			bool so = m->params[pid(j, SOLO)].getValue() > 0.5f;
 			m->outputs[oid(j, OUT_FDR)].setVoltage(fd * 10.f);
 			m->outputs[oid(j, OUT_MUTE)].setVoltage(mu ? 10.f : 0.f);
-			if (m == this) {
-				lights[MUTE_LIGHT + j].setBrightness(mu ? 1.f : 0.f);
-				lights[SOLO_LIGHT + j].setBrightness(m->params[pid(j, SOLO)].getValue() > 0.5f ? 1.f : 0.f);
-			}
-			else {
-				m->lights[j].setBrightness(mu ? 1.f : 0.f);
-				m->lights[NS + j].setBrightness(m->params[pid(j, SOLO)].getValue() > 0.5f ? 1.f : 0.f);
-			}
-			if (t.metaDirty) {
+			m->lights[j].setBrightness(mu ? 1.f : 0.f);          // MUTE_LIGHT + j (the same on both panels)
+			m->lights[NS + j].setBrightness(so ? 1.f : 0.f);     // SOLO_LIGHT + j
+			if (t.metaDirty)
 				t.metaWait -= dt;
+		}
+
+		// FX models picked on WING-FX
+		for (int slot = 0; slot < NSLOT; slot++) {
+			int req = fxModelReq[slot].exchange(-1);
+			if (req >= 0 && connected) {
+				send(P::fxSet(slot + 1, std::string("mdl=") + F::MODELS[req].mdl));
+				setFxModel(slot, req);
+				queries.push_back({1, slot, FMODEL});
+				askFx(slot, false);
 			}
 		}
+		controlFx(dt, connected);
 		if (!connected)
 			return;
 
@@ -527,11 +797,27 @@ struct WingLink : Module {
 			return;
 		}
 
-		// send: one message every 3 ms at most (round robin over the strips and fields)
+		// send: one message every 3 ms at most (round robin: strips, names, FX)
 		sendWait -= dt;
 		if (sendWait <= 0.f) {
-			for (int n = 0; n < NT * (NF + 1); n++) {
-				int i = (sendRR + n) % (NT * (NF + 1));
+			const int NSTRIP = NT * (NF + 1), NALL = NSTRIP + NSLOT * NFX;
+			for (int n = 0; n < NALL; n++) {
+				int i = (sendRR + n) % NALL;
+				if (i >= NSTRIP) {
+					int slot = (i - NSTRIP) / NFX, f = (i - NSTRIP) % NFX;
+					Sync& y = fxs[slot].f[f];
+					if (!y.dirty)
+						continue;
+					y.dirty = false;
+					if (f != FON && !sysexOk)
+						continue;
+					sendFx(slot, f, y.local);
+					y.wing = y.local;
+					y.hold = 0.4f;
+					sendRR = i + 1;
+					sendWait = 0.003f;
+					break;
+				}
 				int s = i / (NF + 1), f = i % (NF + 1);
 				if (!active(s))
 					continue;
@@ -547,17 +833,11 @@ struct WingLink : Module {
 				Sync& y = st[s].f[f];
 				if (!y.dirty)
 					continue;
-				if (f == SOLO && !sysexOk) {
-					y.dirty = false;
+				y.dirty = false;
+				if ((f == SOLO || f == FX1 || f == FX2) && !sysexOk)
 					continue;
-				}
-				if ((f == FX1 || f == FX2) && !sysexOk) {
-					y.dirty = false;
-					continue;
-				}
 				sendField(s, f, y.local);
 				y.wing = y.local;
-				y.dirty = false;
 				y.hold = 0.4f;
 				sendRR = i + 1;
 				sendWait = 0.003f;
@@ -565,7 +845,7 @@ struct WingLink : Module {
 			}
 		}
 
-		// ask: after a connect / SYNC everything, then solo and the sends now and then (they have no CC)
+		// ask: after a connect / SYNC everything, then now and then what has no CC (solo, sends, FX on the panel)
 		if (sysexOk) {
 			if (pullAll) {
 				pullAll = false;
@@ -573,32 +853,59 @@ struct WingLink : Module {
 				for (int s = 0; s < NT; s++)
 					if (active(s))
 						for (int f = 0; f < NF; f++)
-							queries.push_back({s, f});
+							queries.push_back({0, s, f});
+				if (WingFx* fm = fxMod.load())
+					for (int j = 0; j < NPAGE; j++)
+						askFx(fm->page * NPAGE + j, true);
+				for (int ch = 8; ch < 16; ch++) {  // FX: ask the WING for its CCs (ON has no other way)
+					sendCc(ch, 9, ch - 8);
+					sendCc(ch, 9, ch - 8 + 8);
+				}
 			}
 			pollTimer -= dt;
 			if (pollTimer <= 0.f && queries.empty()) {
 				pollTimer = 1.f;
 				for (int s = 0; s < NT; s++)
 					if (active(s)) {
-						queries.push_back({s, SOLO});
-						queries.push_back({s, FX1});
-						queries.push_back({s, FX2});
+						queries.push_back({0, s, SOLO});
+						queries.push_back({0, s, FX1});
+						queries.push_back({0, s, FX2});
 					}
+				if (WingFx* fm = fxMod.load())
+					for (int j = 0; j < NPAGE; j++)
+						askFx(fm->page * NPAGE + j, true);
 			}
 			if (qWaiting) {
 				qTimer -= dt;
 				if (qTimer <= 0.f)
-					qWaiting = false;  // no answer: on with the next
+					qWaiting = false;
 			}
-			if (!qWaiting && !queries.empty() && sendWait <= 0.f) {
+			while (!qWaiting && !queries.empty() && sendWait <= 0.f) {
 				qNow = queries.front();
 				queries.pop_front();
-				if (active(qNow.s)) {
+				if (qNow.kind == 0) {
+					if (!active(qNow.s))
+						continue;
 					send(P::get(input(qNow.s), queryOf(qNow.f)));
-					qWaiting = true;
-					qTimer = 0.25f;
-					sendWait = 0.002f;
 				}
+				else {
+					std::string what;
+					if (qNow.f == FMODEL)
+						what = "mdl";
+					else if (qNow.f == FMIX)
+						what = "fxmix";
+					else {
+						const F::Model& M = F::MODELS[fxs[qNow.s].model];
+						int k = qNow.f - FP1;
+						if (k >= M.nShow)
+							continue;
+						what = M.show[k].key;
+					}
+					send(P::fxGet(qNow.s + 1, what));
+				}
+				qWaiting = true;
+				qTimer = 0.25f;
+				sendWait = 0.002f;
 			}
 		}
 	}
@@ -608,11 +915,10 @@ struct WingLink : Module {
 		while (midiIn.tryPop(&msg, args.frame))
 			onMidi(msg);
 
-		// audio to the WING
-		Module* x = expander();
+		WingLinkX* x = xMod.load();
 		dsp::Frame<MAXCH> fr = {};
 		for (int s = 0; s < NT; s++) {
-			Module* m = s < NS ? this : x;
+			Module* m = s < NS ? (Module*) this : (Module*) x;
 			if (!m)
 				break;
 			float v = m->inputs[iid(s % NS, AUDIO)].getVoltageSum() / 10.f;
@@ -621,14 +927,14 @@ struct WingLink : Module {
 		}
 		if (port.deviceNumOutputs > 0 && !port.engineInputBuffer.full())
 			port.engineInputBuffer.push(fr);
-
+		processTempo(args.sampleTime);
 		if (ctl.process())
 			control(args.sampleTime * ctl.getDivision());
 	}
 
 	void onSampleRateChange(const SampleRateChangeEvent& e) override { port.engineInputBuffer.clear(); }
 
-	// ---- the panel's edits (UI thread)
+	// ---- the panels' edits (UI thread)
 	void setName(int s, const std::string& n) {
 		std::lock_guard<std::mutex> lock(metaMutex);
 		if (st[s].name == n)
@@ -677,6 +983,10 @@ struct WingLink : Module {
 			}
 		}
 		json_object_set_new(root, "strips", strips);
+		json_t* fx = json_array();
+		for (int k = 0; k < NSLOT; k++)
+			json_array_append_new(fx, json_string(F::MODELS[fxs[k].model].mdl));
+		json_object_set_new(root, "fxModels", fx);
 		return root;
 	}
 	void dataFromJson(json_t* root) override {
@@ -713,24 +1023,124 @@ struct WingLink : Module {
 					st[s].icon = (int) json_integer_value(j);
 			}
 		}
+		if (json_t* a = json_object_get(root, "fxModels"))
+			for (int k = 0; k < NSLOT && k < (int) json_array_size(a); k++)
+				if (json_t* j = json_array_get(a, k))
+					fxs[k].model = F::modelIndex(json_string_value(j));
 		lastInDev = lastOutDev = -2;
 	}
 };
 
-struct WingLinkX : Module {
-	enum InputId { NUM_INPUTS = NS * NCI };
-	enum OutputId { NUM_OUTPUTS = NS * NCO };
-	enum LightId { MUTE_LIGHT, SOLO_LIGHT = MUTE_LIGHT + NS, NUM_LIGHTS = SOLO_LIGHT + NS };
-	WingLinkX() {
-		config(NS * NF, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-		configStrips(this, NS);
+// ---------------------------------------------------------------- the panels' link
+WingLink* Satellite::hostSafe() {
+	WingLink* h = host.load();
+	return hostAlive(h) ? h : nullptr;
+}
+void Satellite::onRemove(const RemoveEvent& e) {
+	WingLink* h = host.load();
+	if (hostAlive(h)) {
+		WingLinkX* x = dynamic_cast<WingLinkX*>(this);
+		WingFx* f = dynamic_cast<WingFx*>(this);
+		if (x) {
+			WingLinkX* cur = x;
+			h->xMod.compare_exchange_strong(cur, nullptr);
+		}
+		if (f) {
+			WingFx* cur = f;
+			h->fxMod.compare_exchange_strong(cur, nullptr);
+		}
 	}
-	WingLink* host() {
-		Module* m = leftExpander.module;
+	host = nullptr;
+}
+Satellite::~Satellite() {}
+json_t* Satellite::dataToJson() {
+	json_t* root = json_object();
+	json_object_set_new(root, "linkId", json_integer(linkId));
+	return root;
+}
+void Satellite::dataFromJson(json_t* root) {
+	if (json_t* j = json_object_get(root, "linkId"))
+		linkId = json_integer_value(j);
+}
+
+WingLinkX::WingLinkX() {
+	config(NS * NF, NS * NCI, NS * NCO, NUM_LIGHTS);
+	configStrips(this, NS);
+}
+
+/** (UI thread) Which WING-LINK a panel belongs to: docked next to it, picked by right-click, or the only one. */
+static WingLink* findHost(Satellite* s) {
+	Module* side = s->dockLeft() ? s->leftExpander.module : s->rightExpander.module;
+	if (side && side->model == modelWingLink)
+		return static_cast<WingLink*>(side);
+	int64_t id = s->linkId;
+	if (id >= 0) {
+		Module* m = APP->engine->getModule(id);
 		return (m && m->model == modelWingLink) ? static_cast<WingLink*>(m) : nullptr;
 	}
-	// (WING-LINK does the work: reads this panel, writes its outputs and lights)
-};
+	WingLink* only = nullptr;
+	for (int64_t mid : APP->engine->getModuleIds()) {
+		Module* m = APP->engine->getModule(mid);
+		if (m && m->model == modelWingLink) {
+			if (only)
+				return nullptr;  // several: pick one by right-click
+			only = static_cast<WingLink*>(m);
+		}
+	}
+	return only;
+}
+
+/** (UI thread, now and then) Link the panels: each finds its WING-LINK, each WING-LINK learns its panels. */
+void linkPanels(Satellite* s) {
+	WingLink* h = findHost(s);
+	WingLink* old = s->host.load();
+	if (old != h && hostAlive(old)) {
+		if (WingLinkX* x = dynamic_cast<WingLinkX*>(s)) {
+			WingLinkX* cur = x;
+			old->xMod.compare_exchange_strong(cur, nullptr);
+		}
+		if (WingFx* f = dynamic_cast<WingFx*>(s)) {
+			WingFx* cur = f;
+			old->fxMod.compare_exchange_strong(cur, nullptr);
+		}
+	}
+	s->host = h;
+	if (!h)
+		return;
+	if (WingLinkX* x = dynamic_cast<WingLinkX*>(s)) {
+		WingLinkX* cur = h->xMod.load();
+		if (!cur || cur->host.load() != h)
+			h->xMod = x;
+	}
+	if (WingFx* f = dynamic_cast<WingFx*>(s)) {
+		WingFx* cur = h->fxMod.load();
+		if (!cur || cur->host.load() != h)
+			h->fxMod = f;
+	}
+}
+
+/** Right-click on a panel: which WING-LINK. */
+void appendLinkMenu(Menu* menu, Satellite* s) {
+	menu->addChild(new MenuSeparator);
+	WingLink* h = s->hostSafe();
+	menu->addChild(createSubmenuItem("Connect to WING-LINK", h ? (s->linkId >= 0 ? "chosen" : "auto") : "none",
+	                                 [=](Menu* sub) {
+		sub->addChild(createCheckMenuItem("Auto (docked, or the only WING-LINK)", "", [=]() { return s->linkId < 0; },
+		                                  [=]() { s->linkId = -1; }));
+		int n = 0;
+		for (int64_t id : APP->engine->getModuleIds()) {
+			Module* m = APP->engine->getModule(id);
+			if (!m || m->model != modelWingLink)
+				continue;
+			n++;
+			WingLink* w = static_cast<WingLink*>(m);
+			sub->addChild(createCheckMenuItem(string::f("WING-LINK #%d  (%s …)", n, P::label(w->wingStart).c_str()), "",
+			                                  [=]() { return s->linkId == id; }, [=]() { s->linkId = id; }));
+		}
+		if (n == 0)
+			sub->addChild(createMenuLabel("(no WING-LINK in the patch)"));
+	}));
+}
 
 // ---------------------------------------------------------------- widgets
 struct WingFader : app::SvgSlider {
@@ -752,7 +1162,6 @@ static NVGcolor colourOf(int c) {
 	return nvgRGB(k.r, k.g, k.b);
 }
 
-/** The strip's name, typed straight into its display. */
 struct NameField : DisplayTextField {
 	std::function<WingLink*()> getHost;
 	int s = 0;
@@ -787,8 +1196,6 @@ struct NameField : DisplayTextField {
 	}
 };
 
-/** The strip's display: colour bar (click: next colour), name, icon (click: next group), WING channel. Right-click:
- * all colours and icons. */
 struct ScribbleWidget : OpaqueWidget {
 	std::function<WingLink*()> getHost;
 	int s = 0;
@@ -864,7 +1271,6 @@ struct ScribbleWidget : OpaqueWidget {
 	}
 };
 
-/** 12 segments, green / yellow from −6 dB / red from 0 dB (of the signal going to the WING). */
 struct MeterWidget : Widget {
 	std::function<WingLink*()> getHost;
 	int s = 0;
@@ -940,14 +1346,13 @@ static void addStrips(ModuleWidget* w, Module* module, int base, std::function<W
 	}
 }
 
-static void addScrews(ModuleWidget* w) {
+void addScrews(ModuleWidget* w) {
 	w->addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
 	w->addChild(createWidget<ScrewBlack>(Vec(w->box.size.x - 2 * RACK_GRID_WIDTH, 0)));
 	w->addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	w->addChild(createWidget<ScrewBlack>(Vec(w->box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 }
 
-/** The main display: channels, the link's state, audio. */
 struct StatusDisplay : Widget {
 	WingLink* module = nullptr;
 	void drawLayer(const DrawArgs& args, int layer) override {
@@ -961,28 +1366,30 @@ struct StatusDisplay : Widget {
 			}
 			int a = module->wingStart, b = std::min(P::NUM_IN, a + NS - 1);
 			std::string chs = P::label(a) + " – " + P::label(b);
-			if (module->expander() && a + NS <= P::NUM_IN)
+			if (module->xMod.load() && a + NS <= P::NUM_IN)
 				chs += "   +  " + P::label(a + NS) + " – " + P::label(std::min(P::NUM_IN, a + NT - 1));
+			if (module->fxMod.load())
+				chs += "   ·  FX";
 			text(vg, boldFont(), x, mm2px(4.6f), chs, 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
-			std::string st;
+			std::string stx;
 			NVGcolor c;
 			if (module->midiOut.getDeviceId() < 0) {
-				st = "●  NO WING (MIDI): plug the WING in by USB, or pick its MIDI port (right-click)";
+				stx = "●  NO WING (MIDI): plug the WING in by USB, or pick its MIDI port (right-click)";
 				c = BAD;
 			}
 			else if (module->sysexOk) {
-				st = "●  WING  ·  MIDI OK  ·  SYSEX OK";
+				stx = "●  WING  ·  MIDI OK  ·  SYSEX OK";
 				c = OK;
 			}
 			else if (module->midiSeen) {
-				st = "●  WING  ·  MIDI OK  ·  NO SYSEX: WING › SETUP › REMOTE › MIDI: allow USB SYSEX";
+				stx = "●  WING  ·  MIDI OK  ·  NO SYSEX: WING › SETUP › REMOTE › MIDI: allow USB SYSEX";
 				c = WARN;
 			}
 			else {
-				st = "●  WAITING FOR THE WING …  (WING › SETUP › REMOTE › MIDI: USB SYSEX + CHANNELS)";
+				stx = "●  WAITING FOR THE WING …  (WING › SETUP › REMOTE › MIDI: USB SYSEX + CHANNELS)";
 				c = WARN;
 			}
-			text(vg, boldFont(), x, mm2px(8.1f), st, 6.6f, c, NVG_ALIGN_LEFT, 0.3f);
+			text(vg, boldFont(), x, mm2px(8.1f), stx, 6.6f, c, NVG_ALIGN_LEFT, 0.3f);
 			int u = module->usbStart();
 			std::string au;
 			int nOut = module->port.deviceNumOutputs;
@@ -991,9 +1398,8 @@ struct StatusDisplay : Widget {
 			else if (nOut <= 0)
 				au = string::f("AUDIO: USB %d+ not on the device (set the WING to 48 USB channels)", u);
 			else
-				au = string::f("AUDIO → USB %d–%d  ·  %s  ·  %.0f kHz", u, u + (module->expander() ? NT : NS) - 1,
-				               module->audioName.c_str(),
-				               module->port.deviceSampleRate / 1000.f);
+				au = string::f("AUDIO → USB %d–%d  ·  %s  ·  %.0f kHz", u, u + (module->xMod.load() ? NT : NS) - 1,
+				               module->audioName.c_str(), module->port.deviceSampleRate / 1000.f);
 			text(vg, boldFont(), x, mm2px(10.2f), au, 6.2f, DIM, NVG_ALIGN_LEFT, 0.3f);
 		}
 		Widget::drawLayer(args, layer);
@@ -1034,7 +1440,6 @@ struct WingLinkWidget : ModuleWidget {
 		addStrips(this, module, 0, [module]() { return module; });
 	}
 
-	/** Find the WING by itself: its MIDI ports (the remote-control one) and its audio device (ASIO first). */
 	void step() override {
 		ModuleWidget::step();
 		WingLink* m = dynamic_cast<WingLink*>(module);
@@ -1045,13 +1450,24 @@ struct WingLinkWidget : ModuleWidget {
 			return;
 		scan = 2.f;
 		m->audioName = m->port.getDeviceId() >= 0 ? m->port.getDeviceName(m->port.getDeviceId()) : "";
+		// panels that no longer point here
+		if (WingLinkX* x = m->xMod.load())
+			if (x->host.load() != m) {
+				WingLinkX* cur = x;
+				m->xMod.compare_exchange_strong(cur, nullptr);
+			}
+		if (WingFx* f = m->fxMod.load())
+			if (f->host.load() != m) {
+				WingFx* cur = f;
+				m->fxMod.compare_exchange_strong(cur, nullptr);
+			}
 		if (m->autoMidi) {
 			auto pick = [&](midi::Port* port, bool in) {
 				int cur = port->getDeviceId();
 				if (cur >= 0) {
 					std::vector<int> ids = port->getDeviceIds();
 					if (std::find(ids.begin(), ids.end(), cur) != ids.end())
-						return;  // still there
+						return;
 				}
 				int bestDrv = -1, bestDev = -1, best = 0;
 				for (int drv : midi::getDriverIds()) {
@@ -1108,8 +1524,7 @@ struct WingLinkWidget : ModuleWidget {
 		if (!m)
 			return;
 		menu->addChild(new MenuSeparator);
-		menu->addChild(createSubmenuItem("Audio to the WING (USB)", m->port.getDeviceId() >= 0 ?
-		                                 m->port.getDeviceName(m->port.getDeviceId()) : "none",
+		menu->addChild(createSubmenuItem("Audio to the WING (USB)", m->audioName.empty() ? "none" : m->audioName,
 		                                 [=](Menu* sub) { app::appendAudioMenu(sub, &m->port); }));
 		menu->addChild(createSubmenuItem("USB channels", m->usbMode.load() == 0 ? "same as the WING channels" :
 		                                 string::f("from USB %d", m->usbMode.load()), [=](Menu* sub) {
@@ -1150,7 +1565,7 @@ struct WingLinkWidget : ModuleWidget {
 			menu->addChild(createMenuLabel(id.substr(0, 60)));
 		menu->addChild(new MenuSeparator);
 		menu->addChild(createMenuLabel("Click a strip's colour bar or icon to change it, type its name"));
-		menu->addChild(createMenuLabel("WING-LINK X docks on the right: 8 more channels"));
+		menu->addChild(createMenuLabel("WING-LINK X (8 more channels) and WING-FX link by themselves"));
 	}
 };
 
@@ -1160,18 +1575,21 @@ struct XDisplay : Widget {
 		if (layer == 1) {
 			NVGcontext* vg = args.vg;
 			float x = mm2px(3.f);
-			WingLink* h = module ? module->host() : nullptr;
+			WingLink* h = module ? module->hostSafe() : nullptr;
 			if (!h) {
 				text(vg, boldFont(), x, mm2px(4.6f), module ? "NOT LINKED" : "CH 41–48", 12.f, module ? WARN : WHITE);
 				if (module)
-					text(vg, boldFont(), x, mm2px(8.1f), "●  place me right next to WING-LINK", 6.6f, WARN, NVG_ALIGN_LEFT, 0.3f);
+					text(vg, boldFont(), x, mm2px(8.1f), "●  right-click › Connect to WING-LINK (or dock me on its right)",
+					     6.6f, WARN, NVG_ALIGN_LEFT, 0.3f);
 			}
 			else {
 				int a = h->wingStart + NS;
 				std::string chs = a > P::NUM_IN ? "NO CHANNELS LEFT"
 				                                : P::label(a) + " – " + P::label(std::min(P::NUM_IN, a + NS - 1));
 				text(vg, boldFont(), x, mm2px(4.6f), chs, 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
-				text(vg, boldFont(), x, mm2px(8.1f), "●  LINKED TO WING-LINK", 6.6f, ACCENT, NVG_ALIGN_LEFT, 0.3f);
+				bool live = h->xMod.load() == module;
+				text(vg, boldFont(), x, mm2px(8.1f), live ? "●  LINKED TO WING-LINK" : "●  WING-LINK already has a WING-LINK X",
+				     6.6f, live ? ACCENT : WARN, NVG_ALIGN_LEFT, 0.3f);
 				int u = h->usbStart() + NS;
 				text(vg, boldFont(), x, mm2px(10.2f), string::f("AUDIO → USB %d–%d", u, u + NS - 1), 6.2f, DIM,
 				     NVG_ALIGN_LEFT, 0.3f);
@@ -1182,6 +1600,7 @@ struct XDisplay : Widget {
 };
 
 struct WingLinkXWidget : ModuleWidget {
+	float scan = 0.f;
 	WingLinkXWidget(WingLinkX* module) {
 		setModule(module);
 		setPanel(createPanel(asset::plugin(pluginInstance, "res/WingLinkX.svg")));
@@ -1191,9 +1610,36 @@ struct WingLinkXWidget : ModuleWidget {
 		d->box.pos = mm2px(Vec(wllayout::wlx::DISPLAY[0], wllayout::wlx::DISPLAY[1]));
 		d->box.size = mm2px(Vec(wllayout::wlx::DISPLAY[2], wllayout::wlx::DISPLAY[3]));
 		addChild(d);
-		addStrips(this, module, NS, [module]() { return module ? module->host() : nullptr; });
+		addStrips(this, module, NS, [module]() { return module ? module->hostSafe() : nullptr; });
+	}
+	void step() override {
+		ModuleWidget::step();
+		scan -= APP->window->getLastFrameDuration();
+		if (module && scan <= 0.f) {
+			scan = 0.5f;
+			linkPanels(static_cast<Satellite*>(module));
+		}
+	}
+	void appendContextMenu(Menu* menu) override {
+		if (module)
+			appendLinkMenu(menu, static_cast<Satellite*>(module));
 	}
 };
+
+// ---------------------------------------------------------------- for WING-FX's panel (src/WingFx.cpp)
+FxSlot* hostFx(WingLink* h, int slot) { return h ? &h->fxs[slot] : nullptr; }
+void requestFxModel(WingLink* h, int slot, int model) {
+	if (h)
+		h->fxModelReq[slot] = model;
+}
+float hostRackBpm(WingLink* h) { return h ? h->rackBpm.load() : 0.f; }
+float hostWingBpm(WingLink* h, int* slot) {
+	if (!h)
+		return 0.f;
+	*slot = h->wingBpmSlot;
+	return h->wingBpm;
+}
+bool hostLinked(WingLink* h, WingFx* f) { return h && h->fxMod.load() == f; }
 
 }  // namespace winglink
 

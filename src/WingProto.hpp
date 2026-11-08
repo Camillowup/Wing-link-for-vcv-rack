@@ -173,12 +173,67 @@ inline bool number(const std::string& s0, float* v) {
 		*v = 0.f;
 		return true;
 	}
+	// "10k02" = 10.02 k, "2k5" = 2.5 k (the WING writes frequencies so)
+	size_t kpos = s.find('k');
+	if (kpos != std::string::npos && kpos > 0 && s.find_first_not_of("0123456789.-k") == std::string::npos) {
+		std::string t = s;
+		t[kpos] = '.';
+		char* end = nullptr;
+		double d = std::strtod(t.c_str(), &end);
+		if (end == t.c_str())
+			return false;
+		*v = (float) (d * 1000.0);
+		return true;
+	}
 	char* end = nullptr;
 	double d = std::strtod(s.c_str(), &end);
 	if (end == s.c_str())
 		return false;
 	*v = (float) d;
 	return true;
+}
+
+/** An FX node: "fx.3". */
+inline std::string fxNode(int slot) {
+	char b[16];
+	std::snprintf(b, sizeof b, "fx.%d", slot);
+	return b;
+}
+inline std::vector<uint8_t> fxSet(int slot, const std::string& what) { return sysex(SET, "/" + fxNode(slot) + "." + what); }
+inline std::vector<uint8_t> fxGet(int slot, const std::string& what) { return sysex(GET, "/" + fxNode(slot) + "." + what); }
+
+// The FX CCs (MIDI channels 9–16; FX n and FX n+8 share a channel): ON, MIX, MODEL, parameters 1..33.
+// FX 1–8: CC12 insert on, CC13 mix, CC14 model, CC15–31 = parameters 1–17, CC44–58 = 18–32.
+// FX 9–16: CC70 insert on, CC71 mix, CC72 model, CC73–95 = parameters 1–23, CC102–111 = 24–33.
+enum FxCc { FXCC_NONE, FXCC_ON, FXCC_MIX, FXCC_MODEL, FXCC_PARAM };
+/** What a CC on MIDI channel ch (0-based, 8..15) is: returns the kind, sets slot (1..16) and param (1..33). */
+inline int fxCc(int ch, int cc, int* slot, int* param) {
+	if (ch < 8 || ch > 15)
+		return FXCC_NONE;
+	int lo = ch - 8 + 1, hi = ch - 8 + 9;
+	*param = 0;
+	if (cc == 12 || cc == 70) {
+		*slot = cc == 12 ? lo : hi;
+		return FXCC_ON;
+	}
+	if (cc == 13 || cc == 71) {
+		*slot = cc == 13 ? lo : hi;
+		return FXCC_MIX;
+	}
+	if (cc == 14 || cc == 72) {
+		*slot = cc == 14 ? lo : hi;
+		return FXCC_MODEL;
+	}
+	if (cc >= 15 && cc <= 31) { *slot = lo; *param = cc - 14; return FXCC_PARAM; }
+	if (cc >= 44 && cc <= 58) { *slot = lo; *param = cc - 44 + 18; return FXCC_PARAM; }
+	if (cc >= 73 && cc <= 95) { *slot = hi; *param = cc - 72; return FXCC_PARAM; }
+	if (cc >= 102 && cc <= 111) { *slot = hi; *param = cc - 102 + 24; return FXCC_PARAM; }
+	return FXCC_NONE;
+}
+/** The ON CC of FX slot (1..16): channel (0-based) and CC number. */
+inline void fxOnCc(int slot, int* ch, int* cc) {
+	*ch = 8 + (slot - 1) % 8;
+	*cc = slot <= 8 ? 12 : 70;
 }
 
 // ---------------------------------------------------------------- colours and icons

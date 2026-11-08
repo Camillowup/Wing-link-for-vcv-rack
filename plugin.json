@@ -1,7 +1,7 @@
 {
   "slug": "WingLink",
   "name": "WING-LINK",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "GPL-3.0-only",
   "brand": "WING-LINK",
   "author": "Bastian Ofner",
@@ -17,13 +17,32 @@
       "slug": "WingLink",
       "name": "WING-LINK",
       "description": "Bridge to a Behringer WING over USB: 8 tracks as USB audio, names, colours and icons on the WING channels, faders, pan, sends, mute and solo both ways, CV in and out",
-      "tags": ["External", "Mixer", "Controller"]
+      "tags": [
+        "External",
+        "Mixer",
+        "Controller"
+      ]
     },
     {
       "slug": "WingLinkX",
       "name": "WING-LINK X",
-      "description": "Expander for WING-LINK: 8 more WING channels (dock right of WING-LINK)",
-      "tags": ["External", "Mixer", "Expander"]
+      "description": "Expander for WING-LINK: 8 more WING channels (docks right of WING-LINK, or links by right-click)",
+      "tags": [
+        "External",
+        "Mixer",
+        "Expander"
+      ]
+    },
+    {
+      "slug": "WingFx",
+      "name": "WING-FX",
+      "description": "The WING's 16 effects from Rack, 4 at a time: model, on, mix and four parameters both ways, CV, delays in Rack's tempo or the WING's tempo as a clock (a panel of WING-LINK)",
+      "tags": [
+        "External",
+        "Effect",
+        "Controller",
+        "Clock generator"
+      ]
     }
   ]
 }

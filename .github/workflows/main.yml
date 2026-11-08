@@ -46,6 +46,7 @@ jobs:
           test -f dist/WingLink/plugin.dll
           test -f dist/WingLink/res/WingLink.svg
           test -f dist/WingLink/res/WingLinkX.svg
+          test -f dist/WingLink/res/WingFx.svg
 
       - uses: actions/upload-artifact@v4
         with:
