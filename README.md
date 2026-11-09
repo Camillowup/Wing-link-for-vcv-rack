@@ -46,7 +46,7 @@ im Look des GENRA-Plugins.
   in Rack benannt (Enter oder kurz warten) geht es ans Pult. Ist der Kanal am Pult mit seiner Quelle verknüpft
   (Standard), zeigt die WING Name/Farbe/Icon der Quelle (z. B. USB 1) – dann liest und schreibt WING-LINK dort.
 - Lehnt die WING etwas ab, steht ihre Meldung kurz im Display (und im Rechtsklick-Menü).
-- **Farbbalken** einer Spur anklicken: nächste Farbe. **Icon** anklicken: nächste Icon-Gruppe. Rechtsklick auf die
+- **Farbbalken** einer Spur anklicken: nächste Farbe. **Icon** (groß links neben dem Namen) anklicken: nächste Icon-Gruppe. Rechtsklick auf die
   Spur: alle Farben und Icons. **Name**: direkt hineinklicken und tippen (max. 16 Zeichen, ohne Umlaute).
 - **SYNC**: schickt Namen, Farben, Icons und das USB-Routing an die WING und liest danach Fader, Pan, Mute, Solo
   und Sends von der WING zurück.

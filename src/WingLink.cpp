@@ -466,6 +466,11 @@ struct WingLink : Module {
 		noAnswer = 0;
 		if (cmd != P::GET_REPLY) {
 			qDrain = 0.1f;  // (if that complaint was late, the real answer comes now: let it pass)
+			if (qNow.kind == 3 && qNow.f == M_LINK) {
+				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+				if (lock.owns_lock())
+					meta[qNow.s].link = 0;
+			}
 			if (qNow.kind == 3 && qNow.src) {
 				// the WING has no name / colour / icon at that source: use the channel's
 				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
@@ -1093,15 +1098,30 @@ struct WingLink : Module {
 				if (!owner(s, &j))
 					continue;
 				P::Tgt home = P::inputTgt(audioStart + s);
-				if (home.ok())
+				if (home.ok()) {
 					outbox.push_back(P::tgtNode(home) + string::f(".in.conn.grp=USB,in=%d", usbOf(s)));
+					// (its source is known now: USB n)
+					std::lock_guard<std::mutex> lock(metaMutex);
+					Meta& m = meta[metaKey(home)];
+					m.grp = "USB";
+					m.in = usbOf(s);
+					m.srcBad = false;
+				}
 			}
 			{
 				std::lock_guard<std::mutex> lock(metaMutex);
 				for (int s = 0; s < NT; s++) {
 					if (!active(s))
 						continue;
-					Meta& m = meta[metaKey(target(s))];
+					int k = metaKey(target(s));
+					P::Tgt t = keyTgt(k);
+					if (t.type == P::T_CH || t.type == P::T_AUX) {
+						// first: is the channel linked to its source? (names / colours / icons wait for it)
+						queries.push_front({3, k, M_IN});
+						queries.push_front({3, k, M_GRP});
+						queries.push_front({3, k, M_LINK});
+					}
+					Meta& m = meta[k];
 					int d = (m.name.empty() ? 0 : M_NAME) | (m.colour > 0 ? M_COL : 0) | (m.icon >= 0 ? M_ICON : 0);
 					if (d) {
 						m.dirty |= d;
@@ -1174,6 +1194,9 @@ struct WingLink : Module {
 						Meta& m = kv.second;
 						if (!m.dirty || m.wait > 0.f)
 							continue;
+						P::Tgt mt = keyTgt(kv.first);
+						if ((mt.type == P::T_CH || mt.type == P::T_AUX) && (m.link < 0 || m.grp.empty()))
+							continue;  // (where the WING keeps them is not known yet)
 						int part = (m.dirty & M_NAME) ? M_NAME : ((m.dirty & M_COL) ? M_COL : M_ICON);
 						m.dirty &= ~part;
 						m.hold = std::max(m.hold, 1.5f);
@@ -1229,6 +1252,17 @@ struct WingLink : Module {
 					qWaiting = false;
 					qDrain = 0.3f;  // (a late answer must not land on the next question)
 					noAnswer++;
+					if (qNow.kind == 3 && qNow.f >= M_LINK) {
+						// no answer: take the channel's own fields
+						std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+						if (lock.owns_lock()) {
+							Meta& m = meta[qNow.s];
+							if (qNow.f == M_LINK && m.link < 0)
+								m.link = 0;
+							if (qNow.f == M_GRP && m.grp.empty())
+								m.grp = "OFF";
+						}
+					}
 					logLine(string::f("--   no answer (kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f));
 				}
 			}
@@ -1634,6 +1668,10 @@ struct NameField : DisplayTextField {
 			if (n != text)
 				setText(n);
 		}
+		// long names smaller, so they fit beside the icon
+		float avail = box.size.x - 2.f * textOffset.x - 2.f;
+		size_t len = std::max<size_t>(1, text.size());
+		fontSize = clamp(avail / (0.56f * len), 6.5f, 10.f);
 		DisplayTextField::step();
 	}
 	void onAction(const ActionEvent& e) override {
@@ -1750,6 +1788,9 @@ static int iconGroup(int icon) {
 
 /** The strip's display: colour bar (click: next colour), name, icon (click: next group), what it controls.
  * Right-click: what it controls (WING channel), all colours and icons. */
+// the strip display: the icon big at the left, the name beside it
+static const float ICON_X = 2.9f, ICON_Y = 5.6f, ICON_R = 2.0f, ICON_W = 5.6f;
+
 struct ScribbleWidget : OpaqueWidget {
 	std::function<WingLink*()> getHost;
 	int s = 0;
@@ -1774,13 +1815,10 @@ struct ScribbleWidget : OpaqueWidget {
 			nvgFill(vg);
 			float cx = box.size.x / 2;
 			int g = iconGroup(icon);
-			if (g >= 0) {
-				std::string num = string::f("%d", icon - P::ICONS[g].base);
-				drawIcon(vg, g, cx - mm2px(1.6f), mm2px(7.75f), mm2px(0.95f), DIM);
-				text(vg, boldFont(), cx + mm2px(0.2f), mm2px(8.45f), num, 7.f, DIM, NVG_ALIGN_LEFT, 0.3f);
-			}
-			else
-				text(vg, boldFont(), cx, mm2px(8.4f), "no icon", 6.5f, FAINT, NVG_ALIGN_CENTER, 0.3f);
+			if (g >= 0)
+				drawIcon(vg, g, mm2px(ICON_X), mm2px(ICON_Y), mm2px(ICON_R), TXT);
+			else if (h)
+				drawIcon(vg, 0, mm2px(ICON_X), mm2px(ICON_Y), mm2px(ICON_R), FAINT);
 			std::string ch = h ? P::tgtLabel(t) : "CH 33";
 			text(vg, boldFont(), cx, mm2px(10.4f), fixed ? ch + " •" : ch, 7.f, fixed ? TXT : FAINT, NVG_ALIGN_CENTER, 0.3f);
 		}
@@ -1797,7 +1835,7 @@ struct ScribbleWidget : OpaqueWidget {
 			int col = m.colour, icon = m.icon;
 			if (e.pos.y < mm2px(2.6f))
 				h->setColour(s, col % P::NUM_COLOURS + 1);
-			else if (e.pos.y > mm2px(6.6f) && e.pos.y < mm2px(8.9f))
+			else if (e.pos.x < mm2px(ICON_W) && e.pos.y < mm2px(9.f))
 				h->setIcon(s, P::nextIconGroup(icon));
 			e.consume(this);
 			return;
@@ -1946,8 +1984,8 @@ static void addStrips(ModuleWidget* w, Module* module, int base, std::function<W
 		sc->getHost = getHost;
 		w->addChild(sc);
 		NameField* nf = new NameField;
-		nf->box.pos = mm2px(Vec(scrib[j][0] + 0.4f, scrib[j][1] + 2.2f));
-		nf->box.size = mm2px(Vec(scrib[j][2] - 0.8f, 4.2f));
+		nf->box.pos = mm2px(Vec(scrib[j][0] + 5.4f, scrib[j][1] + 3.4f));
+		nf->box.size = mm2px(Vec(scrib[j][2] - 5.8f, 4.4f));
 		nf->s = base + j;
 		nf->getHost = getHost;
 		w->addChild(nf);
