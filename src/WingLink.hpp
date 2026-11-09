@@ -47,13 +47,19 @@ struct Sync {
 struct Strip {
 	Sync f[NF];
 	float peak = 0.f, env = 0.f;
-	std::string name;
-	int colour = 0;  // 1..12, 0 = not set
-	int icon = -1;   // −1 = not set
 	std::atomic<int> tType{0}, tNum{0};  // what it controls: T_NONE = AUTO (follows START CH), else a fixed one
-	bool metaDirty = false;
-	float metaWait = 0.f;
 };
+
+/** Name, colour and icon of one WING channel / bus …: they belong to the WING's channel, not to a strip. */
+struct Meta {
+	std::string name;
+	int colour = 0;    // 1..12, 0: unknown
+	int icon = -1;     // −1: unknown
+	bool known = false;          // read from the WING (or set here)
+	int dirty = 0;               // to send: 1 name, 2 colour, 4 icon
+	float wait = 0.f, hold = 0.f;  // send after a pause; the WING's old values are ignored this long
+};
+enum { M_NAME = 1, M_COL = 2, M_ICON = 4 };
 
 struct FxSlot {
 	std::atomic<int> model{0};  // index into wingfx::MODELS
@@ -79,9 +85,14 @@ struct Satellite : Module {
 };
 
 struct WingLinkX : Satellite {
+	enum ParamId { DOWN_PARAM = NS * NF, UP_PARAM, NUM_PARAMS };
 	enum LightId { MUTE_LIGHT, SOLO_LIGHT = MUTE_LIGHT + NS, NUM_LIGHTS = SOLO_LIGHT + NS };
+	std::atomic<int> xStart{-1};  // its first WING input (1..48); −1: follows WING-LINK (its START CH + 8)
+	std::atomic<int> xStep{1};    // START CH − / + move by 1 or 8
 	WingLinkX();
 	bool dockLeft() override { return true; }
+	json_t* dataToJson() override;
+	void dataFromJson(json_t* root) override;
 };
 
 struct WingFx : Satellite {

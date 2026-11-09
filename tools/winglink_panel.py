@@ -205,6 +205,15 @@ xp.header("WING-LINK X", "EXPANDER · 8 MORE WING CHANNELS")
 xp.e(f'<rect x="{DISP[0]}" y="{DISP[1]}" width="{DISP[2]}" height="{DISP[3]}" rx="1" fill="{DARK}" stroke="{LINE}" '
      f'stroke-width="0.3"/>')
 xp.area("DISPLAY", *DISP)
+# its own START CH (follows WING-LINK until you page here)
+xp.button("DOWN", bx + 6.0, 15.4)
+xp.button("UP", bx + 23.5, 15.4)
+xp.text(bx + 14.75, 9.2, "START CH", 1.4, DIM, 700, "middle", 0.25)
+xp.e(f'<rect x="{bx + 11.6:.2f}" y="12.2" width="6.3" height="6.4" rx="0.8" fill="{DARK}" stroke="{LINE}" stroke-width="0.3"/>')
+xp.area("STEP", bx + 11.6, 12.2, 6.3, 6.4)
+xp.text(bx + 14.75, 21.6, "STEP", 1.3, DIM, 700, "middle", 0.2)
+xp.text(bx + 6.0, 21.6, "−", 1.9, TXT, 800)
+xp.text(bx + 23.5, 21.6, "+", 1.9, TXT, 800)
 xp.strips()
 xp.finish()
 
@@ -284,8 +293,8 @@ open(os.path.join(tmp, "bg.svg"), "w").write(FBG)
 open(os.path.join(tmp, "hd.svg"), "w").write(FHD)
 KNOB = os.path.join(ROOT, "res", "knob")
 HAVE_CL = os.path.isdir(CL)
-NAMES = ["KICK", "SNARE", "HATS", "BASS", "LEAD", "PADS", "ARP", "FX"], ["VOX", "GTR", "SUB", "CHORDS", "PERC", "NOISE",
-                                                                       "BELL", "DRONE"]
+NAMES = ["KICK", "SNARE", "HAT CL", "HAT OP", "CLAP", "TOM", "RIDE", "PERC"], ["BASS", "LEAD", "PADS", "ARP", "VOX",
+                                                                               "GTR", "FX", "DRONE"]
 COLS = ["#7b6cff", "#7b6cff", "#7b6cff", "#b8f23a", "#3dc9ff", "#e0779e", "#3dc9ff", "#c9ccd4"]
 POS = [0.75, 0.7, 0.55, 0.8, 0.6, 0.5, 0.65, 0.4]
 ICONS = ["DRM 0", "DRM 4", "DRM 9", "STR 2", "KEY 3", "KEY 6", "KEY 1", "SPC 2"]
@@ -318,7 +327,8 @@ for k, p in enumerate((main, xp)):
         o.insert(-1, f'<rect x="{x}" y="{y}" width="{w}" height="1.3" rx="0.4" fill="{COLS[i]}"/>')
         p.out = o
         nm, ch = NAMES[k][i], (33 + i + 8 * k)
-        chs = f"CH {ch}" if ch <= 40 else f"AUX {ch - 40}"
+        ch = 1 + i + 8 * k
+        chs = f"CH {ch}"
         for (s, yy, sz, c, wt) in ((nm, y + 6.0, 2.3, "#ffffff", 800), (ICONS[i], y + 8.4, 1.3, DIM, 600),
                                    (chs, y + 10.4, 1.3, "#5d606b", 600)):
             n0 = len(o)
@@ -354,11 +364,16 @@ for k, p in enumerate((main, xp)):
         n0 = len(o)
         p.text(x + w, y + 1.8, f"› BUS {b}", 1.3, ACC, 700, "end", 0.15)
         o.insert(-1, o.pop(n0))
+    if k == 1:
+        x, y, w, h = p.areas["STEP"]
+        n0 = len(o)
+        p.text(x + w / 2, y + 4.4, "8", 3.0, "#ffffff", 800, "middle", 0)
+        o.insert(-1, o.pop(n0))
     x, y, w, h = p.areas["DISPLAY"]
-    lines = ([("CH 33–40  +  41–48", 3.4, "#ffffff", 800, 4.6), ("● WING · MIDI OK · SYSEX OK · SD1 REC", 1.6, "#b8f23a", 700, 8.1),
+    lines = ([("CH 1 – 8", 3.4, "#ffffff", 800, 4.6), ("● WING · MIDI OK · SYSEX OK · SD1 REC", 1.6, "#b8f23a", 700, 8.1),
               ("AUDIO → USB 33–48 · ASIO WING · 48 kHz", 1.5, DIM, 600, 10.2)] if k == 0 else
-             [("CH 41–48 = AUX 1–8", 3.4, "#ffffff", 800, 4.6), ("● LINKED TO WING-LINK", 1.6, ACC, 700, 8.1),
-              ("USB 9–16", 1.5, DIM, 600, 10.2)])
+             [("CH 9 – 16", 3.4, "#ffffff", 800, 4.6), ("● LINKED TO WING-LINK", 1.6, ACC, 700, 8.1),
+              ("AUDIO → USB 9–16", 1.5, DIM, 600, 10.2)])
     for s, sz, c, wt, dy in lines:
         n0 = len(o)
         p.text(x + 3, y + dy, s, sz, c, wt, "start", 0.2)

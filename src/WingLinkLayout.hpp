@@ -134,6 +134,8 @@ static const float SCRIB8[4] = {146.600f, 25.000f, 16.800f, 11.000f};
 static const float VU8[4] = {153.250f, 41.000f, 1.200f, 38.000f};
 }
 namespace wlx {
+static const float DOWN[2] = {84.500f, 15.400f};
+static const float UP[2] = {102.000f, 15.400f};
 static const float FADER1[2] = {16.800f, 60.000f};
 static const float PAN1[2] = {26.900f, 43.000f};
 static const float FX1_1[2] = {26.900f, 52.000f};
@@ -239,6 +241,7 @@ static const float CV_FX2_8[2] = {159.750f, 106.800f};
 static const float OUT_FDR8[2] = {150.250f, 117.400f};
 static const float OUT_MUTE8[2] = {159.750f, 117.400f};
 static const float DISPLAY[4] = {12.500f, 10.600f, 66.000f, 11.200f};
+static const float STEP[4] = {90.100f, 12.200f, 6.300f, 6.400f};
 static const float BUSLBL1[4] = {0.600f, 53.500f, 10.200f, 2.600f};
 static const float BUSLBL2[4] = {0.600f, 62.500f, 10.200f, 2.600f};
 static const float SCRIB1[4] = {13.600f, 25.000f, 16.800f, 11.000f};

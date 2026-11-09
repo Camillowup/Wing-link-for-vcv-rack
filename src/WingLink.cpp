@@ -11,6 +11,7 @@
 // Panels: tools/winglink_panel.py, tools/wingfx_panel.py.
 #include "WingLink.hpp"
 #include "WingLinkLayout.hpp"
+#include <map>
 
 namespace winglink {
 
@@ -141,7 +142,9 @@ struct WingLink : Module {
 	std::atomic<int> fxBus[2] = {{1}, {2}};
 	std::atomic<bool> autoMidi{true}, autoAudio{true};
 	std::atomic<int> chStep{1};       // START CH − / + move by 1 or 8
+	std::atomic<int> audioStart{33};  // the WING input of AUDIO 1 (SYNC sets it to START CH; paging doesn't move it)
 	Strip st[NT];
+	std::map<int, Meta> meta;          // name, colour, icon per WING channel (key: type * 100 + number)
 
 	// ---- the SD recorder (WING-LIVE card): two cards, each started / stopped on its own
 	struct Sd {
@@ -150,7 +153,16 @@ struct WingLink : Module {
 		std::atomic<float> etime{0.f}, sdfree{0.f};  // ms
 		std::atomic<bool> toggle{false};  // (the panel: start / stop)
 	} sd[2];
-	std::mutex metaMutex;  // names (the UI writes them, the engine sends them)
+	std::mutex metaMutex;  // the names (the UI writes them, the engine sends them)
+	// the WING's last complaint (shown in the display) and what it was about
+	std::string lastError;
+	float errorAge = 1e9f;
+	std::mutex errMutex;
+	float setGap = 0.f, qDrain = 0.f;  // after a command: wait for a complaint; after a lost answer: wait for it
+	std::string lastSet;
+	int lastSetMeta = -1, lastSetPart = 0;
+	std::deque<std::string> outbox;     // commands of SYNC (the routing), sent one by one
+	std::atomic<int> nameQuote{0};      // names unquoted (0) or "quoted" (1): switched when the WING says no
 
 	// ---- the panels linked to it (set by the UI; cleared when one goes)
 	std::atomic<WingLinkX*> xMod{nullptr};
@@ -168,7 +180,7 @@ struct WingLink : Module {
 
 	// one question at a time
 	struct Query {
-		int kind;  // 0 strip, 1 FX slot
+		int kind;  // 0 strip, 1 FX slot, 2 SD card, 3 name / colour / icon of a WING channel (s: its key, f: part)
 		int s, f;
 	};
 	std::deque<Query> queries;
@@ -176,6 +188,7 @@ struct WingLink : Module {
 	Query qNow{0, 0, 0};
 	float qTimer = 0.f, pollTimer = 0.f;
 	std::atomic<bool> pullAll{false}, syncNow{false}, wantReset{false};
+	dsp::BooleanTrigger xDownT, xUpT;
 	int sendRR = 0;
 	float sendWait = 0.f;
 	dsp::ClockDivider ctl;
@@ -236,11 +249,12 @@ struct WingLink : Module {
 		usbMode = 0;
 		fxBus[0] = 1;
 		fxBus[1] = 2;
+		audioStart = 33;
 		std::lock_guard<std::mutex> lock(metaMutex);
+		meta.clear();
 		for (int s = 0; s < NT; s++) {
-			st[s].name = "";
-			st[s].colour = 0;
-			st[s].icon = -1;
+			st[s].tType = 0;
+			st[s].tNum = 0;
 		}
 	}
 
@@ -249,10 +263,20 @@ struct WingLink : Module {
 		*j = s % NS;
 		return s < NS ? (Module*) this : (Module*) xMod.load();
 	}
+	/** WING-LINK X's first input: its own START CH, or WING-LINK's + 8. */
+	int xStartNow() {
+		WingLinkX* x = xMod.load();
+		int v = x ? x->xStart.load() : -1;
+		return v > 0 ? v : wingStart + NS;
+	}
 	P::Tgt target(int s) {
 		int ty = st[s].tType;
-		return ty > P::T_NONE ? P::tgt(ty, st[s].tNum) : P::inputTgt(wingStart + s);
+		if (ty > P::T_NONE)
+			return P::tgt(ty, st[s].tNum);
+		return P::inputTgt(s < NS ? wingStart + s : xStartNow() + (s - NS));
 	}
+	static int metaKey(const P::Tgt& t) { return t.type * 100 + t.n; }
+	static P::Tgt keyTgt(int k) { return P::tgt(k / 100, k % 100); }
 	std::string node(int s) { return P::tgtNode(target(s)); }
 	bool active(int s) {
 		int j;
@@ -269,7 +293,8 @@ struct WingLink : Module {
 			return t.solo();
 		return t.ok();
 	}
-	int usbStart() { return usbMode.load() > 0 ? usbMode.load() : wingStart.load(); }
+	/** AUDIO s goes to USB usbStart() + s, and SYNC routes WING input audioStart + s to it (paging moves neither). */
+	int usbStart() { return usbMode.load() > 0 ? usbMode.load() : audioStart.load(); }
 	int usbOf(int s) { return usbStart() + s; }
 	int fxVisible(int slot) {  // its place on WING-FX (0..3), −1 if not shown
 		WingFx* f = fxMod.load();
@@ -365,6 +390,12 @@ struct WingLink : Module {
 		}
 		fxPageSeen = -1;  // (refresh the panel)
 	}
+	void askMeta(int s) {
+		int k = metaKey(target(s));
+		queries.push_back({3, k, M_NAME});
+		queries.push_back({3, k, M_COL});
+		queries.push_back({3, k, M_ICON});
+	}
 	void askFx(int slot, bool model) {
 		if (model)
 			queries.push_back({1, slot, FMODEL});
@@ -380,8 +411,40 @@ struct WingLink : Module {
 		if (!qWaiting)
 			return;
 		qWaiting = false;
-		if (cmd != P::GET_REPLY)
+		if (cmd != P::GET_REPLY) {
+			qDrain = 0.1f;  // (if that complaint was late, the real answer comes now: let it pass)
 			return;
+		}
+		if (qNow.kind == 3) {
+			// name, colour or icon of a WING channel
+			std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+			if (!lock.owns_lock())
+				return;
+			Meta& m = meta[qNow.s];
+			if (m.hold > 0.f || (m.dirty & qNow.f))
+				return;  // just changed here: ours stands
+			std::string t = text;
+			while (!t.empty() && (t.back() == '\n' || t.back() == '\r'))
+				t.pop_back();
+			if (qNow.f == M_NAME) {
+				if (t.size() >= 2 && t[0] == '"' && t.back() == '"')
+					t = t.substr(1, t.size() - 2);
+				m.name = t.substr(0, 16);
+			}
+			else {
+				float v;
+				if (!P::number(t, &v))
+					return;
+				if (qNow.f == M_COL && v >= 0.f && v <= 18.f)
+					m.colour = (int) v;
+				else if (qNow.f == M_ICON && v >= 0.f && v <= 999.f)
+					m.icon = (int) v;
+				else
+					return;
+			}
+			m.known = true;
+			return;
+		}
 		if (qNow.kind == 2) {
 			// the SD recorder
 			Sd& c = sd[qNow.s];
@@ -442,12 +505,21 @@ struct WingLink : Module {
 		if (!P::number(text, &v))
 			return;
 		int f = qNow.f;
-		if (f == FADER || f == FX1 || f == FX2)
+		// only what fits the question (an answer that slipped would move the wrong fader)
+		if (f == FADER || f == FX1 || f == FX2) {
+			if (v < -144.5f || v > 10.5f)
+				return;
 			v = P::dbToPos(v);
-		else if (f == PAN)
+		}
+		else if (f == PAN) {
+			if (v < -100.5f || v > 100.5f)
+				return;
 			v = clamp(v / 100.f, -1.f, 1.f);
-		else
-			v = v >= 0.5f ? 1.f : 0.f;
+		}
+		else {
+			if (v != 0.f && v != 1.f)
+				return;
+		}
 		fromWing(qNow.s, f, v);
 	}
 
@@ -464,6 +536,22 @@ struct WingLink : Module {
 			if (cmd == P::IDENT_REPLY) {
 				std::lock_guard<std::mutex> lock(identMutex);
 				wingIdent = text;
+				return;
+			}
+			if (cmd == P::ERROR_REPLY && setGap > 0.f) {
+				// a complaint about the last command (not an answer to a question)
+				{
+					std::lock_guard<std::mutex> lock(errMutex);
+					lastError = text + " (" + lastSet + ")";
+					errorAge = 0.f;
+				}
+				if (lastSetMeta >= 0 && lastSetPart == M_NAME && nameQuote == 0) {
+					// names: try them "quoted"
+					nameQuote = 1;
+					std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+					if (lock.owns_lock())
+						meta[lastSetMeta].dirty |= M_NAME;
+				}
 				return;
 			}
 			if (cmd == P::GET_REPLY || cmd == P::ERROR_REPLY)
@@ -535,26 +623,26 @@ struct WingLink : Module {
 		switch (f) {
 			case FADER:
 				if (sx)
-					send(P::setPath(n + "fdr=" + P::dbText(P::posToDb(v))));
+					sendSet(n + "fdr=" + P::dbText(P::posToDb(v)));
 				else
 					sendCc(dca ? 3 : 0, cc, (int) std::round(v * 127.f));
 				break;
 			case PAN:
 				if (sx)
-					send(P::setPath(n + string::f("pan=%d", (int) std::round(v * 100.f))));
+					sendSet(n + string::f("pan=%d", (int) std::round(v * 100.f)));
 				else
 					sendCc(2, cc, (int) std::round((v + 1.f) * 63.5f));
 				break;
 			case MUTE:
 				if (sx)
-					send(P::setPath(n + (v > 0.5f ? "mute=1" : "mute=0")));
+					sendSet(n + (v > 0.5f ? "mute=1" : "mute=0"));
 				else
 					sendCc(dca ? 4 : 1, cc, v > 0.5f ? 127 : 0);
 				break;
-			case SOLO: send(P::setPath(n + (v > 0.5f ? "$solo=1" : "$solo=0"))); break;
+			case SOLO: sendSet(n + (v > 0.5f ? "$solo=1" : "$solo=0")); break;
 			case FX1:
 			case FX2:
-				send(P::setPath(n + string::f("send.%d.on=1,lvl=", fxBus[f == FX2].load()) + P::dbText(P::posToDb(v))));
+				sendSet(n + string::f("send.%d.on=1,lvl=", fxBus[f == FX2].load()) + P::dbText(P::posToDb(v)));
 				break;
 		}
 	}
@@ -566,14 +654,14 @@ struct WingLink : Module {
 			return;
 		}
 		if (f == FMIX) {
-			send(P::fxSet(slot + 1, string::f("fxmix=%d", (int) std::round(n * 100.f))));
+			sendSet(P::fxNode(slot + 1) + string::f(".fxmix=%d", (int) std::round(n * 100.f)));
 			return;
 		}
 		const F::Param* p = fxKnob(slot, f - FP1);
 		if (!p)
 			return;
 		float v = F::toValue(*p, n);
-		send(P::fxSet(slot + 1, std::string(p->key) + "=" + F::wingText(*p, v)));
+		sendSet(P::fxNode(slot + 1) + "." + p->key + "=" + F::wingText(*p, v));
 		if (!std::strcmp(p->key, "time"))
 			fxs[slot].timeMs = v;
 	}
@@ -587,25 +675,32 @@ struct WingLink : Module {
 			default: return string::f("send.%d.lvl", fxBus[1].load());
 		}
 	}
-	bool sendMeta(int s, bool route) {
+	/** One part (name, colour or icon) of a WING channel's meta. */
+	void sendMetaPart(int key, int part, const Meta& m) {
+		P::Tgt t = keyTgt(key);
 		std::string what;
-		{
-			std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
-			if (!lock.owns_lock())
-				return false;
-			Strip& t = st[s];
-			if (!t.name.empty())
-				what += "name=" + P::nameText(t.name);
-			if (t.colour > 0)
-				what += std::string(what.empty() ? "" : ",") + string::f("col=%d", t.colour);
-			if (t.icon >= 0 && target(s).type != P::T_DCA)
-				what += std::string(what.empty() ? "" : ",") + string::f("icon=%d", t.icon);
+		if (part == M_NAME) {
+			std::string n = P::nameText(m.name);
+			if (nameQuote && n[0] != '"')
+				n = "\"" + n + "\"";
+			what = "name=" + n;
 		}
-		if (route && target(s).audio())
-			what += std::string(what.empty() ? "" : ",") + string::f("in.conn.grp=USB,in=%d", usbOf(s));
-		if (!what.empty())
-			send(P::setPath(node(s) + "." + what));
-		return true;
+		else if (part == M_COL)
+			what = string::f("col=%d", m.colour);
+		else if (t.type != P::T_DCA)
+			what = string::f("icon=%d", m.icon);
+		if (what.empty())
+			return;
+		sendSet(P::tgtNode(t) + "." + what);
+		lastSetMeta = key;
+		lastSetPart = part;
+	}
+	/** A command: then a pause, in which a complaint of the WING belongs to it (not to a question). */
+	void sendSet(const std::string& path) {
+		send(P::setPath(path));
+		lastSet = path;
+		lastSetMeta = -1;
+		setGap = 0.04f;
 	}
 
 	// ---- WING-FX: its panel <-> the slots, the tempo
@@ -798,8 +893,28 @@ struct WingLink : Module {
 			}
 		}
 
+		setGap = std::max(0.f, setGap - dt);
+		qDrain = std::max(0.f, qDrain - dt);
+		{
+			std::lock_guard<std::mutex> lock(errMutex);
+			errorAge += dt;
+		}
 		if (wantReset.exchange(false))
 			resetSync();
+		// WING-LINK X's own START CH
+		if (WingLinkX* x = xMod.load()) {
+			bool x8 = x->xStep == 8;
+			int cur = xStartNow();
+			int nxt = cur;
+			if (xDownT.process(x->params[WingLinkX::DOWN_PARAM].getValue() > 0.f) && cur > 1)
+				nxt = x8 ? std::max(1, ((cur - 2) / 8) * 8 + 1) : cur - 1;
+			if (xUpT.process(x->params[WingLinkX::UP_PARAM].getValue() > 0.f) && cur < P::NUM_IN)
+				nxt = x8 ? std::min(41, ((cur - 1) / 8 + 1) * 8 + 1) : cur + 1;
+			if (nxt != cur) {
+				x->xStart = nxt;
+				resetSync();
+			}
+		}
 		bool by8 = chStep == 8;
 		if (downT.process(params[DOWN_PARAM].getValue() > 0.f) && wingStart > 1) {
 			wingStart = by8 ? std::max(1, ((wingStart - 2) / 8) * 8 + 1) : wingStart - 1;
@@ -851,8 +966,6 @@ struct WingLink : Module {
 			m->outputs[oid(j, OUT_MUTE)].setVoltage(mu ? 10.f : 0.f);
 			m->lights[j].setBrightness(mu ? 1.f : 0.f);          // MUTE_LIGHT + j (the same on both panels)
 			m->lights[NS + j].setBrightness(so ? 1.f : 0.f);     // SOLO_LIGHT + j
-			if (t.metaDirty)
-				t.metaWait -= dt;
 		}
 
 		// FX models picked on WING-FX
@@ -874,35 +987,65 @@ struct WingLink : Module {
 			if (sd[c].toggle.exchange(false)) {
 				std::string n = string::f("cards.wlive.%d.", c + 1);
 				if (sd[c].state == 3)
-					send(P::setPath(n + "$ctl.control=STOP"));
+					outbox.push_back(n + "$ctl.control=STOP");
 				else {
-					send(P::setPath(n + (params[TRACKS_PARAM].getValue() > 0.5f ? "cfg.rectracks=16" : "cfg.rectracks=8")));
-					send(P::setPath(n + "$ctl.control=REC"));
+					outbox.push_back(n + (params[TRACKS_PARAM].getValue() > 0.5f ? "cfg.rectracks=16" : "cfg.rectracks=8"));
+					outbox.push_back(n + "$ctl.control=REC");
 				}
 				queries.push_front({2, c, 0});
 			}
 
-		// SYNC: names, colours, icons and the USB routing for every strip, then read the WING back
-		if (syncNow) {
-			bool all = true;
-			for (int s = 0; s < NT; s++)
-				if (active(s))
-					all &= sendMeta(s, true);
-			if (all) {
-				syncNow = false;
-				syncFlash = 0.3f;
-				for (int s = 0; s < NT; s++)
-					st[s].metaDirty = false;
-				resetSync();
+		// SYNC: the AUDIO jacks are routed from here (START CH now); names, colours, icons of the strips shown go out
+		if (syncNow.exchange(false)) {
+			syncFlash = 0.3f;
+			audioStart = wingStart.load();
+			for (int s = 0; s < NT; s++) {
+				int j;
+				if (!owner(s, &j))
+					continue;
+				P::Tgt home = P::inputTgt(audioStart + s);
+				if (home.ok())
+					outbox.push_back(P::tgtNode(home) + string::f(".in.conn.grp=USB,in=%d", usbOf(s)));
 			}
-			return;
+			{
+				std::lock_guard<std::mutex> lock(metaMutex);
+				for (int s = 0; s < NT; s++) {
+					if (!active(s))
+						continue;
+					Meta& m = meta[metaKey(target(s))];
+					int d = (m.name.empty() ? 0 : M_NAME) | (m.colour > 0 ? M_COL : 0) | (m.icon >= 0 ? M_ICON : 0);
+					if (d) {
+						m.dirty |= d;
+						m.wait = 0.f;
+						m.hold = 3.f;
+					}
+				}
+			}
+			resetSync();
 		}
 
-		// send: one message every 3 ms at most (round robin: strips, names, FX)
+		// the names' timers
+		{
+			std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+			if (lock.owns_lock())
+				for (auto& kv : meta) {
+					kv.second.wait = std::max(0.f, kv.second.wait - dt);
+					kv.second.hold = std::max(0.f, kv.second.hold - dt);
+				}
+		}
+
+		// send: one command every 3 ms at most, never while a question waits for its answer
+		// (order: SYNC's routing, then strips and FX round robin, then names)
 		sendWait -= dt;
-		if (sendWait <= 0.f) {
-			const int NSTRIP = NT * (NF + 1), NALL = NSTRIP + NSLOT * NFX;
-			for (int n = 0; n < NALL; n++) {
+		if (sendWait <= 0.f && !qWaiting && qDrain <= 0.f) {
+			bool sent = false;
+			if (!outbox.empty() && sysexOk) {
+				sendSet(outbox.front());
+				outbox.pop_front();
+				sent = true;
+			}
+			const int NSTRIP = NT * NF, NALL = NSTRIP + NSLOT * NFX;
+			for (int n = 0; n < NALL && !sent; n++) {
 				int i = (sendRR + n) % NALL;
 				if (i >= NSTRIP) {
 					int slot = (i - NSTRIP) / NFX, f = (i - NSTRIP) % NFX;
@@ -916,21 +1059,12 @@ struct WingLink : Module {
 					y.wing = y.local;
 					y.hold = 0.4f;
 					sendRR = i + 1;
-					sendWait = 0.003f;
+					sent = true;
 					break;
 				}
-				int s = i / (NF + 1), f = i % (NF + 1);
+				int s = i / NF, f = i % NF;
 				if (!active(s))
 					continue;
-				if (f == NF) {
-					if (st[s].metaDirty && st[s].metaWait <= 0.f && sendMeta(s, false)) {
-						st[s].metaDirty = false;
-						sendRR = i + 1;
-						sendWait = 0.003f;
-						break;
-					}
-					continue;
-				}
 				Sync& y = st[s].f[f];
 				if (!y.dirty)
 					continue;
@@ -941,9 +1075,26 @@ struct WingLink : Module {
 				y.wing = y.local;
 				y.hold = 0.4f;
 				sendRR = i + 1;
-				sendWait = 0.003f;
+				sent = true;
 				break;
 			}
+			if (!sent && sysexOk) {
+				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+				if (lock.owns_lock())
+					for (auto& kv : meta) {
+						Meta& m = kv.second;
+						if (!m.dirty || m.wait > 0.f)
+							continue;
+						int part = (m.dirty & M_NAME) ? M_NAME : ((m.dirty & M_COL) ? M_COL : M_ICON);
+						m.dirty &= ~part;
+						m.hold = std::max(m.hold, 1.5f);
+						sendMetaPart(kv.first, part, m);
+						sent = true;
+						break;
+					}
+			}
+			if (sent)
+				sendWait = 0.003f;
 		}
 
 		// ask: after a connect / SYNC everything, then now and then what has no CC (solo, sends, FX on the panel)
@@ -952,10 +1103,12 @@ struct WingLink : Module {
 				pullAll = false;
 				queries.clear();
 				for (int s = 0; s < NT; s++)
-					if (active(s))
+					if (active(s)) {
 						for (int f = 0; f < NF; f++)
 							if (has(s, f))
 								queries.push_back({0, s, f});
+						askMeta(s);
+					}
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
 						askFx(fm->first + j, true);
@@ -966,12 +1119,14 @@ struct WingLink : Module {
 			}
 			pollTimer -= dt;
 			if (pollTimer <= 0.f && queries.empty()) {
-				pollTimer = 1.f;
+				pollTimer = 1.5f;
 				for (int s = 0; s < NT; s++)
-					if (active(s))
+					if (active(s)) {
 						for (int f : {SOLO, FX1, FX2})
 							if (has(s, f))
 								queries.push_back({0, s, f});
+						askMeta(s);
+					}
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
 						askFx(fm->first + j, true);
@@ -981,16 +1136,25 @@ struct WingLink : Module {
 			}
 			if (qWaiting) {
 				qTimer -= dt;
-				if (qTimer <= 0.f)
+				if (qTimer <= 0.f) {
 					qWaiting = false;
+					qDrain = 0.3f;  // (a late answer must not land on the next question)
+				}
 			}
-			while (!qWaiting && !queries.empty() && sendWait <= 0.f) {
+			while (!qWaiting && !queries.empty() && sendWait <= 0.f && setGap <= 0.f && qDrain <= 0.f) {
 				qNow = queries.front();
 				queries.pop_front();
 				if (qNow.kind == 0) {
 					if (!active(qNow.s) || !has(qNow.s, qNow.f))
 						continue;
 					send(P::getPath(node(qNow.s) + "." + queryOf(qNow.f)));
+				}
+				else if (qNow.kind == 3) {
+					static const char* const PART[5] = {"", "name", "col", "", "icon"};
+					P::Tgt t = keyTgt(qNow.s);
+					if (!t.ok() || (qNow.f == M_ICON && t.type == P::T_DCA))
+						continue;
+					send(P::getPath(P::tgtNode(t) + "." + PART[qNow.f]));
 				}
 				else if (qNow.kind == 2) {
 					static const char* const SDQ[4] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate"};
@@ -1048,34 +1212,45 @@ struct WingLink : Module {
 	void onSampleRateChange(const SampleRateChangeEvent& e) override { port.engineInputBuffer.clear(); }
 
 	// ---- the panels' edits (UI thread)
-	void setName(int s, const std::string& n) {
+	/** (UI thread) What the strip's WING channel is called, its colour and icon (a copy). */
+	Meta getMeta(int s) {
+		P::Tgt t = target(s);
 		std::lock_guard<std::mutex> lock(metaMutex);
-		if (st[s].name == n)
+		auto it = meta.find(metaKey(t));
+		return it == meta.end() ? Meta() : it->second;
+	}
+	std::string getName(int s) { return getMeta(s).name; }
+	void editMeta(int s, int part, std::function<void(Meta&)> f, float wait) {
+		P::Tgt t = target(s);
+		if (!t.ok())
 			return;
-		st[s].name = n;
-		st[s].metaDirty = true;
-		st[s].metaWait = 0.6f;
-	}
-	std::string getName(int s) {
 		std::lock_guard<std::mutex> lock(metaMutex);
-		return st[s].name;
+		Meta& m = meta[metaKey(t)];
+		f(m);
+		m.known = true;
+		m.dirty |= part;
+		m.wait = wait;
+		m.hold = wait + 2.f;
 	}
-	void setColour(int s, int c) {
+	void setName(int s, const std::string& n) {
+		if (getName(s) == n)
+			return;
+		editMeta(s, M_NAME, [&](Meta& m) { m.name = n; }, 0.6f);
+	}
+	void nameNow(int s) {
+		P::Tgt t = target(s);
 		std::lock_guard<std::mutex> lock(metaMutex);
-		st[s].colour = c;
-		st[s].metaDirty = true;
-		st[s].metaWait = 0.2f;
+		auto it = meta.find(metaKey(t));
+		if (it != meta.end())
+			it->second.wait = 0.f;
 	}
+	void setColour(int s, int c) { editMeta(s, M_COL, [&](Meta& m) { m.colour = c; }, 0.2f); }
+	void setIcon(int s, int i) { editMeta(s, M_ICON, [&](Meta& m) { m.icon = i; }, 0.2f); }
+
 	void setTarget(int s, P::Tgt t) {
 		st[s].tType = t.ok() ? t.type : 0;
 		st[s].tNum = t.ok() ? t.n : 0;
 		wantReset = true;
-	}
-	void setIcon(int s, int i) {
-		std::lock_guard<std::mutex> lock(metaMutex);
-		st[s].icon = i;
-		st[s].metaDirty = true;
-		st[s].metaWait = 0.2f;
 	}
 
 	json_t* dataToJson() override {
@@ -1090,20 +1265,31 @@ struct WingLink : Module {
 		json_object_set_new(root, "midiIn", midiIn.toJson());
 		json_object_set_new(root, "midiOut", midiOut.toJson());
 		json_object_set_new(root, "audio", port.toJson());
+		json_object_set_new(root, "audioStart", json_integer(audioStart));
 		json_t* strips = json_array();
-		{
-			std::lock_guard<std::mutex> lock(metaMutex);
-			for (int s = 0; s < NT; s++) {
-				json_t* o = json_object();
-				json_object_set_new(o, "name", json_string(st[s].name.c_str()));
-				json_object_set_new(o, "colour", json_integer(st[s].colour));
-				json_object_set_new(o, "icon", json_integer(st[s].icon));
-				json_object_set_new(o, "type", json_integer(st[s].tType));
-				json_object_set_new(o, "num", json_integer(st[s].tNum));
-				json_array_append_new(strips, o);
-			}
+		for (int s = 0; s < NT; s++) {
+			json_t* o = json_object();
+			json_object_set_new(o, "type", json_integer(st[s].tType));
+			json_object_set_new(o, "num", json_integer(st[s].tNum));
+			json_array_append_new(strips, o);
 		}
 		json_object_set_new(root, "strips", strips);
+		json_t* names = json_array();
+		{
+			std::lock_guard<std::mutex> lock(metaMutex);
+			for (auto& kv : meta) {
+				if (!kv.second.known)
+					continue;
+				json_t* o = json_object();
+				json_object_set_new(o, "ch", json_string(P::tgtLabel(keyTgt(kv.first)).c_str()));
+				json_object_set_new(o, "key", json_integer(kv.first));
+				json_object_set_new(o, "name", json_string(kv.second.name.c_str()));
+				json_object_set_new(o, "colour", json_integer(kv.second.colour));
+				json_object_set_new(o, "icon", json_integer(kv.second.icon));
+				json_array_append_new(names, o);
+			}
+		}
+		json_object_set_new(root, "names", names);
 		json_t* fx = json_array();
 		for (int k = 0; k < NSLOT; k++)
 			json_array_append_new(fx, json_string(F::MODELS[fxs[k].model].mdl));
@@ -1133,16 +1319,11 @@ struct WingLink : Module {
 		port.outputOffset = clamp(usbStart() - 1, 0, 47);
 		if (json_t* j = json_object_get(root, "audio"))
 			port.fromJson(j);
+		audioStart = clamp(geti("audioStart", wingStart), 1, P::NUM_IN);
 		if (json_t* a = json_object_get(root, "strips")) {
 			std::lock_guard<std::mutex> lock(metaMutex);
 			for (int s = 0; s < NT && s < (int) json_array_size(a); s++) {
 				json_t* o = json_array_get(a, s);
-				if (json_t* j = json_object_get(o, "name"))
-					st[s].name = json_string_value(j);
-				if (json_t* j = json_object_get(o, "colour"))
-					st[s].colour = clamp((int) json_integer_value(j), 0, P::NUM_COLOURS);
-				if (json_t* j = json_object_get(o, "icon"))
-					st[s].icon = (int) json_integer_value(j);
 				json_t* ty = json_object_get(o, "type");
 				json_t* nu = json_object_get(o, "num");
 				if (ty && nu) {
@@ -1150,6 +1331,34 @@ struct WingLink : Module {
 					st[s].tType = t.ok() ? t.type : 0;
 					st[s].tNum = t.ok() ? t.n : 0;
 				}
+				// (2.2: the names were the strips'; now they are the WING channels')
+				json_t* nm = json_object_get(o, "name");
+				if (nm && json_string_length(nm) > 0 && s < NS) {
+					Meta& m = meta[metaKey(target(s))];
+					m.name = json_string_value(nm);
+					m.known = true;
+					if (json_t* j = json_object_get(o, "colour"))
+						m.colour = clamp((int) json_integer_value(j), 0, P::NUM_COLOURS);
+					if (json_t* j = json_object_get(o, "icon"))
+						m.icon = (int) json_integer_value(j);
+				}
+			}
+		}
+		if (json_t* a = json_object_get(root, "names")) {
+			std::lock_guard<std::mutex> lock(metaMutex);
+			for (size_t i = 0; i < json_array_size(a); i++) {
+				json_t* o = json_array_get(a, i);
+				json_t* k = json_object_get(o, "key");
+				if (!k || !keyTgt((int) json_integer_value(k)).ok())
+					continue;
+				Meta& m = meta[(int) json_integer_value(k)];
+				if (json_t* j = json_object_get(o, "name"))
+					m.name = json_string_value(j);
+				if (json_t* j = json_object_get(o, "colour"))
+					m.colour = (int) json_integer_value(j);
+				if (json_t* j = json_object_get(o, "icon"))
+					m.icon = (int) json_integer_value(j);
+				m.known = true;
 			}
 		}
 		if (json_t* a = json_object_get(root, "fxModels"))
@@ -1193,8 +1402,23 @@ void Satellite::dataFromJson(json_t* root) {
 }
 
 WingLinkX::WingLinkX() {
-	config(NS * NF, NS * NCI, NS * NCO, NUM_LIGHTS);
+	config(NUM_PARAMS, NS * NCI, NS * NCO, NUM_LIGHTS);
 	configStrips(this, NS);
+	configButton(DOWN_PARAM, "Start channel down");
+	configButton(UP_PARAM, "Start channel up");
+}
+json_t* WingLinkX::dataToJson() {
+	json_t* root = Satellite::dataToJson();
+	json_object_set_new(root, "xStart", json_integer(xStart));
+	json_object_set_new(root, "xStep", json_integer(xStep));
+	return root;
+}
+void WingLinkX::dataFromJson(json_t* root) {
+	Satellite::dataFromJson(root);
+	if (json_t* j = json_object_get(root, "xStart"))
+		xStart = json_integer_value(j) >= 1 && json_integer_value(j) <= 48 ? (int) json_integer_value(j) : -1;
+	if (json_t* j = json_object_get(root, "xStep"))
+		xStep = json_integer_value(j) == 8 ? 8 : 1;
 }
 
 /** (UI thread) Which WING-LINK a panel belongs to: docked next to it, picked by right-click, or the only one. */
@@ -1307,6 +1531,13 @@ struct NameField : DisplayTextField {
 				setText(n);
 		}
 		DisplayTextField::step();
+	}
+	void onAction(const ActionEvent& e) override {
+		// Enter: send now, leave the field
+		if (WingLink* h = getHost ? getHost() : nullptr)
+			h->nameNow(s);
+		APP->event->setSelectedWidget(NULL);
+		e.consume(this);
 	}
 	void onChange(const ChangeEvent& e) override {
 		std::string t;
@@ -1427,9 +1658,9 @@ struct ScribbleWidget : OpaqueWidget {
 			P::Tgt t;
 			bool fixed = false;
 			if (h) {
-				std::lock_guard<std::mutex> lock(h->metaMutex);
-				col = h->st[s].colour;
-				icon = h->st[s].icon;
+				Meta m = h->getMeta(s);
+				col = m.colour;
+				icon = m.icon;
 				t = h->target(s);
 				fixed = h->st[s].tType > 0;
 			}
@@ -1458,12 +1689,8 @@ struct ScribbleWidget : OpaqueWidget {
 			return;
 		}
 		if (e.button == GLFW_MOUSE_BUTTON_LEFT) {
-			int col, icon;
-			{
-				std::lock_guard<std::mutex> lock(h->metaMutex);
-				col = h->st[s].colour;
-				icon = h->st[s].icon;
-			}
+			Meta m = h->getMeta(s);
+			int col = m.colour, icon = m.icon;
 			if (e.pos.y < mm2px(2.6f))
 				h->setColour(s, col % P::NUM_COLOURS + 1);
 			else if (e.pos.y > mm2px(6.6f) && e.pos.y < mm2px(8.9f))
@@ -1693,6 +1920,11 @@ struct StatusDisplay : Widget {
 				if (module->fxMod.load())
 					stx += " · FX";
 				c = OK;
+				std::lock_guard<std::mutex> lock(module->errMutex);
+				if (module->errorAge < 20.f) {
+					stx = "●  WING: " + module->lastError;
+					c = WARN;
+				}
 			}
 			else if (module->midiSeen) {
 				stx = "●  NO SYSEX: WING › SETUP › REMOTE › MIDI";
@@ -1702,7 +1934,7 @@ struct StatusDisplay : Widget {
 				stx = "●  WAITING FOR THE WING … (SETUP › REMOTE)";
 				c = WARN;
 			}
-			text(vg, boldFont(), x, mm2px(8.1f), stx, 6.4f, c, NVG_ALIGN_LEFT, 0.3f);
+			text(vg, boldFont(), x, mm2px(8.1f), stx.substr(0, 56), 6.4f, c, NVG_ALIGN_LEFT, 0.3f);
 			int u = module->usbStart();
 			std::string au;
 			int nOut = module->port.deviceNumOutputs;
@@ -2016,6 +2248,11 @@ struct WingLinkWidget : ModuleWidget {
 		}
 		if (!id.empty())
 			menu->addChild(createMenuLabel(id.substr(0, 60)));
+		{
+			std::lock_guard<std::mutex> lock(m->errMutex);
+			if (!m->lastError.empty())
+				menu->addChild(createMenuLabel("Last WING complaint: " + m->lastError.substr(0, 70)));
+		}
 		menu->addChild(new MenuSeparator);
 		menu->addChild(createMenuLabel("Click a strip's colour bar or icon to change it, type its name"));
 		menu->addChild(createMenuLabel("WING-LINK X (8 more channels) and WING-FX link by themselves"));
@@ -2030,21 +2267,22 @@ struct XDisplay : Widget {
 			float x = mm2px(3.f);
 			WingLink* h = module ? module->hostSafe() : nullptr;
 			if (!h) {
-				text(vg, boldFont(), x, mm2px(4.6f), module ? "NOT LINKED" : "CH 41–48", 12.f, module ? WARN : WHITE);
+				text(vg, boldFont(), x, mm2px(4.6f), module ? "NOT LINKED" : "CH 9 – 16", 11.f, module ? WARN : WHITE,
+				     NVG_ALIGN_LEFT, 0.4f);
 				if (module)
-					text(vg, boldFont(), x, mm2px(8.1f), "●  right-click › Connect to WING-LINK (or dock me on its right)",
-					     6.6f, WARN, NVG_ALIGN_LEFT, 0.3f);
+					text(vg, boldFont(), x, mm2px(8.1f), "●  right-click › Connect to WING-LINK", 6.4f, WARN, NVG_ALIGN_LEFT, 0.3f);
 			}
 			else {
-				int a = h->wingStart + NS;
+				int a = h->xStartNow();
 				std::string chs = a > P::NUM_IN ? "NO CHANNELS LEFT"
 				                                : P::label(a) + " – " + P::label(std::min(P::NUM_IN, a + NS - 1));
-				text(vg, boldFont(), x, mm2px(4.6f), chs, 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
+				text(vg, boldFont(), x, mm2px(4.6f), chs, 11.f, WHITE, NVG_ALIGN_LEFT, 0.4f);
 				bool live = h->xMod.load() == module;
-				text(vg, boldFont(), x, mm2px(8.1f), live ? "●  LINKED TO WING-LINK" : "●  WING-LINK already has a WING-LINK X",
-				     6.6f, live ? ACCENT : WARN, NVG_ALIGN_LEFT, 0.3f);
+				std::string st = !live ? "●  WING-LINK already has a WING-LINK X"
+				                       : (module->xStart > 0 ? "●  LINKED · OWN START CH" : "●  LINKED · FOLLOWS WING-LINK");
+				text(vg, boldFont(), x, mm2px(8.1f), st, 6.4f, live ? ACCENT : WARN, NVG_ALIGN_LEFT, 0.3f);
 				int u = h->usbStart() + NS;
-				text(vg, boldFont(), x, mm2px(10.2f), string::f("AUDIO → USB %d–%d", u, u + NS - 1), 6.2f, DIM,
+				text(vg, boldFont(), x, mm2px(10.2f), string::f("AUDIO → USB %d–%d", u, u + NS - 1), 6.f, DIM,
 				     NVG_ALIGN_LEFT, 0.3f);
 			}
 		}
@@ -2063,6 +2301,15 @@ struct WingLinkXWidget : ModuleWidget {
 		d->box.pos = mm2px(Vec(wllayout::wlx::DISPLAY[0], wllayout::wlx::DISPLAY[1]));
 		d->box.size = mm2px(Vec(wllayout::wlx::DISPLAY[2], wllayout::wlx::DISPLAY[3]));
 		addChild(d);
+		addParam(createParamCentered<VCVBezel>(mm(wllayout::wlx::DOWN), module, WingLinkX::DOWN_PARAM));
+		addParam(createParamCentered<VCVBezel>(mm(wllayout::wlx::UP), module, WingLinkX::UP_PARAM));
+		StepWidget* sw = new StepWidget;
+		sw->value = module ? &module->xStep : nullptr;
+		sw->a = 1;
+		sw->b = 8;
+		sw->box.pos = mm2px(Vec(wllayout::wlx::STEP[0], wllayout::wlx::STEP[1]));
+		sw->box.size = mm2px(Vec(wllayout::wlx::STEP[2], wllayout::wlx::STEP[3]));
+		addChild(sw);
 		addStrips(this, module, NS, [module]() { return module ? module->hostSafe() : nullptr; });
 	}
 	void step() override {
@@ -2074,8 +2321,21 @@ struct WingLinkXWidget : ModuleWidget {
 		}
 	}
 	void appendContextMenu(Menu* menu) override {
-		if (module)
-			appendLinkMenu(menu, static_cast<Satellite*>(module));
+		WingLinkX* m = dynamic_cast<WingLinkX*>(module);
+		if (!m)
+			return;
+		appendLinkMenu(menu, m);
+		menu->addChild(createCheckMenuItem("Follow WING-LINK (its START CH + 8)", "", [=]() { return m->xStart < 0; },
+		                                   [=]() {
+			                                   m->xStart = -1;
+			                                   if (WingLink* h = m->hostSafe())
+				                                   h->wantReset = true;
+		                                   }));
+		menu->addChild(createSubmenuItem("START CH steps", string::f("%d", m->xStep.load()), [=](Menu* sub) {
+			for (int v : {1, 8})
+				sub->addChild(createCheckMenuItem(v == 1 ? "1 (one channel)" : "8 (CH 1–8, 9–16 …)", "",
+				                                  [=]() { return m->xStep.load() == v; }, [=]() { m->xStep = v; }));
+		}));
 	}
 };
 
