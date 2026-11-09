@@ -101,7 +101,7 @@ class Panel:
 
     def knob(self, name, x, y):
         self.comps.append(("small", name, x, y))
-        r = R["small"] + 0.88
+        r = R["small"] + 0.5
         self.e(f'<circle cx="{x:.2f}" cy="{y}" r="{r:.2f}" fill="none" stroke="{RING}" stroke-width="0.29" '
                f'stroke-dasharray="0.29 0.73" stroke-linecap="round"/>')
 

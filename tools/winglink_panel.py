@@ -66,7 +66,7 @@ X0 = LABEL_W + 1.5    # left edge of strip 1
 SCRIB = (25.0, 36.0)  # the strip's display (top, bottom)
 FADER_TOP, FADER_BOT = 40.0, 80.0
 FADER_W, HANDLE_H = 5.6, 8.0
-ROWS = {"PAN": 43.0, "FX 1": 52.0, "FX 2": 61.0, "MUTE": 70.0, "SOLO": 78.5}
+ROWS = {"PAN": 42.0, "FX 1": 52.0, "FX 2": 62.0, "MUTE": 71.2, "SOLO": 79.2}
 JROWS = [87.6, 97.2, 106.8, 117.4]
 
 
@@ -102,7 +102,7 @@ class Panel:
 
     def knob(self, name, x, y):
         self.comps.append(("small", name, x, y))
-        r = R["small"] + 0.88
+        r = R["small"] + 0.5
         self.e(f'<circle cx="{x:.2f}" cy="{y}" r="{r:.2f}" fill="none" stroke="{RING}" stroke-width="0.29" '
                f'stroke-dasharray="0.29 0.73" stroke-linecap="round"/>')
 
@@ -141,7 +141,7 @@ class Panel:
             self.e(f'<rect x="{x0 + 1.1:.2f}" y="{SCRIB[0]}" width="{SP - 2.2:.2f}" height="{SCRIB[1] - SCRIB[0]}" '
                    f'rx="0.8" fill="{DARK}"/>')
             self.area(f"SCRIB{n}", x0 + 1.1, SCRIB[0], SP - 2.2, SCRIB[1] - SCRIB[0])
-            fx, kx = cx - 5.2, cx + 4.9
+            fx, kx = cx - 5.2, cx + 4.55
             # fader slot (the slider's own background draws the track)
             self.comps.append(("fader", f"FADER{n}", fx, (FADER_TOP + FADER_BOT) / 2))
             # meter beside the fader

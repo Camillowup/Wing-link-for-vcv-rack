@@ -141,7 +141,7 @@ struct WingLink : Module {
 	std::atomic<int> usbMode{0};      // 0: USB n = WING channel n, else: the first USB channel
 	std::atomic<int> fxBus[2] = {{1}, {2}};
 	std::atomic<bool> autoMidi{true}, autoAudio{true};
-	std::atomic<int> chStep{1};       // START CH − / + move by 1 or 8
+	std::atomic<int> chStep{8};       // START CH − / + move by 1 or 8
 	std::atomic<int> audioStart{33};  // the WING input of AUDIO 1 (SYNC sets it to START CH; paging doesn't move it)
 	Strip st[NT];
 	std::map<int, Meta> meta;          // name, colour, icon per WING channel (key: type * 100 + number)
@@ -182,6 +182,7 @@ struct WingLink : Module {
 	struct Query {
 		int kind;  // 0 strip, 1 FX slot, 2 SD card, 3 name / colour / icon of a WING channel (s: its key, f: part)
 		int s, f;
+		bool src = false;  // (kind 3: asked at the channel's source)
 	};
 	std::deque<Query> queries;
 	bool qWaiting = false;
@@ -424,8 +425,24 @@ struct WingLink : Module {
 		}
 		fxPageSeen = -1;  // (refresh the panel)
 	}
+	/** Where the WING keeps what it shows for this channel: its source while linked to it, else the channel. */
+	static bool viaSource(const P::Tgt& t, const Meta& m) {
+		return (t.type == P::T_CH || t.type == P::T_AUX) && m.link == 1 && !m.srcBad && m.in > 0 && !m.grp.empty() &&
+		       m.grp != "OFF";
+	}
+	static std::string metaNode(const P::Tgt& t, const Meta& m) {
+		if (viaSource(t, m))
+			return string::f("/io.in.%s.%d", m.grp.c_str(), m.in);
+		return P::tgtNode(t);
+	}
 	void askMeta(int s) {
 		int k = metaKey(target(s));
+		P::Tgt t = keyTgt(k);
+		if (t.type == P::T_CH || t.type == P::T_AUX) {
+			queries.push_back({3, k, M_LINK});
+			queries.push_back({3, k, M_GRP});
+			queries.push_back({3, k, M_IN});
+		}
 		queries.push_back({3, k, M_NAME});
 		queries.push_back({3, k, M_COL});
 		queries.push_back({3, k, M_ICON});
@@ -449,6 +466,12 @@ struct WingLink : Module {
 		noAnswer = 0;
 		if (cmd != P::GET_REPLY) {
 			qDrain = 0.1f;  // (if that complaint was late, the real answer comes now: let it pass)
+			if (qNow.kind == 3 && qNow.src) {
+				// the WING has no name / colour / icon at that source: use the channel's
+				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+				if (lock.owns_lock())
+					meta[qNow.s].srcBad = true;
+			}
 			return;
 		}
 		if (qNow.kind == 3) {
@@ -457,11 +480,36 @@ struct WingLink : Module {
 			if (!lock.owns_lock())
 				return;
 			Meta& m = meta[qNow.s];
-			if (m.hold > 0.f || (m.dirty & qNow.f))
-				return;  // just changed here: ours stands
 			std::string t = text;
 			while (!t.empty() && (t.back() == '\n' || t.back() == '\r'))
 				t.pop_back();
+			if (qNow.f >= M_LINK) {
+				// how the channel is linked to its source
+				std::string u;
+				for (char ch : t)
+					if (ch != '"' && ch != ' ')
+						u += ch;
+				float v;
+				if (qNow.f == M_GRP) {
+					if (!u.empty() && u != m.grp) {
+						m.grp = u;
+						m.srcBad = false;
+					}
+				}
+				else if (P::number(u, &v)) {
+					if (qNow.f == M_LINK)
+						m.link = v > 0.5f ? 1 : 0;
+					else if ((int) v != m.in) {
+						m.in = (int) v;
+						m.srcBad = false;
+					}
+				}
+				return;
+			}
+			if (qNow.src != viaSource(keyTgt(qNow.s), m))
+				return;  // (the link changed meanwhile)
+			if (m.hold > 0.f || (m.dirty & qNow.f))
+				return;  // just changed here: ours stands
 			if (qNow.f == M_NAME) {
 				if (t.size() >= 2 && t[0] == '"' && t.back() == '"')
 					t = t.substr(1, t.size() - 2);
@@ -715,6 +763,7 @@ struct WingLink : Module {
 	/** One part (name, colour or icon) of a WING channel's meta. */
 	void sendMetaPart(int key, int part, const Meta& m) {
 		P::Tgt t = keyTgt(key);
+		bool src = viaSource(t, m);
 		std::string what;
 		if (part == M_NAME) {
 			std::string n = P::nameText(m.name);
@@ -728,7 +777,10 @@ struct WingLink : Module {
 			what = string::f("icon=%d", m.icon);
 		if (what.empty())
 			return;
-		sendSet(P::tgtNode(t) + "." + what);
+		sendSet(metaNode(t, m) + "." + what);
+		if (src)
+			logLine(string::f("--   %s is linked to its source %s: name / colour / icon go there",
+			                  P::tgtLabel(t).c_str(), metaNode(t, m).c_str()));
 		lastSetMeta = key;
 		lastSetPart = part;
 	}
@@ -1189,11 +1241,24 @@ struct WingLink : Module {
 					send(P::getPath(node(qNow.s) + "." + queryOf(qNow.f)));
 				}
 				else if (qNow.kind == 3) {
-					static const char* const PART[5] = {"", "name", "col", "", "icon"};
 					P::Tgt t = keyTgt(qNow.s);
 					if (!t.ok() || (qNow.f == M_ICON && t.type == P::T_DCA))
 						continue;
-					send(P::getPath(P::tgtNode(t) + "." + PART[qNow.f]));
+					if (qNow.f >= M_LINK) {
+						const char* what = qNow.f == M_LINK ? "clink" : (qNow.f == M_GRP ? "in.conn.grp" : "in.conn.in");
+						send(P::getPath(P::tgtNode(t) + "." + what));
+					}
+					else {
+						std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+						if (!lock.owns_lock()) {
+							queries.push_front(qNow);
+							break;
+						}
+						const Meta& m = meta[qNow.s];
+						qNow.src = viaSource(t, m);
+						const char* what = qNow.f == M_NAME ? "name" : (qNow.f == M_COL ? "col" : "icon");
+						send(P::getPath(metaNode(t, m) + "." + what));
+					}
 				}
 				else if (qNow.kind == 2) {
 					static const char* const SDQ[4] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate"};
@@ -1344,7 +1409,7 @@ struct WingLink : Module {
 		usbMode = clamp(geti("usbMode", 0), 0, 48);
 		fxBus[0] = clamp(geti("fxBus1", 1), 1, 16);
 		fxBus[1] = clamp(geti("fxBus2", 2), 1, 16);
-		chStep = geti("chStep", 1) == 8 ? 8 : 1;
+		chStep = geti("chStep", 8) == 1 ? 1 : 8;
 		if (json_t* j = json_object_get(root, "autoMidi"))
 			autoMidi = json_boolean_value(j);
 		if (json_t* j = json_object_get(root, "autoAudio"))

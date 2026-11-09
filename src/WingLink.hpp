@@ -58,8 +58,14 @@ struct Meta {
 	bool known = false;          // read from the WING (or set here)
 	int dirty = 0;               // to send: 1 name, 2 colour, 4 icon
 	float wait = 0.f, hold = 0.f;  // send after a pause; the WING's old values are ignored this long
+	// The WING shows (and edits on its home page) the name / colour / icon of the channel's SOURCE while the channel
+	// is linked to it (clink = 1): then they are read and written there (e.g. /io.in.USB.1).
+	int link = -1;         // clink: −1 unknown
+	std::string grp;       // in.conn.grp (LCL, USB, A …), "" unknown
+	int in = 0;            // in.conn.in
+	bool srcBad = false;   // the WING refused the source's name: use the channel's
 };
-enum { M_NAME = 1, M_COL = 2, M_ICON = 4 };
+enum { M_NAME = 1, M_COL = 2, M_ICON = 4, M_LINK = 8, M_GRP = 16, M_IN = 32 };
 
 struct FxSlot {
 	std::atomic<int> model{0};  // index into wingfx::MODELS
@@ -88,7 +94,7 @@ struct WingLinkX : Satellite {
 	enum ParamId { DOWN_PARAM = NS * NF, UP_PARAM, NUM_PARAMS };
 	enum LightId { MUTE_LIGHT, SOLO_LIGHT = MUTE_LIGHT + NS, NUM_LIGHTS = SOLO_LIGHT + NS };
 	std::atomic<int> xStart{-1};  // its first WING input (1..48); −1: follows WING-LINK (its START CH + 8)
-	std::atomic<int> xStep{1};    // START CH − / + move by 1 or 8
+	std::atomic<int> xStep{8};    // START CH − / + move by 1 or 8
 	WingLinkX();
 	bool dockLeft() override { return true; }
 	json_t* dataToJson() override;

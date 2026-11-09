@@ -37,13 +37,14 @@ im Look des GENRA-Plugins.
 - **SD-Recorder** (WING-LIVE-Karte): die beiden Karten oben antippen startet bzw. stoppt die Aufnahme auf SD 1 oder
   SD 2, getrennt. Rot = Aufnahme mit laufender Zeit, sonst die freie Zeit. **TRACKS 8 / 16**: so viele Spuren nimmt
   die WING beim Start auf.
-- **STEP** neben START CH: − / + springen um 1 oder um 8 Kanäle (antippen oder Rechtsklick).
+- **STEP** neben START CH: − / + springen um 8 (Standard) oder um 1 Kanal (antippen oder Rechtsklick).
 
 - **START CH − / +** blättert die **Ansicht**: welche WING-Kanäle die Fader, Regler und Displays zeigen (CH 41–48 sind
   an der WING die AUX-Kanäle 1–8). Der Ton der AUDIO-Buchsen bleibt dabei, wo er ist: **SYNC** legt ihn fest (ab dem
   Kanal, auf dem START CH beim Drücken steht). WING-LINK X hat ein eigenes START CH (folgt sonst WING-LINK + 8).
 - **Namen, Farben, Icons gehören zum WING-Kanal** und gehen in beide Richtungen: am Pult benannt erscheint es in Rack,
-  in Rack benannt (Enter oder kurz warten) geht es ans Pult.
+  in Rack benannt (Enter oder kurz warten) geht es ans Pult. Ist der Kanal am Pult mit seiner Quelle verknüpft
+  (Standard), zeigt die WING Name/Farbe/Icon der Quelle (z. B. USB 1) – dann liest und schreibt WING-LINK dort.
 - Lehnt die WING etwas ab, steht ihre Meldung kurz im Display (und im Rechtsklick-Menü).
 - **Farbbalken** einer Spur anklicken: nächste Farbe. **Icon** anklicken: nächste Icon-Gruppe. Rechtsklick auf die
   Spur: alle Farben und Icons. **Name**: direkt hineinklicken und tippen (max. 16 Zeichen, ohne Umlaute).
