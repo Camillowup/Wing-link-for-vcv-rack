@@ -182,7 +182,7 @@ struct WingLink : Module {
 	struct Query {
 		int kind;  // 0 strip, 1 FX slot, 2 SD card, 3 name / colour / icon of a WING channel (s: its key, f: part)
 		int s, f;
-		bool src = false;  // (kind 3: asked at the channel's source)
+		bool src;  // (kind 3: asked at the channel's source; false when left out)
 	};
 	std::deque<Query> queries;
 	bool qWaiting = false;
