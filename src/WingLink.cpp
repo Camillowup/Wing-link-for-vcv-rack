@@ -187,6 +187,7 @@ struct WingLink : Module {
 	bool qWaiting = false;
 	Query qNow{0, 0, 0};
 	float qTimer = 0.f, pollTimer = 0.f;
+	int noAnswer = 0, answered = 0;  // (the display warns when the WING doesn't answer)
 	std::atomic<bool> pullAll{false}, syncNow{false}, wantReset{false};
 	dsp::BooleanTrigger xDownT, xUpT;
 	int sendRR = 0;
@@ -310,15 +311,48 @@ struct WingLink : Module {
 		return f ? f->knob(m, k) : F::knobParam(F::MODELS[m], k, -1);
 	}
 
+	// ---- the MIDI log (right-click › Log MIDI to file): the engine notes, the UI writes the file
+	std::atomic<float> logLeft{0.f};    // seconds still to log
+	std::vector<std::string> logLines;
+	std::mutex logMutex;
+	std::string logPath;                // (UI thread: where it went)
+	void logLine(const std::string& l) {
+		if (logLeft.load() <= 0.f)
+			return;
+		std::unique_lock<std::mutex> lock(logMutex, std::try_to_lock);
+		if (lock.owns_lock() && logLines.size() < 20000)
+			logLines.push_back(string::f("%9.3f  ", now) + l);
+	}
+	static std::string describe(const std::vector<uint8_t>& b) {
+		if (b.empty())
+			return "(empty)";
+		if (b[0] == 0xF0) {
+			std::string hex, txt;
+			for (size_t i = 0; i < b.size(); i++) {
+				hex += string::f("%02X ", b[i]);
+				if (i >= 6 && i + 1 < b.size())
+					txt += (b[i] >= 0x20 && b[i] < 0x7f) ? (char) b[i] : '.';
+			}
+			return string::f("SYSEX cmd %02X  \"%s\"  [%s]", b.size() > 5 ? b[5] : 0, txt.c_str(), hex.c_str());
+		}
+		std::string hex;
+		for (uint8_t x : b)
+			hex += string::f("%02X ", x);
+		if ((b[0] >> 4) == 0xB && b.size() >= 3)
+			return string::f("CC  ch %d  cc %d  val %d  [%s]", (b[0] & 15) + 1, b[1], b[2], hex.c_str());
+		return "[" + hex + "]";
+	}
 	void send(const std::vector<uint8_t>& bytes) {
 		midi::Message m;
 		m.bytes = bytes;
 		midiOut.sendMessage(m);
+		logLine("OUT  " + describe(bytes));
 	}
 	void sendCc(int ch, int cc, int v) {
 		midi::Message m;
 		m.bytes = {(uint8_t) (0xB0 | ch), (uint8_t) cc, (uint8_t) clamp(v, 0, 127)};
 		midiOut.sendMessage(m);
+		logLine("OUT  " + describe(m.bytes));
 	}
 
 	/** After the channels changed (start, connect, load): take the panels as they are, ask the WING. */
@@ -411,6 +445,8 @@ struct WingLink : Module {
 		if (!qWaiting)
 			return;
 		qWaiting = false;
+		answered++;
+		noAnswer = 0;
 		if (cmd != P::GET_REPLY) {
 			qDrain = 0.1f;  // (if that complaint was late, the real answer comes now: let it pass)
 			return;
@@ -526,6 +562,7 @@ struct WingLink : Module {
 	void onMidi(const midi::Message& msg) {
 		if (msg.bytes.empty())
 			return;
+		logLine("IN   " + describe(msg.bytes) + (qWaiting ? string::f("   (waiting: kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f) : ""));
 		if (msg.bytes[0] == 0xF0) {
 			std::string text;
 			int cmd = P::parse(msg.bytes, &text);
@@ -1037,7 +1074,7 @@ struct WingLink : Module {
 		// send: one command every 3 ms at most, never while a question waits for its answer
 		// (order: SYNC's routing, then strips and FX round robin, then names)
 		sendWait -= dt;
-		if (sendWait <= 0.f && !qWaiting && qDrain <= 0.f) {
+		if (sendWait <= 0.f) {
 			bool sent = false;
 			if (!outbox.empty() && sysexOk) {
 				sendSet(outbox.front());
@@ -1139,6 +1176,8 @@ struct WingLink : Module {
 				if (qTimer <= 0.f) {
 					qWaiting = false;
 					qDrain = 0.3f;  // (a late answer must not land on the next question)
+					noAnswer++;
+					logLine(string::f("--   no answer (kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f));
 				}
 			}
 			while (!qWaiting && !queries.empty() && sendWait <= 0.f && setGap <= 0.f && qDrain <= 0.f) {
@@ -1925,6 +1964,12 @@ struct StatusDisplay : Widget {
 					stx = "●  WING: " + module->lastError;
 					c = WARN;
 				}
+				else if (module->noAnswer >= 5) {
+					stx = "●  WING: NO ANSWERS TO QUESTIONS";
+					c = WARN;
+				}
+				if (module->logLeft > 0.f)
+					stx = string::f("●  LOGGING MIDI … %.0f s", module->logLeft.load()), c = ACCENT;
 			}
 			else if (module->midiSeen) {
 				stx = "●  NO SYSEX: WING › SETUP › REMOTE › MIDI";
@@ -2125,6 +2170,25 @@ struct WingLinkWidget : ModuleWidget {
 		WingLink* m = dynamic_cast<WingLink*>(module);
 		if (!m)
 			return;
+		// the MIDI log: write what the engine noted
+		if (m->logLeft > 0.f || !m->logLines.empty()) {
+			float left = m->logLeft - APP->window->getLastFrameDuration();
+			m->logLeft = std::max(0.f, left);
+			std::vector<std::string> lines;
+			{
+				std::lock_guard<std::mutex> lock(m->logMutex);
+				lines.swap(m->logLines);
+			}
+			if (!lines.empty() || left <= 0.f) {
+				if (FILE* f = std::fopen(m->logPath.c_str(), "a")) {
+					for (const std::string& l : lines)
+						std::fprintf(f, "%s\n", l.c_str());
+					if (left <= 0.f)
+						std::fprintf(f, "\n(end of log)\n");
+					std::fclose(f);
+				}
+			}
+		}
 		scan -= APP->window->getLastFrameDuration();
 		if (scan > 0.f)
 			return;
@@ -2241,6 +2305,25 @@ struct WingLinkWidget : ModuleWidget {
 					                                                                   }));
 			                                 }));
 		menu->addChild(createMenuItem("Read everything from the WING again", "", [=]() { m->wantReset = true; }));
+		menu->addChild(createMenuItem("Log MIDI to file (60 s)", m->logLeft > 0.f ? "logging …" : "", [=]() {
+			{
+				std::lock_guard<std::mutex> lock(m->logMutex);
+				m->logLines.clear();
+			}
+			m->logPath = asset::user("WingLink-MIDI-log.txt");
+			FILE* f = std::fopen(m->logPath.c_str(), "w");
+			if (f) {
+				std::fprintf(f, "WING-LINK %s  MIDI log  (OUT: to the WING, IN: from the WING)\n", pluginInstance->version.c_str());
+				std::fprintf(f, "MIDI in: %s\nMIDI out: %s\nSTART CH %d, audio from CH %d\n\n",
+				             m->midiIn.getDeviceId() >= 0 ? m->midiIn.getDeviceName(m->midiIn.getDeviceId()).c_str() : "-",
+				             m->midiOut.getDeviceId() >= 0 ? m->midiOut.getDeviceName(m->midiOut.getDeviceId()).c_str() : "-",
+				             m->wingStart.load(), m->audioStart.load());
+				std::fclose(f);
+			}
+			m->logLeft = 60.f;
+		}));
+		if (!m->logPath.empty())
+			menu->addChild(createMenuLabel("Log: " + m->logPath));
 		std::string id;
 		{
 			std::lock_guard<std::mutex> lock(m->identMutex);
