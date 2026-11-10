@@ -167,6 +167,7 @@ struct WingLink : Module {
 	// ---- the panels linked to it (set by the UI; cleared when one goes)
 	std::atomic<WingLinkX*> xMod{nullptr};
 	std::atomic<WingFx*> fxMod{nullptr};
+	std::atomic<WingEq*> eqMod{nullptr};
 
 	// ---- connection
 	midi::InputQueue midiIn;
@@ -180,7 +181,8 @@ struct WingLink : Module {
 
 	// one question at a time
 	struct Query {
-		int kind;  // 0 strip, 1 FX slot, 2 SD card, 3 name / colour / icon of a WING channel (s: its key, f: part)
+		int kind;  // 0 strip, 1 FX slot, 2 SD card, 3 name / colour / icon of a WING channel (s: its key, f: part),
+		           // 4 WING-EQ's channel (s: its key, f: the field), 5 the channel selected on the WING
 		int s, f;
 		bool src;  // (kind 3: asked at the channel's source; false when left out)
 	};
@@ -197,6 +199,15 @@ struct WingLink : Module {
 	dsp::BooleanTrigger downT, upT, syncT;
 	float syncFlash = 0.f;
 	std::string audioName;  // (UI thread)
+
+	// ---- WING-EQ: the channel shown, its fields
+	WingEq* eqSeen = nullptr;
+	int eqKeySeen = -1;
+	Sync eqs[NEQ];
+	dsp::BooleanTrigger eqPrevT, eqNextT, eqFlatT;
+	int selKey = -1;         // the channel selected on the WING (SELECT), −1 unknown
+	float selTimer = 0.f;
+	bool selAsked = false;
 
 	// ---- FX and tempo
 	FxSlot fxs[NSLOT];
@@ -244,6 +255,8 @@ struct WingLink : Module {
 			x->host = nullptr;
 		if (WingFx* f = fxMod.load())
 			f->host = nullptr;
+		if (WingEq* q = eqMod.load())
+			q->host = nullptr;
 	}
 
 	void onReset() override {
@@ -447,6 +460,142 @@ struct WingLink : Module {
 		queries.push_back({3, k, M_COL});
 		queries.push_back({3, k, M_ICON});
 	}
+	void askMetaKey(int k) {
+		P::Tgt t = keyTgt(k);
+		if (t.type == P::T_CH || t.type == P::T_AUX) {
+			queries.push_back({3, k, M_LINK});
+			queries.push_back({3, k, M_GRP});
+			queries.push_back({3, k, M_IN});
+		}
+		queries.push_back({3, k, M_NAME});
+		queries.push_back({3, k, M_COL});
+	}
+	void askEq() {
+		if (eqKeySeen < 0)
+			return;
+		queries.push_back({4, eqKeySeen, EQ_MDL});
+		for (int f = 0; f < NEQ; f++)
+			queries.push_back({4, eqKeySeen, f});
+	}
+	/** CH 1–40, then AUX 1–8: the next (d = +1) or the one before (−1). */
+	static int eqStepKey(int key, int d) {
+		P::Tgt t = keyTgt(key);
+		int i = t.type == P::T_AUX ? 40 + t.n - 1 : (t.type == P::T_CH ? t.n - 1 : 0);
+		i = ((i + d) % 48 + 48) % 48;
+		return i < 40 ? metaKey(P::tgt(P::T_CH, i + 1)) : metaKey(P::tgt(P::T_AUX, i - 40 + 1));
+	}
+	void fromWingEq(int f, float v) {
+		Sync& y = eqs[f];
+		if (y.hold > 0.f)
+			return;
+		y.wing = v;
+		WingEq* em = eqMod.load();
+		if (!em)
+			return;
+		int in = eqInput(f);
+		if (in >= 0 && em->inputs[in].isConnected())
+			return;
+		em->params[f].setValue(v);
+		y.local = v;
+		y.dirty = false;
+	}
+	std::string eqText(int f, float p) {
+		if (f == EQ_LSHV || f == EQ_HSHV)
+			return p > 0.5f ? "SHV" : "PEQ";
+		if (eqSwitch(f))
+			return p > 0.5f ? "1" : "0";
+		if (eqGain(f))
+			return string::f("%.1f", clamp(p, -15.f, 15.f));
+		float v = eqValue(f, p);
+		return v < 100.f ? string::f("%.2f", v) : string::f("%.0f", v);
+	}
+
+	// ---- WING-EQ: its panel <-> the channel's EQ
+	void controlEq(float dt, bool connected) {
+		WingEq* em = eqMod.load();
+		if (em != eqSeen) {
+			eqSeen = em;
+			eqKeySeen = -1;
+		}
+		if (!em)
+			return;
+		int cur = eqKeySeen >= 0 ? eqKeySeen : em->fixedKey.load();
+		if (eqPrevT.process(em->params[WingEq::PREV_PARAM].getValue() > 0.f)) {
+			em->fixedKey = eqStepKey(cur, -1);
+			em->mode = WingEq::M_FIXED;
+		}
+		if (eqNextT.process(em->params[WingEq::NEXT_PARAM].getValue() > 0.f)) {
+			em->fixedKey = eqStepKey(cur, +1);
+			em->mode = WingEq::M_FIXED;
+		}
+		int key;
+		if (em->mode == WingEq::M_STRIP)
+			key = metaKey(target(clamp(em->strip.load(), 0, NT - 1)));
+		else if (em->mode == WingEq::M_SELECT)
+			key = selKey >= 0 ? selKey : cur;
+		else
+			key = em->fixedKey;
+		P::Tgt t = keyTgt(key);
+		if (!t.ok() || (t.type != P::T_CH && t.type != P::T_AUX))
+			key = -1;
+		if (key != eqKeySeen) {
+			// another channel: keep the knobs until the WING answers, ask it
+			eqKeySeen = key;
+			em->shownKey = key;
+			em->model = -1;
+			for (int f = 0; f < NEQ; f++) {
+				eqs[f] = Sync();
+				eqs[f].local = em->params[f].getValue();
+			}
+			if (key >= 0 && connected && sysexOk) {
+				askEq();
+				askMetaKey(key);
+			}
+		}
+		if (eqFlatT.process(em->params[WingEq::FLAT_PARAM].getValue() > 0.f))
+			for (int b = 0; b < NBAND; b++)
+				em->params[eqG(b)].setValue(0.f);
+		// CV: GAIN ±5 V = ±15 dB, FREQ / Q / the filters 0–10 V, EQ ON a gate
+		for (int f = 0; f < NEQ; f++) {
+			int in = eqInput(f);
+			if (in < 0 || !em->inputs[in].isConnected())
+				continue;
+			float v = em->inputs[in].getVoltage();
+			if (eqGain(f))
+				em->params[f].setValue(clamp(v * 3.f, -15.f, 15.f));
+			else if (f == EQ_ON)
+				em->params[f].setValue(v >= 1.f ? 1.f : 0.f);
+			else
+				em->params[f].setValue(clamp(v / 10.f, 0.f, 1.f));
+		}
+		for (int f = 0; f < NEQ; f++) {
+			Sync& y = eqs[f];
+			float v = em->params[f].getValue();
+			if (v != y.local) {
+				y.local = v;
+				if (key >= 0 && connected && !(std::fabs(v - y.wing) < 1e-4f)) {
+					y.dirty = true;
+					y.hold = 0.4f;
+				}
+			}
+			y.hold = std::max(0.f, y.hold - dt);
+		}
+		em->lights[WingEq::ON_LIGHT].setBrightness(em->params[EQ_ON].getValue() > 0.5f ? 1.f : 0.f);
+		em->lights[WingEq::LSHV_LIGHT].setBrightness(em->params[EQ_LSHV].getValue() > 0.5f ? 1.f : 0.f);
+		em->lights[WingEq::HSHV_LIGHT].setBrightness(em->params[EQ_HSHV].getValue() > 0.5f ? 1.f : 0.f);
+		em->lights[WingEq::LC_LIGHT].setBrightness(em->params[EQ_LC].getValue() > 0.5f ? 1.f : 0.f);
+		em->lights[WingEq::HC_LIGHT].setBrightness(em->params[EQ_HC].getValue() > 0.5f ? 1.f : 0.f);
+		// SELECT on the WING: asked often
+		if (em->mode == WingEq::M_SELECT && connected && sysexOk) {
+			selTimer -= dt;
+			if (selTimer <= 0.f && !selAsked) {
+				selTimer = 0.3f;
+				selAsked = true;
+				queries.push_front({5, 0, 0});
+			}
+		}
+	}
+
 	void askFx(int slot, bool model) {
 		if (model)
 			queries.push_back({1, slot, FMODEL});
@@ -532,6 +681,54 @@ struct WingLink : Module {
 					return;
 			}
 			m.known = true;
+			return;
+		}
+		if (qNow.kind == 5) {
+			// the channel selected on the WING: 1–40 CH, 41–48 AUX (buses … have no channel EQ)
+			float v;
+			if (P::number(text, &v)) {
+				int n = (int) std::round(v);
+				if (n >= 1 && n <= 40)
+					selKey = metaKey(P::tgt(P::T_CH, n));
+				else if (n >= 41 && n <= 48)
+					selKey = metaKey(P::tgt(P::T_AUX, n - 40));
+			}
+			return;
+		}
+		if (qNow.kind == 4) {
+			if (qNow.s != eqKeySeen)
+				return;  // (another channel meanwhile)
+			std::string t;
+			for (char ch : text)
+				if (ch != '"' && ch != ' ' && ch != '\n' && ch != '\r')
+					t += ch;
+			int f = qNow.f;
+			if (f == EQ_MDL) {
+				if (WingEq* em = eqMod.load())
+					for (int i = 0; i < 7; i++)
+						if (t == EQ_MODELS[i])
+							em->model = i;
+				return;
+			}
+			if (f == EQ_LSHV || f == EQ_HSHV) {
+				if (t == "SHV" || t == "PEQ")
+					fromWingEq(f, t == "SHV" ? 1.f : 0.f);
+				return;
+			}
+			float v;
+			if (!P::number(t, &v))
+				return;
+			if (eqSwitch(f))
+				fromWingEq(f, v > 0.5f ? 1.f : 0.f);
+			else if (eqGain(f)) {
+				if (v >= -15.5f && v <= 15.5f)
+					fromWingEq(f, clamp(v, -15.f, 15.f));
+			}
+			else {
+				float lo, hi;
+				if (eqLogRange(f, &lo, &hi) && v >= lo * 0.9f && v <= hi * 1.1f)
+					fromWingEq(f, eqParam(f, v));
+			}
 			return;
 		}
 		if (qNow.kind == 2) {
@@ -1073,6 +1270,7 @@ struct WingLink : Module {
 			}
 		}
 		controlFx(dt, connected);
+		controlEq(dt, connected);
 		if (!connected)
 			return;
 
@@ -1153,9 +1351,24 @@ struct WingLink : Module {
 				outbox.pop_front();
 				sent = true;
 			}
-			const int NSTRIP = NT * NF, NALL = NSTRIP + NSLOT * NFX;
+			const int NSTRIP = NT * NF, NFXALL = NSLOT * NFX, NALL = NSTRIP + NFXALL + NEQ;
 			for (int n = 0; n < NALL && !sent; n++) {
 				int i = (sendRR + n) % NALL;
+				if (i >= NSTRIP + NFXALL) {
+					int f = i - NSTRIP - NFXALL;
+					Sync& y = eqs[f];
+					if (!y.dirty)
+						continue;
+					y.dirty = false;
+					if (!sysexOk || eqKeySeen < 0)
+						continue;
+					sendSet(P::tgtNode(keyTgt(eqKeySeen)) + "." + eqNode(f) + "=" + eqText(f, y.local));
+					y.wing = y.local;
+					y.hold = 0.4f;
+					sendRR = i + 1;
+					sent = true;
+					break;
+				}
 				if (i >= NSTRIP) {
 					int slot = (i - NSTRIP) / NFX, f = (i - NSTRIP) % NFX;
 					Sync& y = fxs[slot].f[f];
@@ -1214,6 +1427,7 @@ struct WingLink : Module {
 			if (pullAll) {
 				pullAll = false;
 				queries.clear();
+				selAsked = false;
 				for (int s = 0; s < NT; s++)
 					if (active(s)) {
 						for (int f = 0; f < NF; f++)
@@ -1224,6 +1438,10 @@ struct WingLink : Module {
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
 						askFx(fm->first + j, true);
+				if (eqMod.load() && eqKeySeen >= 0) {
+					askEq();
+					askMetaKey(eqKeySeen);
+				}
 				for (int ch = 8; ch < 16; ch++) {  // FX: ask the WING for its CCs (ON has no other way)
 					sendCc(ch, 9, ch - 8);
 					sendCc(ch, 9, ch - 8 + 8);
@@ -1242,6 +1460,10 @@ struct WingLink : Module {
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
 						askFx(fm->first + j, true);
+				if (eqMod.load() && eqKeySeen >= 0) {
+					askEq();
+					askMetaKey(eqKeySeen);
+				}
 				for (int c = 0; c < 2; c++)
 					for (int f = 0; f < 4; f++)
 						queries.push_back({2, c, f});
@@ -1293,6 +1515,15 @@ struct WingLink : Module {
 						const char* what = qNow.f == M_NAME ? "name" : (qNow.f == M_COL ? "col" : "icon");
 						send(P::getPath(metaNode(t, m) + "." + what));
 					}
+				}
+				else if (qNow.kind == 4) {
+					if (qNow.s != eqKeySeen)
+						continue;
+					send(P::getPath(P::tgtNode(keyTgt(qNow.s)) + "." + (qNow.f == EQ_MDL ? std::string("eq.mdl") : eqNode(qNow.f))));
+				}
+				else if (qNow.kind == 5) {
+					selAsked = false;
+					send(P::getPath("/$ctl.$stat.selidx"));
 				}
 				else if (qNow.kind == 2) {
 					static const char* const SDQ[4] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate"};
@@ -1517,6 +1748,10 @@ void Satellite::onRemove(const RemoveEvent& e) {
 	if (hostAlive(h)) {
 		WingLinkX* x = dynamic_cast<WingLinkX*>(this);
 		WingFx* f = dynamic_cast<WingFx*>(this);
+		if (WingEq* q = dynamic_cast<WingEq*>(this)) {
+			WingEq* cur = q;
+			h->eqMod.compare_exchange_strong(cur, nullptr);
+		}
 		if (x) {
 			WingLinkX* cur = x;
 			h->xMod.compare_exchange_strong(cur, nullptr);
@@ -1594,6 +1829,10 @@ void linkPanels(Satellite* s) {
 			WingFx* cur = f;
 			old->fxMod.compare_exchange_strong(cur, nullptr);
 		}
+		if (WingEq* q = dynamic_cast<WingEq*>(s)) {
+			WingEq* cur = q;
+			old->eqMod.compare_exchange_strong(cur, nullptr);
+		}
 	}
 	s->host = h;
 	if (!h)
@@ -1607,6 +1846,11 @@ void linkPanels(Satellite* s) {
 		WingFx* cur = h->fxMod.load();
 		if (!cur || cur->host.load() != h)
 			h->fxMod = f;
+	}
+	if (WingEq* q = dynamic_cast<WingEq*>(s)) {
+		WingEq* cur = h->eqMod.load();
+		if (!cur || cur->host.load() != h)
+			h->eqMod = q;
 	}
 }
 
@@ -2061,6 +2305,8 @@ struct StatusDisplay : Widget {
 				stx = "●  WING · MIDI OK · SYSEX OK";
 				if (module->fxMod.load())
 					stx += " · FX";
+				if (module->eqMod.load())
+					stx += " · EQ";
 				c = OK;
 				std::lock_guard<std::mutex> lock(module->errMutex);
 				if (module->errorAge < 20.f) {
@@ -2308,6 +2554,11 @@ struct WingLinkWidget : ModuleWidget {
 				WingFx* cur = f;
 				m->fxMod.compare_exchange_strong(cur, nullptr);
 			}
+		if (WingEq* q = m->eqMod.load())
+			if (q->host.load() != m) {
+				WingEq* cur = q;
+				m->eqMod.compare_exchange_strong(cur, nullptr);
+			}
 		if (m->autoMidi) {
 			auto pick = [&](midi::Port* port, bool in) {
 				int cur = port->getDeviceId();
@@ -2540,6 +2791,18 @@ float hostWingBpm(WingLink* h, int* slot) {
 	return h->wingBpm;
 }
 bool hostLinked(WingLink* h, WingFx* f) { return h && h->fxMod.load() == f; }
+
+// ---------------------------------------------------------------- for WING-EQ's panel (src/WingEq.cpp)
+bool hostLinkedEq(WingLink* h, WingEq* e) { return h && h->eqMod.load() == e; }
+Meta hostMetaOf(WingLink* h, int key) {
+	if (!h)
+		return Meta();
+	std::lock_guard<std::mutex> lock(h->metaMutex);
+	auto it = h->meta.find(key);
+	return it == h->meta.end() ? Meta() : it->second;
+}
+std::string hostStripLabel(WingLink* h, int s) { return h ? P::tgtLabel(h->target(s)) : ""; }
+bool hostHasX(WingLink* h) { return h && h->xMod.load(); }
 
 }  // namespace winglink
 

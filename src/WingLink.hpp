@@ -36,6 +36,66 @@ static const int FTIME = 101;   // (a query: the delay time, for the tempo)
 inline int fxPid(int j, int f) { return j * NFX + f; }
 inline int fxCv(int j, int k) { return j * 5 + k; }  // k: 0 MIX, 1..4 P1..P4
 
+// ---------------------------------------------------------------- WING-EQ's parameters (a channel's STD EQ and filter)
+// bands b = 0 LOW, 1..4 BAND 1–4, 5 HIGH; each GAIN (dB), FREQ and Q (0..1, logarithmic)
+enum EqField { EQ_ON = 0, EQ_BAND = 1, EQ_LSHV = 19, EQ_HSHV, EQ_LC, EQ_LCF, EQ_HC, EQ_HCF, NEQ };
+static const int NBAND = 6;
+static const int EQ_MDL = 100;  // (a query: the EQ model)
+inline int eqG(int b) { return EQ_BAND + b * 3; }
+inline int eqF(int b) { return EQ_BAND + b * 3 + 1; }
+inline int eqQ(int b) { return EQ_BAND + b * 3 + 2; }
+inline bool eqSwitch(int f) { return f == EQ_ON || f == EQ_LSHV || f == EQ_HSHV || f == EQ_LC || f == EQ_HC; }
+inline bool eqGain(int f) { return f >= EQ_BAND && f < EQ_LSHV && (f - EQ_BAND) % 3 == 0; }
+/** A logarithmic field's range (FREQ, Q, the filters' frequencies): lo..hi; false for the others. */
+inline bool eqLogRange(int f, float* lo, float* hi) {
+	if (f == EQ_LCF) { *lo = 20.f; *hi = 2000.f; return true; }
+	if (f == EQ_HCF) { *lo = 50.f; *hi = 20000.f; return true; }
+	if (f < EQ_BAND || f >= EQ_LSHV || eqGain(f))
+		return false;
+	int b = (f - EQ_BAND) / 3;
+	if ((f - EQ_BAND) % 3 == 2) { *lo = 0.44f; *hi = 10.f; return true; }
+	*lo = b == 5 ? 50.f : 20.f;
+	*hi = b == 0 ? 2000.f : 20000.f;
+	return true;
+}
+/** The knob (0..1, or dB for a gain, 0 / 1 for a switch) → the WING's value, and back. */
+inline float eqValue(int f, float p) {
+	float lo, hi;
+	if (eqLogRange(f, &lo, &hi))
+		return lo * std::pow(hi / lo, clamp(p, 0.f, 1.f));
+	return p;
+}
+inline float eqParam(int f, float v) {
+	float lo, hi;
+	if (eqLogRange(f, &lo, &hi))
+		return clamp(std::log(std::max(v, lo) / lo) / std::log(hi / lo), 0.f, 1.f);
+	return v;
+}
+/** The node below the channel (eq.lg, flt.lcf …). */
+inline std::string eqNode(int f) {
+	static const char* const B[NBAND] = {"l", "1", "2", "3", "4", "h"};
+	static const char* const K[3] = {"g", "f", "q"};
+	switch (f) {
+		case EQ_ON: return "eq.on";
+		case EQ_LSHV: return "eq.leq";
+		case EQ_HSHV: return "eq.heq";
+		case EQ_LC: return "flt.lc";
+		case EQ_LCF: return "flt.lcf";
+		case EQ_HC: return "flt.hc";
+		case EQ_HCF: return "flt.hcf";
+		default: return std::string("eq.") + B[(f - EQ_BAND) / 3] + K[(f - EQ_BAND) % 3];
+	}
+}
+/** A frequency as the panels show it (80 Hz, 2k5, 12k). */
+inline std::string freqText(float v) {
+	if (v < 1000.f)
+		return string::f("%.0f Hz", v);
+	if (v < 10000.f)
+		return string::f("%dk%d", (int) (v / 1000.f), (int) std::fmod(v / 100.f, 10.f));
+	return string::f("%.0fk", v / 1000.f);
+}
+static const char* const EQ_MODELS[7] = {"STD", "SOUL", "E88", "E84", "F110", "PULSAR", "MACH4"};
+
 /** What we know of a value both sides change. */
 struct Sync {
 	float wing = NAN;   // what the WING has (as far as we know)
@@ -118,6 +178,34 @@ struct WingFx : Satellite {
 	void dataFromJson(json_t* root) override;
 };
 
+struct WingEq : Satellite {
+	enum ParamId { PREV_PARAM = NEQ, NEXT_PARAM, FLAT_PARAM, NUM_PARAMS };
+	enum InputId { CV_LC = NBAND * 3, CV_HC, CV_ON, NUM_INPUTS };  // band b: b * 3 + 0 GAIN, 1 FREQ, 2 Q
+	enum LightId { ON_LIGHT, LSHV_LIGHT, HSHV_LIGHT, LC_LIGHT, HC_LIGHT, NUM_LIGHTS };
+	enum Mode { M_STRIP, M_FIXED, M_SELECT };
+	std::atomic<int> mode{M_STRIP};
+	std::atomic<int> strip{0};       // (M_STRIP) the strip of WING-LINK (0..15) whose channel it shows
+	std::atomic<int> fixedKey{101};  // (M_FIXED) the channel: type * 100 + number (101: CH 1)
+	std::atomic<int> shownKey{-1};   // (the engine) the channel shown; −1: none (not a channel)
+	std::atomic<int> model{-1};      // the channel's EQ model on the WING (index into EQ_MODELS), −1 unknown
+	WingEq();
+	bool dockLeft() override { return false; }
+	json_t* dataToJson() override;
+	void dataFromJson(json_t* root) override;
+};
+/** The input that moves a field (−1: none). */
+inline int eqInput(int f) {
+	if (f >= EQ_BAND && f < EQ_LSHV)
+		return f - EQ_BAND;
+	if (f == EQ_LCF)
+		return WingEq::CV_LC;
+	if (f == EQ_HCF)
+		return WingEq::CV_HC;
+	if (f == EQ_ON)
+		return WingEq::CV_ON;
+	return -1;
+}
+
 bool hostAlive(WingLink* h);
 void linkPanels(Satellite* s);
 void appendLinkMenu(Menu* menu, Satellite* s);
@@ -128,5 +216,9 @@ void requestFxModel(WingLink* h, int slot, int model);
 float hostRackBpm(WingLink* h);
 float hostWingBpm(WingLink* h, int* slot);
 bool hostLinked(WingLink* h, WingFx* f);
+bool hostLinkedEq(WingLink* h, WingEq* e);
+Meta hostMetaOf(WingLink* h, int key);
+std::string hostStripLabel(WingLink* h, int s);
+bool hostHasX(WingLink* h);
 
 }  // namespace winglink

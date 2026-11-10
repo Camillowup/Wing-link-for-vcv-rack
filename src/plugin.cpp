@@ -8,4 +8,5 @@ void init(Plugin* p) {
 	p->addModel(modelWingLink);
 	p->addModel(modelWingLinkX);
 	p->addModel(modelWingFx);
+	p->addModel(modelWingEq);
 }

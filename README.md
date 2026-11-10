@@ -5,8 +5,9 @@ im Look des GENRA-Plugins.
 
 ![Panel](docs/panel.png)
 
-- **WING-LINK**: 8 Spuren. **WING-LINK X**: 8 Spuren mehr. **WING-FX**: die 16 Effekte der WING.
-- WING-LINK X und WING-FX verbinden sich **von selbst**, wenn es nur ein WING-LINK im Patch gibt. Sonst per
+- **WING-LINK**: 8 Spuren. **WING-LINK X**: 8 Spuren mehr. **WING-FX**: die 16 Effekte der WING. **WING-EQ**: EQ und
+  Filter eines Kanals.
+- WING-LINK X, WING-FX und WING-EQ verbinden sich **von selbst**, wenn es nur ein WING-LINK im Patch gibt. Sonst per
   Rechtsklick › *Connect to WING-LINK*, oder angedockt (X rechts neben WING-LINK, FX links daneben).
 - **Audio**: Was in die AUDIO-Buchsen geht, landet direkt auf den USB-Eingängen der WING. WING-LINK ist dafür
   selbst ein Audio-Ausgang (wie Racks Audio-Modul), ein Audio-16-Modul braucht es nicht.
@@ -66,6 +67,20 @@ im Look des GENRA-Plugins.
 - **Tempo**: *SYNC an*: die Delays übernehmen Racks Tempo (CLOCK IN oder TAP). *SYNC aus*: das Tempo kommt von der
   WING (dort tappen), CLOCK OUT gibt es an Rack weiter. Auflösung von CLOCK IN / OUT per Rechtsklick (Standard 16tel).
 - An der WING zusätzlich unter *Setup › Remote › MIDI Remote Control* die **FX-Steuerung** für USB erlauben.
+
+## WING-EQ
+
+![WING-EQ](docs/panel_eq.png)
+
+- Der **Standard-EQ (STD)** eines WING-Kanals: LOW, BAND 1–4, HIGH mit GAIN, FREQ und Q, LOW und HIGH als Shelf
+  oder Peak (**SHV**), dazu **LO CUT** und **HI CUT** des Kanals. Alles in beide Richtungen.
+- Oben die **Kurve**, gerechnet aus den Reglern; jedes Band als farbiger Punkt.
+- **Kanal**: ◀ ▶ blättert durch CH 1–40 und AUX 1–8. Klick aufs Display: einer Spur von WING-LINK folgen, dem an der
+  WING mit **SELECT** gewählten Kanal folgen, oder einen Kanal fest wählen.
+- **ON** schaltet den EQ, **FLAT** setzt alle Gains auf 0 dB.
+- **CV**: GAIN ±5 V = ±15 dB, FREQ / Q / LO CUT / HI CUT 0–10 V, EQ ON als Gate.
+- Hat der Kanal an der WING ein anderes EQ-Modell (SOUL, E88 …), zeigt das Display eine Warnung: WING-EQ steuert nur
+  den STD-EQ.
 
 ## Gut zu wissen
 

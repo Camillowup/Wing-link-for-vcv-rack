@@ -1,7 +1,7 @@
 {
   "slug": "WingLink",
   "name": "WING-LINK",
-  "version": "2.3.3",
+  "version": "2.4.0",
   "license": "GPL-3.0-only",
   "brand": "WING-LINK",
   "author": "Bastian Ofner",
@@ -42,6 +42,16 @@
         "Effect",
         "Controller",
         "Clock generator"
+      ]
+    },
+    {
+      "slug": "WingEq",
+      "name": "WING-EQ",
+      "description": "The STD EQ and the filters of a WING channel from Rack: six bands with gain, frequency and Q, low and high cut, the curve, both ways, CV; the channel follows a strip, SELECT on the WING or pages with buttons (a panel of WING-LINK)",
+      "tags": [
+        "External",
+        "Equalizer",
+        "Controller"
       ]
     }
   ]
