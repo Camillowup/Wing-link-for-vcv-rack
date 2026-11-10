@@ -139,8 +139,16 @@ struct FxSlot {
 struct WingLink;
 
 /** WING-LINK X and WING-FX: panels of a WING-LINK. */
+/** (UI thread) The last frame's duration; Rack gives NaN on the very first frame after starting (a NaN would stop every
+ *  timer that counts down with it for good). */
+inline float frameDt() {
+	double d = APP->window->getLastFrameDuration();
+	return std::isfinite(d) && d > 0.0 ? (float) std::min(d, 1.0) : 0.f;
+}
+
 struct Satellite : Module {
 	std::atomic<int64_t> linkId{-1};          // a chosen WING-LINK (−1: docked, or the only one)
+	std::atomic<int64_t> lastId{-1};          // the WING-LINK it was linked to last (saved: it finds it again)
 	std::atomic<WingLink*> host{nullptr};     // the WING-LINK it belongs to (set by the UI)
 	virtual bool dockLeft() = 0;              // the WING-LINK is on its left (WING-LINK X) or right (WING-FX)
 	WingLink* hostSafe();                     // (UI thread) the host if it still exists

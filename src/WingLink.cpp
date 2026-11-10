@@ -1864,11 +1864,14 @@ Satellite::~Satellite() {}
 json_t* Satellite::dataToJson() {
 	json_t* root = json_object();
 	json_object_set_new(root, "linkId", json_integer(linkId));
+	json_object_set_new(root, "lastId", json_integer(lastId));
 	return root;
 }
 void Satellite::dataFromJson(json_t* root) {
 	if (json_t* j = json_object_get(root, "linkId"))
 		linkId = json_integer_value(j);
+	if (json_t* j = json_object_get(root, "lastId"))
+		lastId = json_integer_value(j);
 }
 
 WingLinkX::WingLinkX() {
@@ -1899,10 +1902,15 @@ static WingLink* findHost(Satellite* s) {
 	int64_t id = s->linkId;
 	if (id >= 0) {
 		Module* m = APP->engine->getModule(id);
-		return (m && m->model == modelWingLink) ? static_cast<WingLink*>(m) : nullptr;
+		if (m && m->model == modelWingLink)
+			return static_cast<WingLink*>(m);
+		// (the chosen one is gone: as on Auto)
 	}
+	// the one it was linked to (also after loading the patch), else the only one
 	WingLink* only = nullptr;
 	WingLink* cur = s->host.load();
+	WingLink* last = nullptr;
+	int64_t lastId = s->lastId;
 	bool several = false, curThere = false;
 	for (int64_t mid : APP->engine->getModuleIds()) {
 		Module* m = APP->engine->getModule(mid);
@@ -1912,11 +1920,15 @@ static WingLink* findHost(Satellite* s) {
 			only = static_cast<WingLink*>(m);
 			if (m == cur)
 				curThere = true;
+			if (mid == lastId)
+				last = static_cast<WingLink*>(m);
 		}
 	}
-	if (several)
-		return curThere ? cur : nullptr;  // several: it stays with its own (or pick one by right-click)
-	return only;
+	if (curThere)
+		return cur;
+	if (last)
+		return last;
+	return several ? nullptr : only;  // several and none known: pick one by right-click
 }
 
 /** (UI thread, now and then) Link the panels: each finds its WING-LINK, each WING-LINK learns its panels. */
@@ -1940,6 +1952,7 @@ void linkPanels(Satellite* s) {
 	s->host = h;
 	if (!h)
 		return;
+	s->lastId = h->id;
 	if (WingLinkX* x = dynamic_cast<WingLinkX*>(s)) {
 		WingLinkX* cur = h->xMod.load();
 		if (!cur || cur->host.load() != h)
@@ -2635,7 +2648,7 @@ struct WingLinkWidget : ModuleWidget {
 			return;
 		// the MIDI log: write what the engine noted
 		if (m->logLeft > 0.f || !m->logLines.empty()) {
-			float left = m->logLeft - APP->window->getLastFrameDuration();
+			float left = m->logLeft - frameDt();
 			m->logLeft = std::max(0.f, left);
 			std::vector<std::string> lines;
 			{
@@ -2652,7 +2665,7 @@ struct WingLinkWidget : ModuleWidget {
 				}
 			}
 		}
-		scan -= APP->window->getLastFrameDuration();
+		scan -= frameDt();
 		if (scan > 0.f)
 			return;
 		scan = 2.f;
@@ -2869,7 +2882,7 @@ struct WingLinkXWidget : ModuleWidget {
 	}
 	void step() override {
 		ModuleWidget::step();
-		scan -= APP->window->getLastFrameDuration();
+		scan -= frameDt();
 		if (module && scan <= 0.f) {
 			scan = 0.5f;
 			linkPanels(static_cast<Satellite*>(module));

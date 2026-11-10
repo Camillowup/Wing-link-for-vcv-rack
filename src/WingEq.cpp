@@ -445,7 +445,7 @@ struct WingEqWidget : ModuleWidget {
 	}
 	void step() override {
 		ModuleWidget::step();
-		scan -= APP->window->getLastFrameDuration();
+		scan -= frameDt();
 		if (module && scan <= 0.f) {
 			scan = 0.5f;
 			linkPanels(static_cast<Satellite*>(module));
