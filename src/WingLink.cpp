@@ -397,7 +397,7 @@ struct WingLink : Module {
 		if (!lock.owns_lock())
 			return;
 		// the strips whose channel takes their AUDIO jack (the channel = AUDIO's home; paged away: not these)
-		int n = 0, fits = 0, k = -1;
+		int n = 0, fits = 0, k = -1, want = 0;
 		bool same = true;
 		for (int s = 0; s < NT; s++) {
 			if (!active(s) || st[s].tType != 0)
@@ -405,9 +405,10 @@ struct WingLink : Module {
 			P::Tgt t = target(s), home = P::inputTgt(audioStart + s);
 			if (t.type != home.type || t.n != home.n)
 				continue;
+			want++;
 			auto it = meta.find(metaKey(t));
-			if (it == meta.end() || it->second.grp.empty() || it->second.in <= 0)
-				continue;
+			if (it == meta.end() || it->second.grp.empty() || (it->second.grp == "USB" && it->second.in <= 0))
+				continue;  // (its source isn't known yet)
 			const Meta& m = it->second;
 			n++;
 			if (m.grp == "USB" && m.in == usbOf(s))
@@ -423,6 +424,10 @@ struct WingLink : Module {
 		}
 		if (fresh) {
 			// a new WING-LINK: AUDIO goes where the WING (its snapshot) takes it from, no SYNC needed
+			if (n < want) {
+				routeWrong = false;  // (wait until every channel's source is known)
+				return;
+			}
 			fresh = false;
 			if (same && fits < n && k + n - 1 <= 48) {
 				usbMode = k == audioStart ? 0 : k;
