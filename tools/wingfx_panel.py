@@ -63,10 +63,10 @@ for i in range(4):
     p.e(f'<rect x="{x0 + 0.4:.2f}" y="23.5" width="{SP - 0.8:.2f}" height="84.6" rx="1.2" fill="{wl.PLATE}"/>')
     p.area(f"HEAD{n}", x0 + 0.4, 23.5, SP - 0.8, 6.6)       # slot number, PREMIUM / STANDARD, colour bar (drawn)
     p.button(f"ON{n}", x0 + SP - 5.2, 27.6)
-    p.e(f'<rect x="{x0 + 1.4:.2f}" y="32.0" width="{SP - 2.8:.2f}" height="6.2" rx="0.8" fill="{wl.DARK}"/>')
-    p.area(f"MODEL{n}", x0 + 1.4, 32.0, SP - 2.8, 6.2)        # the model: a click opens the list
-    p.mknob(f"MIX{n}", cx, 47.0)
-    p.text(cx, 56.2, "MIX", 1.5, wl.TXT, 700, "middle", 0.3)
+    p.e(f'<rect x="{x0 + 1.4:.2f}" y="32.0" width="{SP - 2.8:.2f}" height="13.4" rx="0.8" fill="{wl.DARK}"/>')
+    p.area(f"MODEL{n}", x0 + 1.4, 32.0, SP - 2.8, 13.4)        # the model: a click opens the list
+    p.knob(f"MIX{n}", cx, 51.0)
+    p.text(cx, 57.9, "MIX", 1.5, wl.TXT, 700, "middle", 0.3)
     for k, (dx, y) in enumerate(((-6.2, 63.5), (6.2, 63.5), (-6.2, 78.5), (6.2, 78.5))):
         p.knob(f"P{k + 1}_{n}", cx + dx, y)
         p.area(f"LBL{k + 1}_{n}", cx + dx - 6.0, y + 4.9, 12.0, 5.2)   # name and value (drawn)
@@ -135,15 +135,38 @@ for i, (mdl, tag, col, prm) in enumerate(MOCK):
     put(f"FX {i + 1}", x + 1.4, y + 4.4, 2.1, col, 800, "start", 0.5)
     put(tag, x + 9.6, y + 4.2, 1.3, "#ffd84a", 800, "start", 0.25)
     x, y, w, h = p.areas[f"MODEL{i + 1}"]
-    put(mdl, x + 1.5, y + 4.3, 2.3, "#ffffff", 800, "start", 0.3)
-    o.insert(-1, f'<path d="M{x + w - 3.4:.2f} {y + 2.5:.2f} h2.2 l-1.1 1.4 z" fill="#5d606b"/>')
+    put(mdl, x + 1.5, y + 4.0, 2.1, "#ffffff", 800, "start", 0.3)
+    o.insert(-1, f'<path d="M{x + w - 3.4:.2f} {y + 2.2:.2f} h2.2 l-1.1 1.4 z" fill="#5d606b"/>')
+    # the effect's picture (the module draws it from the knobs)
+    import math
+    gx, gy, gw, gh = x + 1.2, y + 5.6, w - 2.4, h - 6.6
+    base = gy + gh
+    o.insert(-1, f'<line x1="{gx}" y1="{base:.2f}" x2="{gx + gw}" y2="{base:.2f}" stroke="#34363f" stroke-width="0.2"/>')
+    if mdl in ("HALL", "PLATE"):
+        dec = 1.0 if mdl == "HALL" else 0.6
+        st = gx + (2.4 if mdl == "HALL" else 1.6)
+        o.insert(-1, f'<rect x="{gx + 0.3:.2f}" y="{gy + 0.4:.2f}" width="0.7" height="{gh - 0.4:.2f}" fill="#f2f3f7"/>')
+        pts = " ".join(f"{st + u / 40 * (gx + gw - st):.2f},{base - (gh - 0.6) * math.exp(-u / 40 * 3.2 / dec):.2f}" for u in range(41))
+        o.insert(-1, f'<polygon points="{st:.2f},{base:.2f} {pts} {gx + gw:.2f},{base:.2f}" fill="{col}" fill-opacity="0.22"/>')
+        o.insert(-1, f'<polyline points="{pts}" fill="none" stroke="{col}" stroke-width="0.35"/>')
+    elif mdl == "ST-DL":
+        hh, k = gh - 0.6, 0
+        while gx + 0.6 + k * 3.9 < gx + gw:
+            o.insert(-1, f'<rect x="{gx + 0.6 + k * 3.9:.2f}" y="{base - hh:.2f}" width="0.8" height="{hh:.2f}" fill="{col if k % 2 == 0 else "#c9ccd4"}"/>')
+            hh *= 0.65
+            k += 1
+    else:
+        mid = gy + gh / 2
+        for ph, c2, wd in ((0, col, 0.35), (1.57, "#c9ccd4", 0.28)):
+            pts = " ".join(f"{gx + u / 60 * gw:.2f},{mid + math.sin(u / 60 * 2 * math.pi * 2.2 + ph) * gh * 0.42:.2f}" for u in range(61))
+            o.insert(-1, f'<polyline points="{pts}" fill="none" stroke="{c2}" stroke-width="{wd}"/>')
     for k, (nm, val) in enumerate(prm):
         x, y, w, h = p.areas[f"LBL{k + 1}_{i + 1}"]
         put(nm, x + w / 2, y + 1.4, 1.4, wl.TXT, 700)
         put(val, x + w / 2, y + 3.6, 1.35, wl.DIM, 600)
 x, y, w, h = p.areas["DISPLAY"]
 put("FX 1 – 4", x + 3, y + 4.6, 3.4, "#ffffff", 800, "start", 0.2)
-put("●  LINKED TO WING-LINK  ·  SYNC: RACK TEMPO", x + 3, y + 8.1, 1.5, wl.ACC, 700, "start", 0.2)
+put("●  LINKED TO WING-LINK  ·  SYNC: RACK TEMPO", x + 3, y + 8.1, 1.5, "#b8f23a", 700, "start", 0.2)
 put("CLOCK IN 16THS  ·  FX 2 TIME = 1/4", x + 3, y + 10.2, 1.4, wl.DIM, 600, "start", 0.2)
 x, y, w, h = p.areas["STEP"]
 put("4", x + w / 2, y + 4.4, 3.0, "#ffffff", 800)

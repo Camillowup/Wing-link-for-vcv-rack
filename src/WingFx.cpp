@@ -5,6 +5,7 @@
 // (the first delay's time), and CLOCK out sends the tempo in use. Panel: tools/wingfx_panel.py.
 #include "WingLink.hpp"
 #include "WingFxLayout.hpp"
+#include <cstring>
 #include <sstream>
 
 namespace winglink {
@@ -70,6 +71,13 @@ WingFx::WingFx() {
 	configOutput(CLOCK_OUTPUT, "Clock (the tempo in use)");
 }
 
+void WingFx::process(const ProcessArgs& args) {
+	// the lit buttons (also without a WING-LINK)
+	for (int j = 0; j < NPAGE; j++)
+		lights[ON_LIGHT + j].setBrightness(params[fxPid(j, FON)].getValue() > 0.5f ? 1.f : 0.f);
+	lights[SYNC_LIGHT].setBrightness(params[SYNC_PARAM].getValue() > 0.5f ? 1.f : 0.f);
+}
+
 json_t* WingFx::dataToJson() {
 	json_t* root = Satellite::dataToJson();
 	json_object_set_new(root, "first", json_integer(first));
@@ -112,10 +120,14 @@ void WingFx::dataFromJson(json_t* root) {
 			}
 		}
 	}
+	auto ppq = [](json_t* j) {
+		int v = (int) json_integer_value(j);
+		return (v == 1 || v == 2 || v == 4 || v == 24) ? v : 4;
+	};
 	if (json_t* j = json_object_get(root, "ppqIn"))
-		ppqIn = clamp((int) json_integer_value(j), 1, 24);
+		ppqIn = ppq(j);
 	if (json_t* j = json_object_get(root, "ppqOut"))
-		ppqOut = clamp((int) json_integer_value(j), 1, 24);
+		ppqOut = ppq(j);
 }
 
 // ---------------------------------------------------------------- widgets
@@ -143,6 +155,199 @@ struct HeadWidget : Widget {
 	}
 };
 
+/** Which family an effect belongs to (the GROUPS: 0 reverbs, 1 delays, 2 modulation, 3 pitch, 4 EQ, 5 dynamics,
+ *  6 amps and tape, 7 modulation and filter, 8 enhance and bass), −1 none. */
+static const float PI_F = 3.14159265f;
+
+static int familyOf(int model) {
+	if (model <= 0)
+		return -1;
+	static int cache[F::NUM_MODELS];
+	static bool done = false;
+	if (!done) {
+		for (int m = 0; m < F::NUM_MODELS; m++)
+			cache[m] = 8;
+		for (int g = 0; g < F::NUM_GROUPS; g++) {
+			std::istringstream ss(F::GROUPS[g].models);
+			std::string n;
+			while (ss >> n) {
+				int i = F::modelIndex(n);
+				if (i > 0)
+					cache[i] = g;
+			}
+		}
+		done = true;
+	}
+	return cache[model];
+}
+
+/** The small picture of the effect (under its name), from the knobs shown: decay, echoes, LFO … */
+static void drawFxPicture(NVGcontext* vg, WingFx* m, int j, int model, float x, float y, float w, float h, NVGcolor c) {
+	int fam = familyOf(model);
+	// a knob's position by the parameter's key (the default when no knob shows it)
+	auto knobOf = [&](std::initializer_list<const char*> keys, float def) {
+		for (int k = 0; k < 4 && m; k++) {
+			const F::Param* p = m->knob(model, k);
+			if (!p)
+				continue;
+			for (const char* key : keys)
+				if (!std::strcmp(p->key, key))
+					return m->params[fxPid(j, FP1 + k)].getValue();
+		}
+		return def;
+	};
+	bool on = !m || m->params[fxPid(j, FON)].getValue() > 0.5f;
+	if (!on)
+		c = FAINT;
+	NVGcolor c2 = on ? nvgRGB(0xc9, 0xcc, 0xd4) : FAINT;
+	float base = y + h;
+	nvgStrokeWidth(vg, 0.6f);
+	nvgBeginPath(vg);
+	nvgMoveTo(vg, x, base);
+	nvgLineTo(vg, x + w, base);
+	nvgStrokeColor(vg, nvgRGB(0x34, 0x36, 0x3f));
+	nvgStroke(vg);
+	if (fam < 0)
+		return;
+	nvgSave(vg);
+	nvgScissor(vg, x, y - 1.f, w, h + 2.f);
+	auto line = [&](NVGcolor col, float width) {
+		nvgStrokeColor(vg, col);
+		nvgStrokeWidth(vg, width);
+		nvgLineJoin(vg, NVG_ROUND);
+		nvgStroke(vg);
+	};
+	switch (fam) {
+		case 0: {  // reverb: the direct sound, pre-delay, the decay
+			float pre = knobOf({"pdel"}, 0.2f), dec = knobOf({"dcy", "decay", "time"}, 0.5f);
+			nvgBeginPath(vg);
+			nvgRect(vg, x + mm2px(0.3f), y + mm2px(0.4f), mm2px(0.7f), h - mm2px(0.4f));
+			nvgFillColor(vg, on ? WHITE : FAINT);
+			nvgFill(vg);
+			float st = x + mm2px(1.4f) + pre * w * 0.25f, len = 0.15f + 1.1f * dec;
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, st, base);
+			for (int k = 0; k <= 40; k++) {
+				float u = k / 40.f;
+				nvgLineTo(vg, st + u * (x + w - st), base - (h - mm2px(0.6f)) * std::exp(-u * 3.2f / len));
+			}
+			nvgLineTo(vg, x + w, base);
+			nvgClosePath(vg);
+			NVGcolor f = c;
+			f.a = 0.22f;
+			nvgFillColor(vg, f);
+			nvgFill(vg);
+			nvgBeginPath(vg);
+			for (int k = 0; k <= 40; k++) {
+				float u = k / 40.f, px = st + u * (x + w - st), py = base - (h - mm2px(0.6f)) * std::exp(-u * 3.2f / len);
+				k ? nvgLineTo(vg, px, py) : nvgMoveTo(vg, px, py);
+			}
+			line(c, 1.1f);
+			break;
+		}
+		case 1: {  // delay: echoes, left and right, fading with the feedback
+			float t = knobOf({"time"}, 0.4f), fb = knobOf({"feed", "rep"}, 0.5f);
+			float gap = w * (0.06f + 0.12f * t), hh = h - mm2px(0.6f);
+			for (int k = 0; x + mm2px(0.6f) + k * gap < x + w; k++) {
+				nvgBeginPath(vg);
+				nvgRect(vg, x + mm2px(0.6f) + k * gap, base - hh, mm2px(0.8f), hh);
+				nvgFillColor(vg, k % 2 ? c2 : c);
+				nvgFill(vg);
+				hh *= 0.35f + 0.6f * fb;
+			}
+			break;
+		}
+		case 2:
+		case 7: {  // modulation: the LFO, left and right
+			float rate = knobOf({"spd", "speed", "rate", "sw"}, 0.4f), depth = knobOf({"depl", "depth", "range", "dep"}, 0.6f);
+			float mid = y + h / 2, amp = (h / 2 - mm2px(0.4f)) * (0.25f + 0.75f * depth), cyc = 1.f + 3.f * rate;
+			for (int side = 0; side < 2; side++) {
+				nvgBeginPath(vg);
+				for (int k = 0; k <= 60; k++) {
+					float u = k / 60.f, px = x + u * w, py = mid + std::sin(u * 2.f * PI_F * cyc + side * 1.57f) * amp;
+					k ? nvgLineTo(vg, px, py) : nvgMoveTo(vg, px, py);
+				}
+				line(side ? c2 : c, side ? 0.8f : 1.1f);
+			}
+			break;
+		}
+		case 3: {  // pitch: the voices as steps
+			float a = knobOf({"semi", "semia", "semi1"}, 0.7f), b = knobOf({"semib", "semi2", "cent"}, 0.35f);
+			for (int k = 0; k < 4; k++) {
+				nvgBeginPath(vg);
+				nvgMoveTo(vg, x, y + k * h / 4.f);
+				nvgLineTo(vg, x + w, y + k * h / 4.f);
+				line(nvgRGB(0x1d, 0x1f, 0x25), 0.6f);
+			}
+			nvgBeginPath(vg);
+			nvgRoundedRect(vg, x + w * 0.12f, base - a * h, w * 0.3f, mm2px(0.9f), 1.5f);
+			nvgFillColor(vg, c);
+			nvgFill(vg);
+			nvgBeginPath(vg);
+			nvgRoundedRect(vg, x + w * 0.58f, base - b * h, w * 0.3f, mm2px(0.9f), 1.5f);
+			nvgFillColor(vg, c2);
+			nvgFill(vg);
+			break;
+		}
+		case 4: {  // EQ: a curve through the four knobs (centre = 0 dB)
+			float g[4];
+			for (int k = 0; k < 4; k++)
+				g[k] = m ? m->params[fxPid(j, FP1 + k)].getValue() - 0.5f : 0.2f * (k % 2 ? -1 : 1);
+			float mid = y + h / 2;
+			nvgBeginPath(vg);
+			for (int k = 0; k <= 60; k++) {
+				float u = k / 60.f, d = 0.f;
+				for (int b = 0; b < 4; b++) {
+					float e = (u - (0.15f + b * 0.23f)) / 0.12f;
+					d += g[b] * std::exp(-e * e);
+				}
+				float px = x + u * w, py = mid - d * h * 0.9f;
+				k ? nvgLineTo(vg, px, py) : nvgMoveTo(vg, px, py);
+			}
+			line(c, 1.1f);
+			break;
+		}
+		case 5: {  // dynamics: the curve in → out, the knee from the first knob
+			float th = 1.f - 0.6f * (m ? m->params[fxPid(j, FP1)].getValue() : 0.4f);
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, x + mm2px(1.f), base);
+			nvgLineTo(vg, x + w, y);
+			line(nvgRGB(0x34, 0x36, 0x3f), 0.6f);
+			float kx = x + mm2px(1.f) + (w - mm2px(1.f)) * th, ky = base - h * th;
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, x + mm2px(1.f), base);
+			nvgLineTo(vg, kx, ky);
+			nvgLineTo(vg, x + w, ky - (h - (base - ky)) * 0.15f);
+			line(c, 1.1f);
+			break;
+		}
+		case 6: {  // amp: a clipped wave, harder with the first knob
+			float drive = m ? m->params[fxPid(j, FP1)].getValue() : 0.6f;
+			float mid = y + h / 2, amp = h / 2 - mm2px(0.3f), clip = 1.f - 0.7f * drive;
+			nvgBeginPath(vg);
+			for (int k = 0; k <= 60; k++) {
+				float u = k / 60.f, v = std::sin(u * 2.f * PI_F * 2.5f) / std::max(clip, 0.2f);
+				float px = x + u * w, py = mid - clamp(v, -1.f, 1.f) * amp;
+				k ? nvgLineTo(vg, px, py) : nvgMoveTo(vg, px, py);
+			}
+			line(c, 1.1f);
+			break;
+		}
+		default: {  // the rest: the four knobs as bars
+			for (int k = 0; k < 4; k++) {
+				float v = m ? m->params[fxPid(j, FP1 + k)].getValue() : 0.3f + 0.15f * k;
+				float bw = w / 4.f;
+				nvgBeginPath(vg);
+				nvgRect(vg, x + k * bw + bw * 0.25f, base - v * h, bw * 0.5f, v * h);
+				nvgFillColor(vg, k % 2 ? c2 : c);
+				nvgFill(vg);
+			}
+			break;
+		}
+	}
+	nvgRestore(vg);
+}
+
 /** The model: its name; a click opens the list (PREMIUM: only FX 1–8). */
 struct ModelWidget : OpaqueWidget {
 	WingFx* module = nullptr;
@@ -153,8 +358,11 @@ struct ModelWidget : OpaqueWidget {
 			int slot = slotOf(module, j);
 			FxSlot* x = hostFx(h, slot);
 			std::string name = !module ? "HALL" : (x ? F::MODELS[x->model].mdl : "–");
-			text(args.vg, boldFont(), mm2px(1.5f), mm2px(4.3f), name, 10.f, WHITE, NVG_ALIGN_LEFT, 0.8f);
-			float ax = box.size.x - mm2px(3.4f), ay = mm2px(2.5f);
+			text(args.vg, boldFont(), mm2px(1.5f), mm2px(4.0f), name, 9.f, WHITE, NVG_ALIGN_LEFT, 0.8f);
+			int model = !module ? F::modelIndex("HALL") : (x ? x->model.load() : 0);
+			drawFxPicture(args.vg, module, j, model, mm2px(1.2f), mm2px(5.6f), box.size.x - mm2px(2.4f),
+			              box.size.y - mm2px(6.6f), SLOT_COLOURS[slot % 8]);
+			float ax = box.size.x - mm2px(3.4f), ay = mm2px(2.2f);
 			nvgBeginPath(args.vg);
 			nvgMoveTo(args.vg, ax, ay);
 			nvgLineTo(args.vg, ax + mm2px(2.2f), ay);
@@ -258,7 +466,7 @@ struct FxDisplay : Widget {
 			else
 				text(vg, boldFont(), x, mm2px(8.1f),
 				     sync ? "●  LINKED TO WING-LINK  ·  SYNC: RACK TEMPO" : "●  LINKED TO WING-LINK  ·  SYNC OFF: WING TEMPO",
-				     6.4f, ACCENT, NVG_ALIGN_LEFT, 0.3f);
+				     6.4f, OK, NVG_ALIGN_LEFT, 0.3f);
 			std::string info;
 			static const char* RES[] = {"", "QUARTERS", "8THS", "", "16THS"};
 			int pin = module->ppqIn, pout = module->ppqOut;
@@ -348,13 +556,6 @@ struct FxKnob : GSmallKnob {
 	}
 };
 
-struct GMediumKnob : RoundKnob {
-	GMediumKnob() {
-		setSvg(Svg::load(asset::plugin(pluginInstance, "res/knob/medium.svg")));
-		bg->setSvg(Svg::load(asset::plugin(pluginInstance, "res/knob/medium_bg.svg")));
-	}
-};
-
 template <int R, int G, int B>
 using LitLatch = VCVLightBezelLatch<ColorLight<R, G, B>>;
 
@@ -400,7 +601,7 @@ struct WingFxWidget : ModuleWidget {
 			mw->module = module;
 			mw->j = j;
 			area(mw, model[j]);
-			addParam(createParamCentered<GMediumKnob>(mm(mix[j]), module, fxPid(j, FMIX)));
+			addParam(createParamCentered<GSmallKnob>(mm(mix[j]), module, fxPid(j, FMIX)));
 			for (int k = 0; k < 4; k++) {
 				FxKnob* kn = createParamCentered<FxKnob>(mm(pk[j][k]), module, fxPid(j, FP1 + k));
 				kn->j = j;

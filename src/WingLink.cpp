@@ -374,10 +374,14 @@ struct WingLink : Module {
 		for (int s = 0; s < NT; s++) {
 			int j;
 			Module* m = owner(s, &j);
+			static const int CVOF[NF] = {CV_FDR, CV_PAN, CV_FX1, CV_FX2, -1, -1};
 			for (int f = 0; f < NF; f++) {
 				Sync& y = st[s].f[f];
 				y.local = m ? m->params[pid(j, f)].getValue() : NAN;
 				y.wing = y.local;
+				// (a field with a cable: its value goes to the (new) channel)
+				if (m && CVOF[f] >= 0 && m->inputs[iid(j, CVOF[f])].isConnected())
+					y.local = y.wing = NAN;
 				y.dirty = false;
 				y.hold = 0.f;
 			}
@@ -389,6 +393,8 @@ struct WingLink : Module {
 			}
 		fxPageSeen = -1;  // (the FX panel: taken as it is again)
 		queries.clear();
+		if (qWaiting)
+			qDrain = 0.3f;  // (a late answer must not land on the first new question)
 		qWaiting = false;
 		pullAll = true;
 	}
@@ -445,7 +451,7 @@ struct WingLink : Module {
 	}
 	static std::string metaNode(const P::Tgt& t, const Meta& m) {
 		if (viaSource(t, m))
-			return string::f("/io.in.%s.%d", m.grp.c_str(), m.in);
+			return string::f("io.in.%s.%d", m.grp.c_str(), m.in);
 		return P::tgtNode(t);
 	}
 	void askMeta(int s) {
@@ -545,7 +551,9 @@ struct WingLink : Module {
 			em->model = -1;
 			for (int f = 0; f < NEQ; f++) {
 				eqs[f] = Sync();
-				eqs[f].local = em->params[f].getValue();
+				int in = eqInput(f);
+				// (a field with a cable: its value goes to the new channel)
+				eqs[f].local = (in >= 0 && em->inputs[in].isConnected()) ? NAN : em->params[f].getValue();
 			}
 			if (key >= 0 && connected && sysexOk) {
 				askEq();
@@ -854,13 +862,22 @@ struct WingLink : Module {
 		int kind = P::fxCc(ch, cc, &slot, &param);
 		if (kind != P::FXCC_NONE) {
 			slot -= 1;
+			// (questions only when they can be asked; none twice)
+			auto ask = [&](int f, bool front) {
+				if (!sysexOk)
+					return;
+				for (const Query& q : queries)
+					if (q.kind == 1 && q.s == slot && q.f == f)
+						return;
+				front ? queries.push_front({1, slot, f}) : queries.push_back({1, slot, f});
+			};
 			if (kind == P::FXCC_ON)
 				fromWingFx(slot, FON, val >= 64 ? 1.f : 0.f);
 			else if (kind == P::FXCC_MODEL)
-				queries.push_front({1, slot, FMODEL});
+				ask(FMODEL, true);
 			else if (kind == P::FXCC_MIX) {
 				if (fxs[slot].f[FMIX].hold <= 0.f)
-					queries.push_front({1, slot, FMIX});
+					ask(FMIX, true);
 			}
 			else {
 				const F::Model& M = F::MODELS[fxs[slot].model];
@@ -869,10 +886,10 @@ struct WingLink : Module {
 					for (int k = 0; k < 4; k++) {
 						const F::Param* p = fxKnob(slot, k);
 						if (p && !std::strcmp(key, p->key) && fxs[slot].f[FP1 + k].hold <= 0.f)
-							queries.push_front({1, slot, FP1 + k});
+							ask(FP1 + k, true);
 					}
 					if (!std::strcmp(key, "time"))
-						queries.push_back({1, slot, FTIME});
+						ask(FTIME, false);
 				}
 			}
 			return;
@@ -1346,7 +1363,7 @@ struct WingLink : Module {
 		sendWait -= dt;
 		if (sendWait <= 0.f) {
 			bool sent = false;
-			if (!outbox.empty() && sysexOk) {
+			if (!outbox.empty() && sysexOk && !qWaiting) {
 				sendSet(outbox.front());
 				outbox.pop_front();
 				sent = true;
@@ -1400,7 +1417,7 @@ struct WingLink : Module {
 				sent = true;
 				break;
 			}
-			if (!sent && sysexOk) {
+			if (!sent && sysexOk && !qWaiting) {
 				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
 				if (lock.owns_lock())
 					for (auto& kv : meta) {
@@ -1523,7 +1540,7 @@ struct WingLink : Module {
 				}
 				else if (qNow.kind == 5) {
 					selAsked = false;
-					send(P::getPath("/$ctl.$stat.selidx"));
+					send(P::getPath("$ctl.$stat.selidx"));
 				}
 				else if (qNow.kind == 2) {
 					static const char* const SDQ[4] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate"};
@@ -1702,7 +1719,7 @@ struct WingLink : Module {
 				}
 				// (2.2: the names were the strips'; now they are the WING channels')
 				json_t* nm = json_object_get(o, "name");
-				if (nm && json_string_length(nm) > 0 && s < NS) {
+				if (nm && json_is_string(nm) && json_string_length(nm) > 0 && s < NS) {
 					Meta& m = meta[metaKey(target(s))];
 					m.name = json_string_value(nm);
 					m.known = true;
@@ -1721,19 +1738,21 @@ struct WingLink : Module {
 				if (!k || !keyTgt((int) json_integer_value(k)).ok())
 					continue;
 				Meta& m = meta[(int) json_integer_value(k)];
-				if (json_t* j = json_object_get(o, "name"))
-					m.name = json_string_value(j);
-				if (json_t* j = json_object_get(o, "colour"))
-					m.colour = (int) json_integer_value(j);
-				if (json_t* j = json_object_get(o, "icon"))
-					m.icon = (int) json_integer_value(j);
+				json_t* j = json_object_get(o, "name");
+				if (j && json_is_string(j))
+					m.name = std::string(json_string_value(j)).substr(0, 16);
+				if ((j = json_object_get(o, "colour")))
+					m.colour = clamp((int) json_integer_value(j), 0, P::NUM_COLOURS);
+				if ((j = json_object_get(o, "icon")))
+					m.icon = clamp((int) json_integer_value(j), -1, 999);
 				m.known = true;
 			}
 		}
 		if (json_t* a = json_object_get(root, "fxModels"))
 			for (int k = 0; k < NSLOT && k < (int) json_array_size(a); k++)
 				if (json_t* j = json_array_get(a, k))
-					fxs[k].model = F::modelIndex(json_string_value(j));
+					if (json_is_string(j))
+						fxs[k].model = F::modelIndex(json_string_value(j));
 		lastInDev = lastOutDev = -2;
 	}
 };
@@ -2717,7 +2736,7 @@ struct XDisplay : Widget {
 				bool live = h->xMod.load() == module;
 				std::string st = !live ? "●  WING-LINK already has a WING-LINK X"
 				                       : (module->xStart > 0 ? "●  LINKED · OWN START CH" : "●  LINKED · FOLLOWS WING-LINK");
-				text(vg, boldFont(), x, mm2px(8.1f), st, 6.4f, live ? ACCENT : WARN, NVG_ALIGN_LEFT, 0.3f);
+				text(vg, boldFont(), x, mm2px(8.1f), st, 6.4f, live ? OK : WARN, NVG_ALIGN_LEFT, 0.3f);
 				int u = h->usbStart() + NS;
 				text(vg, boldFont(), x, mm2px(10.2f), string::f("AUDIO → USB %d–%d", u, u + NS - 1), 6.f, DIM,
 				     NVG_ALIGN_LEFT, 0.3f);

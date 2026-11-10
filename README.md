@@ -58,6 +58,7 @@ im Look des GENRA-Plugins.
 
 ![WING-FX](docs/panel_fx.png)
 
+- Unter dem Effektnamen eine **kleine Grafik**, live aus den Reglern: Hallfahne, Echos, LFO, EQ-Kurve, Kennlinie …
 - Zeigt 4 FX-Plätze, **SLOTS − / +** blättert durch FX 1–16, um 1 oder 4 Plätze (**STEP**, antippen).
 - Rechtsklick auf einen der vier Parameter-Regler: welchen Parameter des Effekts er dreht (pro Effekt gespeichert).
 - **Effekt wählen**: aufs Modell klicken › *PREMIUM* (Hall, Delay, Modulation, Pitch – nur auf FX 1–8) oder

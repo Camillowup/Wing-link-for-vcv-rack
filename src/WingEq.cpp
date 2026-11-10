@@ -47,6 +47,15 @@ WingEq::WingEq() {
 	configInput(CV_ON, "EQ on (gate)");
 }
 
+void WingEq::process(const ProcessArgs& args) {
+	// the lit buttons (also without a WING-LINK)
+	lights[ON_LIGHT].setBrightness(params[EQ_ON].getValue() > 0.5f ? 1.f : 0.f);
+	lights[LSHV_LIGHT].setBrightness(params[EQ_LSHV].getValue() > 0.5f ? 1.f : 0.f);
+	lights[HSHV_LIGHT].setBrightness(params[EQ_HSHV].getValue() > 0.5f ? 1.f : 0.f);
+	lights[LC_LIGHT].setBrightness(params[EQ_LC].getValue() > 0.5f ? 1.f : 0.f);
+	lights[HC_LIGHT].setBrightness(params[EQ_HC].getValue() > 0.5f ? 1.f : 0.f);
+}
+
 json_t* WingEq::dataToJson() {
 	json_t* root = Satellite::dataToJson();
 	json_object_set_new(root, "mode", json_integer(mode));
@@ -226,9 +235,10 @@ struct CurveWidget : Widget {
 				text(vg, boldFont(), x, y + 2.3f, lb[b], 6.2f, DARK, NVG_ALIGN_CENTER, 0.f);
 			}
 		}
-		if (module && module->model > 0)
+		int md = module ? module->model.load() : -1;
+		if (md > 0 && md < 7)
 			text(vg, boldFont(), box.size.x / 2, mid - mm2px(9.f),
-			     string::f("EQ MODEL %s ON THE WING – WING-EQ SHOWS THE STD EQ", EQ_MODELS[module->model.load()]), 7.f, WARN,
+			     string::f("EQ MODEL %s ON THE WING – WING-EQ SHOWS THE STD EQ", EQ_MODELS[md]), 7.f, WARN,
 			     NVG_ALIGN_CENTER, 0.4f);
 		else if (module && !on)
 			text(vg, boldFont(), box.size.x / 2, mid - mm2px(9.f), "EQ OFF", 8.f, FAINT, NVG_ALIGN_CENTER, 0.8f);
@@ -283,7 +293,7 @@ struct EqDisplay : OpaqueWidget {
 					st = "●  FIXED  ·  ◀ ▶ PAGE";
 				st += module->params[EQ_ON].getValue() > 0.5f ? "  ·  EQ ON" : "  ·  EQ OFF";
 				int md = module->model;
-				st += md >= 0 ? std::string("  ·  ") + EQ_MODELS[md] : "";
+				st += (md >= 0 && md < 7) ? std::string("  ·  ") + EQ_MODELS[md] : "";
 				if (md > 0)
 					sc = WARN;
 			}
@@ -297,11 +307,11 @@ struct EqDisplay : OpaqueWidget {
 			return;
 		}
 		WingEq* m = module;
-		WingLink* h = m->hostSafe();
 		ui::Menu* menu = createMenu();
 		menu->addChild(createMenuLabel("WING-EQ  ·  channel"));
 		menu->addChild(createSubmenuItem("Follow a strip of WING-LINK", m->mode == WingEq::M_STRIP ? string::f("strip %d", m->strip.load() + 1) : "",
 		                                 [=](ui::Menu* sub) {
+			WingLink* h = m->hostSafe();
 			int n = hostHasX(h) ? NT : NS;
 			for (int s = 0; s < n; s++)
 				sub->addChild(createCheckMenuItem(string::f("Strip %d", s + 1), hostStripLabel(h, s),

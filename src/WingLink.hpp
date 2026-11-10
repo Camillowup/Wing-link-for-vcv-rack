@@ -172,6 +172,7 @@ struct WingFx : Satellite {
 	std::atomic<int> choice[wingfx::NUM_MODELS][4];  // per effect: the parameter on each knob (index into all, −1: default)
 	std::atomic<bool> refresh{false};  // (a knob got another parameter: show it, ask the WING)
 	WingFx();
+	void process(const ProcessArgs& args) override;
 	const wingfx::Param* knob(int model, int k) { return wingfx::knobParam(wingfx::MODELS[model], k, choice[model][k]); }
 	bool dockLeft() override { return false; }
 	json_t* dataToJson() override;
@@ -189,6 +190,7 @@ struct WingEq : Satellite {
 	std::atomic<int> shownKey{-1};   // (the engine) the channel shown; −1: none (not a channel)
 	std::atomic<int> model{-1};      // the channel's EQ model on the WING (index into EQ_MODELS), −1 unknown
 	WingEq();
+	void process(const ProcessArgs& args) override;
 	bool dockLeft() override { return false; }
 	json_t* dataToJson() override;
 	void dataFromJson(json_t* root) override;

@@ -329,10 +329,14 @@ for k, p in enumerate((main, xp)):
         nm, ch = NAMES[k][i], (33 + i + 8 * k)
         ch = 1 + i + 8 * k
         chs = f"CH {ch}"
-        for (s, yy, sz, c, wt) in ((nm, y + 6.0, 2.3, "#ffffff", 800), (ICONS[i], y + 8.4, 1.3, DIM, 600),
-                                   (chs, y + 10.4, 1.3, "#5d606b", 600)):
+        # the icon big at the left, the name beside it (as the module draws them)
+        o.insert(-1, f'<circle cx="{x + 2.9:.2f}" cy="{y + 5.6:.2f}" r="1.8" fill="none" stroke="#d9dbe2" stroke-width="0.35"/>')
+        o.insert(-1, f'<circle cx="{x + 2.9:.2f}" cy="{y + 5.6:.2f}" r="0.6" fill="#d9dbe2"/>')
+        sz = min(2.1, 9.6 / max(1, len(nm)) / 0.62)
+        for (s, xx, yy, sz_, c, wt, an) in ((nm, x + 5.6, y + 6.3, sz, "#ffffff", 800, "start"),
+                                            (chs, x + w / 2, y + 10.4, 1.3, "#5d606b", 600, "middle")):
             n0 = len(o)
-            p.text(x + w / 2, yy, s, sz, c, wt, "middle", 0.15)
+            p.text(xx, yy, s, sz_, c, wt, an, 0.15)
             o.insert(-1, o.pop(n0))
         x, y, w, h = p.areas[f"VU{i + 1}"]
         lit = int(12 * POS[i] * 0.9)
@@ -355,7 +359,7 @@ for k, p in enumerate((main, xp)):
             o.insert(-1, o.pop(n0))
         x, y, w, h = p.areas["STEP"]
         n0 = len(o)
-        p.text(x + w / 2, y + 4.4, "1", 3.0, "#ffffff", 800, "middle", 0)
+        p.text(x + w / 2, y + 4.4, "8", 3.0, "#ffffff", 800, "middle", 0)
         o.insert(-1, o.pop(n0))
         tx, ty, dx, _ = p.areas["TRACKS"]
         o.insert(-1, f'<circle cx="{tx}" cy="{ty}" r="1.35" fill="{ACC}"/>')
@@ -372,7 +376,7 @@ for k, p in enumerate((main, xp)):
     x, y, w, h = p.areas["DISPLAY"]
     lines = ([("CH 1 – 8", 3.4, "#ffffff", 800, 4.6), ("● WING · MIDI OK · SYSEX OK · SD1 REC", 1.6, "#b8f23a", 700, 8.1),
               ("AUDIO → USB 33–48 · ASIO WING · 48 kHz", 1.5, DIM, 600, 10.2)] if k == 0 else
-             [("CH 9 – 16", 3.4, "#ffffff", 800, 4.6), ("● LINKED TO WING-LINK", 1.6, ACC, 700, 8.1),
+             [("CH 9 – 16", 3.4, "#ffffff", 800, 4.6), ("● LINKED TO WING-LINK", 1.6, "#b8f23a", 700, 8.1),
               ("AUDIO → USB 9–16", 1.5, DIM, 600, 10.2)])
     for s, sz, c, wt, dy in lines:
         n0 = len(o)
