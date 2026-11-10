@@ -210,7 +210,7 @@ static void drawFxPicture(NVGcontext* vg, WingFx* m, int j, int model, float x, 
 	if (fam < 0)
 		return;
 	nvgSave(vg);
-	nvgScissor(vg, x, y - 1.f, w, h + 2.f);
+	nvgIntersectScissor(vg, x, y - 1.f, w, h + 2.f);
 	auto line = [&](NVGcolor col, float width) {
 		nvgStrokeColor(vg, col);
 		nvgStrokeWidth(vg, width);

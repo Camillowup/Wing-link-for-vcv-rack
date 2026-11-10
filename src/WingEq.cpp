@@ -185,7 +185,7 @@ struct CurveWidget : Widget {
 			return clamp(d, -16.f, 16.f);
 		};
 		nvgSave(vg);
-		nvgScissor(vg, x0, top - 2.f, x1 - x0, bot - top + 4.f);
+		nvgIntersectScissor(vg, x0, top - 2.f, x1 - x0, bot - top + 4.f);
 		// each band, thin, in its colour
 		if (on)
 			for (int b = 0; b < NBAND; b++) {

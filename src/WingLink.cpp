@@ -75,6 +75,7 @@ struct WingAudioPort : audio::Port {
 	dsp::SampleRateConverter<MAXCH> inputSrc;
 	std::atomic<int> deviceNumOutputs{0};
 	std::atomic<int> deviceTotalOutputs{0};  // (all the device's outputs: 16 for the DAW of Rack's plugin)
+	std::atomic<int> wantOffset{0};          // the first device channel: taken at the start of a buffer only
 	float deviceSampleRate = 0.f;
 	int requestedEngineFrames = 0;
 
@@ -86,6 +87,7 @@ struct WingAudioPort : audio::Port {
 	bool isMaster() { return APP->engine->getMasterModule() == module; }
 
 	void processInput(const float* input, int inputStride, int frames) override {
+		outputOffset = wantOffset;  // (the same for the whole buffer, whatever the engine changes meanwhile)
 		deviceTotalOutputs = device ? device->getNumOutputs() : 0;
 		deviceNumOutputs = std::min(getNumOutputs(), MAXCH);
 		deviceSampleRate = getSampleRate();
@@ -124,6 +126,7 @@ struct WingAudioPort : audio::Port {
 	void onStartStream() override { engineInputBuffer.clear(); }
 	void onStopStream() override {
 		deviceNumOutputs = 0;
+		deviceTotalOutputs = 0;
 		deviceSampleRate = 0.f;
 		engineInputBuffer.clear();
 		if (APP->engine->getMasterModule() == module)
@@ -386,6 +389,10 @@ struct WingLink : Module {
 	 *  snapshot, an earlier SYNC)? Then AUDIO goes there, no SYNC needed. Else the display says SYNC. Changes nothing on
 	 *  the WING. */
 	void checkRouting() {
+		if (port.deviceNumOutputs <= 0) {
+			routeWrong = false;  // (no audio to the WING: nothing to route)
+			return;
+		}
 		std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
 		if (!lock.owns_lock())
 			return;
@@ -1239,7 +1246,7 @@ struct WingLink : Module {
 	void control(float dt) {
 		midiOut.channel = -1;  // (a pick in the MIDI menu may set one: keep our own channels)
 		midiIn.channel = -1;
-		port.outputOffset = portOffset();
+		port.wantOffset = portOffset();
 
 		int inDev = midiIn.getDeviceId(), outDev = midiOut.getDeviceId();
 		if (inDev != lastInDev || outDev != lastOutDev) {
@@ -1768,7 +1775,7 @@ struct WingLink : Module {
 			midiOut.fromJson(j);
 		midiIn.setChannel(-1);
 		midiOut.setChannel(-1);
-		port.outputOffset = portOffset();
+		port.wantOffset = portOffset();
 		if (json_t* j = json_object_get(root, "audio"))
 			port.fromJson(j);
 		audioStart = clamp(geti("audioStart", wingStart), 1, P::NUM_IN);
@@ -2433,7 +2440,7 @@ struct StatusDisplay : Widget {
 				au = string::f("AUDIO: no USB %d on the device (48 USB ch.)", u);
 			else if (module->smallDevice()) {
 				// the DAW (Rack as a plugin): its outputs 1–16; the DAW routes them to the WING's USB channels
-				int n = module->xMod.load() ? NT : NS;
+				int n = std::min(module->xMod.load() ? NT : NS, nOut);
 				const std::string& dn = module->driverName;
 				au = string::f("AUDIO → %s 1–%d (to WING USB %d–%d)", dn.find("DAW") != std::string::npos ? "DAW" : "OUT", n, u,
 				               u + n - 1);
