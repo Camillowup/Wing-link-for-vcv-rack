@@ -1,7 +1,7 @@
 # WING-LINK für VCV Rack
 
 Eine Brücke von VCV Rack zum Behringer **WING** (gebaut und getestet für die WING COMPACT) über **ein USB-Kabel**,
-im Look des GENRA-Plugins.
+im Look des GENRA-Plugins. Plugin-Version **2.4.1**, 4 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ).
 
 ![Panel](docs/panel.png)
 
@@ -16,6 +16,19 @@ im Look des GENRA-Plugins.
 - **Name, Farbe und Icon** jeder Spur stellt man auf dem Panel ein, sie gehen sofort an den WING-Kanal.
 - **CV**: Fader, Pan und Sends per CV fahren (die Fader bewegen sich mit, auch an der WING). Ausgänge: Fader als
   0–10 V und Mute als Gate.
+
+## Installation unter Windows
+
+**Fertige Version (empfohlen):** Unter [**Releases**](https://github.com/Camillowup/Wing-link-for-vcv-rack/releases)
+die neueste `WingLink-2.x.x-win-x64.vcvplugin` herunterladen.
+
+1. Die Datei nach `%LOCALAPPDATA%\Rack2\plugins-win-x64\` kopieren (in Rack: *Help › Open user folder*, dort
+   `plugins-win-x64`). Eine ältere `WingLink-…vcvplugin`-Datei und den Ordner `WingLink` dort vorher löschen.
+2. Rack neu starten.
+
+**Testversion aus der Entwicklung:** Jeder Push baut automatisch. Unter **Actions** den grünen Lauf öffnen → unten
+bei **Artifacts** `winglink-windows` laden → Zip entpacken → wie oben installieren. Diese Builds löscht GitHub nach 90 Tagen;
+Releases bleiben.
 
 ## Einrichten (einmal)
 
@@ -85,6 +98,9 @@ im Look des GENRA-Plugins.
 
 ## Gut zu wissen
 
+- Verbundene Displays leuchten grün (WING-LINK X, WING-FX, WING-EQ am WING-LINK); unter dem Effekt-Modell zeigt
+  WING-FX ein Bild der Effektart.
+
 - Läuft schon ein Audio-Modul von Rack auf der WING (z. B. zum Abhören auf USB 1–2), stört das nicht, solange es
   andere USB-Kanäle benutzt als WING-LINK.
 - Ändert man an der WING die USB-Kanalzahl oder die Samplerate, trennt sich USB kurz; WING-LINK verbindet sich
@@ -94,7 +110,9 @@ im Look des GENRA-Plugins.
 
 ## Bauen
 
-Über GitHub Actions (Windows), siehe `.github/workflows/main.yml`. Panels: `tools/winglink_panel.py real` und
+Über GitHub Actions (Windows), siehe `.github/workflows/main.yml`. Neue Version veröffentlichen: Versionsnummer in
+`plugin.json` erhöhen, testen, `main` auf den Branch `release` pushen; der Workflow legt den Tag `v<Version>` an und
+veröffentlicht den Release mit der `.vcvplugin`-Datei. Panels: `tools/winglink_panel.py real` und
 `tools/wingfx_panel.py real` (schreiben `res/*.svg` und die Layout-Header), Vorschau mit `preview OUT.png RACK`.
 Die Effekt-Liste: `tools/fx_models.py` schreibt `src/WingFxModels.hpp` aus `tools/data/wing_fx_params.json`.
 
