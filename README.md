@@ -35,13 +35,24 @@ Releases bleiben.
 1. **Treiber**: Den Windows-ASIO-Treiber der WING von behringer.com installieren, PC neu starten.
 2. **WING per USB** an den PC.
 3. **An der WING**:
-   - *Setup › USB-Audio*: **48 Kanäle** (WING-LINK schickt standardmässig CH 33 → USB 33 usw.).
+   - *Setup › USB-Audio*: **48 Kanäle** (WING-LINK schickt standardmässig Spur 1 → USB 1 usw.).
    - *Setup › Remote › MIDI Remote Control*: für **USB** die Kanal-Steuerung (Fader/Mute/Pan) und **SYSEX**
      erlauben. Ohne Sysex gehen nur Fader, Mute und Pan (gröber), Namen/Farben/Icons/Solo/Sends nicht.
 4. **In Rack**: *Engine › Sample rate* auf **48 kHz**. WING-LINK ins Rack ziehen: Es sucht die WING selbst
    (MIDI und Audio, ASIO zuerst). Das Display zeigt, ob alles verbunden ist.
 5. Mit START CH auf die Kanäle gehen, auf denen der Ton aus Rack landen soll, dann **SYNC** drücken: WING-LINK
    stellt die Quelle dieser Kanäle auf die passenden USB-Eingänge und schickt Namen, Farben und Icons.
+   Ist das Routing am Pult schon passend (Snapshot, früheres SYNC), übernimmt ein neues WING-LINK es von selbst –
+   kein SYNC nötig. Passt es nicht, steht im Display gelb **WING ROUTING ≠ RACK · PRESS SYNC**.
+
+## In Ableton Live (Rack Pro als Plugin)
+
+- Ableton bekommt das Audio-Interface (WING-ASIO). In WING-LINK beim Audio den Treiber **DAW** wählen: die Spuren gehen
+  auf die Plugin-Ausgänge 1–16 (Display: *AUDIO → DAW 1–16 (to WING USB …)*). In Ableton jeden Ausgang n auf den
+  WING-Ausgang n routen (Audiospur: *Audio From* = Rack-Spur, Kanal 3/4 …; *Audio To* = Ext. Out).
+- MIDI öffnet WING-LINK weiter direkt: in Ableton bei den WING-MIDI-Ports Track/Sync/Remote ausschalten (Windows
+  lässt einen MIDI-Port nur von einem Programm öffnen). Ableton gibt SysEx nicht an Plugins weiter – der DAW-MIDI-Treiber
+  geht deshalb nicht.
 
 ## Bedienung
 

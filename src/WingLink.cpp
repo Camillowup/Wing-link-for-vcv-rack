@@ -74,6 +74,7 @@ struct WingAudioPort : audio::Port {
 	dsp::DoubleRingBuffer<dsp::Frame<MAXCH>, 32768> engineInputBuffer;
 	dsp::SampleRateConverter<MAXCH> inputSrc;
 	std::atomic<int> deviceNumOutputs{0};
+	std::atomic<int> deviceTotalOutputs{0};  // (all the device's outputs: 16 for the DAW of Rack's plugin)
 	float deviceSampleRate = 0.f;
 	int requestedEngineFrames = 0;
 
@@ -85,6 +86,7 @@ struct WingAudioPort : audio::Port {
 	bool isMaster() { return APP->engine->getMasterModule() == module; }
 
 	void processInput(const float* input, int inputStride, int frames) override {
+		deviceTotalOutputs = device ? device->getNumOutputs() : 0;
 		deviceNumOutputs = std::min(getNumOutputs(), MAXCH);
 		deviceSampleRate = getSampleRate();
 		if (!APP->engine->getMasterModule())
@@ -137,12 +139,12 @@ struct WingLink : Module {
 	enum LightId { MUTE_LIGHT, SOLO_LIGHT = MUTE_LIGHT + NS, SYNC_LIGHT = SOLO_LIGHT + NS, NUM_LIGHTS };
 
 	// ---- settings (saved)
-	std::atomic<int> wingStart{33};   // the WING input of strip 1 (1..48; 41–48 = AUX 1–8)
+	std::atomic<int> wingStart{1};    // the WING input of strip 1 (1..48; 41–48 = AUX 1–8)
 	std::atomic<int> usbMode{0};      // 0: USB n = WING channel n, else: the first USB channel
 	std::atomic<int> fxBus[2] = {{1}, {2}};
 	std::atomic<bool> autoMidi{true}, autoAudio{true};
 	std::atomic<int> chStep{8};       // START CH − / + move by 1 or 8
-	std::atomic<int> audioStart{33};  // the WING input of AUDIO 1 (SYNC sets it to START CH; paging doesn't move it)
+	std::atomic<int> audioStart{1};   // the WING input of AUDIO 1 (SYNC sets it to START CH; paging doesn't move it)
 	Strip st[NT];
 	std::map<int, Meta> meta;          // name, colour, icon per WING channel (key: type * 100 + number)
 
@@ -198,7 +200,10 @@ struct WingLink : Module {
 	dsp::ClockDivider ctl;
 	dsp::BooleanTrigger downT, upT, syncT;
 	float syncFlash = 0.f;
-	std::string audioName;  // (UI thread)
+	float routeTimer = 0.f;
+	std::atomic<bool> routeWrong{false};  // the WING's channels don't take AUDIO from here: SYNC would fix it
+	std::atomic<bool> fresh{true};  // a new module (not loaded from a patch): its AUDIO follows the WING's routing once
+	std::string audioName, driverName;  // (UI thread)
 
 	// ---- WING-EQ: the channel shown, its fields
 	WingEq* eqSeen = nullptr;
@@ -260,11 +265,12 @@ struct WingLink : Module {
 	}
 
 	void onReset() override {
-		wingStart = 33;
+		wingStart = 1;
 		usbMode = 0;
 		fxBus[0] = 1;
 		fxBus[1] = 2;
-		audioStart = 33;
+		audioStart = 1;
+		fresh = true;
 		std::lock_guard<std::mutex> lock(metaMutex);
 		meta.clear();
 		for (int s = 0; s < NT; s++) {
@@ -310,6 +316,13 @@ struct WingLink : Module {
 	}
 	/** AUDIO s goes to USB usbStart() + s, and SYNC routes WING input audioStart + s to it (paging moves neither). */
 	int usbStart() { return usbMode.load() > 0 ? usbMode.load() : audioStart.load(); }
+	/** An audio device with at most 16 outputs (the DAW, when Rack is a plugin): AUDIO 1–16 are its outputs 1–16, the DAW
+	 *  routes them to the WING (its USB channels as set here). */
+	bool smallDevice() {
+		int n = port.deviceTotalOutputs;
+		return n > 0 && n <= 16;
+	}
+	int portOffset() { return smallDevice() ? 0 : clamp(usbStart() - 1, 0, 47); }
 	int usbOf(int s) { return usbStart() + s; }
 	int fxVisible(int slot) {  // its place on WING-FX (0..3), −1 if not shown
 		WingFx* f = fxMod.load();
@@ -367,6 +380,51 @@ struct WingLink : Module {
 		m.bytes = {(uint8_t) (0xB0 | ch), (uint8_t) cc, (uint8_t) clamp(v, 0, 127)};
 		midiOut.sendMessage(m);
 		logLine("OUT  " + describe(m.bytes));
+	}
+
+	/** The routing on the WING (read with the names: in.conn.grp / in): its channels 1–16 shown take USB 1–16 (a
+	 *  snapshot, an earlier SYNC)? Then AUDIO goes there, no SYNC needed. Else the display says SYNC. Changes nothing on
+	 *  the WING. */
+	void checkRouting() {
+		std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+		if (!lock.owns_lock())
+			return;
+		// the strips whose channel takes their AUDIO jack (the channel = AUDIO's home; paged away: not these)
+		int n = 0, fits = 0, k = -1;
+		bool same = true;
+		for (int s = 0; s < NT; s++) {
+			if (!active(s) || st[s].tType != 0)
+				continue;
+			P::Tgt t = target(s), home = P::inputTgt(audioStart + s);
+			if (t.type != home.type || t.n != home.n)
+				continue;
+			auto it = meta.find(metaKey(t));
+			if (it == meta.end() || it->second.grp.empty() || it->second.in <= 0)
+				continue;
+			const Meta& m = it->second;
+			n++;
+			if (m.grp == "USB" && m.in == usbOf(s))
+				fits++;
+			int d = m.grp == "USB" ? m.in - s : -1;
+			if (d < 1 || (k >= 0 && d != k))
+				same = false;
+			k = d;
+		}
+		if (n == 0) {
+			routeWrong = false;
+			return;
+		}
+		if (fresh) {
+			// a new WING-LINK: AUDIO goes where the WING (its snapshot) takes it from, no SYNC needed
+			fresh = false;
+			if (same && fits < n && k + n - 1 <= 48) {
+				usbMode = k == audioStart ? 0 : k;
+				logLine(string::f("--   the WING's routing: AUDIO now to USB %d–", k));
+				routeWrong = false;
+				return;
+			}
+		}
+		routeWrong = fits < n;
 	}
 
 	/** After the channels changed (start, connect, load): take the panels as they are, ask the WING. */
@@ -1181,7 +1239,7 @@ struct WingLink : Module {
 	void control(float dt) {
 		midiOut.channel = -1;  // (a pick in the MIDI menu may set one: keep our own channels)
 		midiIn.channel = -1;
-		port.outputOffset = clamp(usbStart() - 1, 0, 47);
+		port.outputOffset = portOffset();
 
 		int inDev = midiIn.getDeviceId(), outDev = midiOut.getDeviceId();
 		if (inDev != lastInDev || outDev != lastOutDev) {
@@ -1235,6 +1293,11 @@ struct WingLink : Module {
 		if (syncT.process(params[SYNC_PARAM].getValue() > 0.f))
 			syncNow = true;
 		syncFlash = std::max(0.f, syncFlash - dt);
+		routeTimer -= dt;
+		if (routeTimer <= 0.f) {
+			routeTimer = 0.5f;
+			checkRouting();
+		}
 		lights[SYNC_LIGHT].setBrightness(syncFlash > 0.f ? 1.f : 0.f);
 
 		// the strips
@@ -1307,6 +1370,8 @@ struct WingLink : Module {
 		// SYNC: the AUDIO jacks are routed from here (START CH now); names, colours, icons of the strips shown go out
 		if (syncNow.exchange(false)) {
 			syncFlash = 0.3f;
+			fresh = false;
+			routeWrong = false;
 			audioStart = wingStart.load();
 			for (int s = 0; s < NT; s++) {
 				int j;
@@ -1687,7 +1752,8 @@ struct WingLink : Module {
 			json_t* j = json_object_get(root, k);
 			return j ? (int) json_integer_value(j) : def;
 		};
-		wingStart = clamp(geti("wingStart", 33), 1, P::NUM_IN);
+		wingStart = clamp(geti("wingStart", 1), 1, P::NUM_IN);
+		fresh = false;
 		usbMode = clamp(geti("usbMode", 0), 0, 48);
 		fxBus[0] = clamp(geti("fxBus1", 1), 1, 16);
 		fxBus[1] = clamp(geti("fxBus2", 2), 1, 16);
@@ -1702,7 +1768,7 @@ struct WingLink : Module {
 			midiOut.fromJson(j);
 		midiIn.setChannel(-1);
 		midiOut.setChannel(-1);
-		port.outputOffset = clamp(usbStart() - 1, 0, 47);
+		port.outputOffset = portOffset();
 		if (json_t* j = json_object_get(root, "audio"))
 			port.fromJson(j);
 		audioStart = clamp(geti("audioStart", wingStart), 1, P::NUM_IN);
@@ -1824,14 +1890,20 @@ static WingLink* findHost(Satellite* s) {
 		return (m && m->model == modelWingLink) ? static_cast<WingLink*>(m) : nullptr;
 	}
 	WingLink* only = nullptr;
+	WingLink* cur = s->host.load();
+	bool several = false, curThere = false;
 	for (int64_t mid : APP->engine->getModuleIds()) {
 		Module* m = APP->engine->getModule(mid);
 		if (m && m->model == modelWingLink) {
 			if (only)
-				return nullptr;  // several: pick one by right-click
+				several = true;
 			only = static_cast<WingLink*>(m);
+			if (m == cur)
+				curThere = true;
 		}
 	}
+	if (several)
+		return curThere ? cur : nullptr;  // several: it stays with its own (or pick one by right-click)
 	return only;
 }
 
@@ -2082,7 +2154,7 @@ struct ScribbleWidget : OpaqueWidget {
 				drawIcon(vg, g, mm2px(ICON_X), mm2px(ICON_Y), mm2px(ICON_R), TXT);
 			else if (h)
 				drawIcon(vg, 0, mm2px(ICON_X), mm2px(ICON_Y), mm2px(ICON_R), FAINT);
-			std::string ch = h ? P::tgtLabel(t) : "CH 33";
+			std::string ch = h ? P::tgtLabel(t) : "CH 1";
 			text(vg, boldFont(), cx, mm2px(10.4f), fixed ? ch + " •" : ch, 7.f, fixed ? TXT : FAINT, NVG_ALIGN_CENTER, 0.3f);
 		}
 		OpaqueWidget::drawLayer(args, layer);
@@ -2305,7 +2377,7 @@ struct StatusDisplay : Widget {
 			NVGcontext* vg = args.vg;
 			float x = mm2px(3.f);
 			if (!module) {
-				text(vg, boldFont(), x, mm2px(4.6f), "CH 33 – 40", 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
+				text(vg, boldFont(), x, mm2px(4.6f), "CH 1 – 8", 12.f, WHITE, NVG_ALIGN_LEFT, 0.5f);
 				Widget::drawLayer(args, layer);
 				return;
 			}
@@ -2336,6 +2408,10 @@ struct StatusDisplay : Widget {
 					stx = "●  WING: NO ANSWERS TO QUESTIONS";
 					c = WARN;
 				}
+				else if (module->routeWrong) {
+					stx = "●  WING ROUTING ≠ RACK · PRESS SYNC";
+					c = WARN;
+				}
 				if (module->logLeft > 0.f)
 					stx = string::f("●  LOGGING MIDI … %.0f s", module->logLeft.load()), c = ACCENT;
 			}
@@ -2355,6 +2431,13 @@ struct StatusDisplay : Widget {
 				au = "AUDIO: none · right-click › Audio to the WING";
 			else if (nOut <= 0)
 				au = string::f("AUDIO: no USB %d on the device (48 USB ch.)", u);
+			else if (module->smallDevice()) {
+				// the DAW (Rack as a plugin): its outputs 1–16; the DAW routes them to the WING's USB channels
+				int n = module->xMod.load() ? NT : NS;
+				const std::string& dn = module->driverName;
+				au = string::f("AUDIO → %s 1–%d (to WING USB %d–%d)", dn.find("DAW") != std::string::npos ? "DAW" : "OUT", n, u,
+				               u + n - 1);
+			}
 			else
 				au = string::f("AUDIO → USB %d–%d · %.0f kHz · %s", u, u + (module->xMod.load() ? NT : NS) - 1,
 				               module->port.deviceSampleRate / 1000.f, module->audioName.c_str());
@@ -2562,6 +2645,7 @@ struct WingLinkWidget : ModuleWidget {
 			return;
 		scan = 2.f;
 		m->audioName = m->port.getDeviceId() >= 0 ? m->port.getDeviceName(m->port.getDeviceId()) : "";
+		m->driverName = m->port.getDriverName();
 		// panels that no longer point here
 		if (WingLinkX* x = m->xMod.load())
 			if (x->host.load() != m) {
@@ -2645,7 +2729,7 @@ struct WingLinkWidget : ModuleWidget {
 		                                 [=](Menu* sub) { app::appendAudioMenu(sub, &m->port); }));
 		menu->addChild(createSubmenuItem("USB channels", m->usbMode.load() == 0 ? "same as the WING channels" :
 		                                 string::f("from USB %d", m->usbMode.load()), [=](Menu* sub) {
-			sub->addChild(createCheckMenuItem("Same as the WING channels (CH 33 ← USB 33)", "",
+			sub->addChild(createCheckMenuItem("Same as the WING channels (CH 1 ← USB 1)", "",
 			                                  [=]() { return m->usbMode.load() == 0; }, [=]() { m->usbMode = 0; }));
 			for (int u = 1; u <= 41; u += 8)
 				sub->addChild(createCheckMenuItem(string::f("From USB %d", u), "", [=]() { return m->usbMode.load() == u; },
@@ -2738,8 +2822,11 @@ struct XDisplay : Widget {
 				                       : (module->xStart > 0 ? "●  LINKED · OWN START CH" : "●  LINKED · FOLLOWS WING-LINK");
 				text(vg, boldFont(), x, mm2px(8.1f), st, 6.4f, live ? OK : WARN, NVG_ALIGN_LEFT, 0.3f);
 				int u = h->usbStart() + NS;
-				text(vg, boldFont(), x, mm2px(10.2f), string::f("AUDIO → USB %d–%d", u, u + NS - 1), 6.f, DIM,
-				     NVG_ALIGN_LEFT, 0.3f);
+				std::string au = h->smallDevice() ? string::f("AUDIO → %s %d–%d (to WING USB %d–%d)",
+				                                              h->driverName.find("DAW") != std::string::npos ? "DAW" : "OUT",
+				                                              NS + 1, NT, u, u + NS - 1)
+				                                  : string::f("AUDIO → USB %d–%d", u, u + NS - 1);
+				text(vg, boldFont(), x, mm2px(10.2f), au, 6.f, DIM, NVG_ALIGN_LEFT, 0.3f);
 			}
 		}
 		Widget::drawLayer(args, layer);
