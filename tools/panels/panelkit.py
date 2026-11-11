@@ -22,7 +22,7 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 
 PREVIEW = False
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RACK = os.environ.get("RACK", os.path.join(ROOT, "..", "ext", "Rack"))
 CL = os.path.join(RACK, "res", "ComponentLibrary")
 

@@ -3,7 +3,7 @@
 Eine Brücke von VCV Rack zum Behringer **WING** (gebaut und getestet für die WING COMPACT) über **ein USB-Kabel**,
 im Look des GENRA-Plugins. Plugin-Version **2.6.0**, 7 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ, WING-DYN, WING-KNOBS, WING-IN).
 
-![Panel](docs/panel.png)
+![Panel](docs/panels/winglink.png)
 
 - **WING-LINK**: 8 Spuren. **WING-LINK X**: 8 Spuren mehr. **WING-FX**: die 16 Effekte der WING. **WING-EQ**: EQ und
   Filter eines Kanals. **WING-DYN**: Gate und Kompressor eines Kanals. **WING-KNOBS**: die Custom Controls der WING als
@@ -88,7 +88,7 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 
 ## WING-FX
 
-![WING-FX](docs/panel_fx.png)
+![WING-FX](docs/panels/wingfx.png)
 
 - Unter dem Effektnamen eine **kleine Grafik**, live aus den Reglern: Hallfahne, Echos, LFO, EQ-Kurve, Kennlinie …
 - Zeigt 4 FX-Plätze, **SLOTS − / +** blättert durch FX 1–16, um 1 oder 4 Plätze (**STEP**, antippen).
@@ -103,7 +103,7 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 
 ## WING-EQ
 
-![WING-EQ](docs/panel_eq.png)
+![WING-EQ](docs/panels/wingeq.png)
 
 - Der **Standard-EQ (STD)** eines WING-Kanals: LOW, BAND 1–4, HIGH mit GAIN, FREQ und Q, LOW und HIGH als Shelf
   oder Peak (**SHV**), dazu **LO CUT** und **HI CUT** des Kanals. Alles in beide Richtungen.
@@ -117,6 +117,8 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 
 ## WING-DYN
 
+![WING-DYN](docs/panels/wingdyn.png)
+
 - **Gate** (THRESH, RANGE, ATT, HOLD, REL, ACC) und **Kompressor** (THRESH, RATIO, GAIN, MIX, KNEE, ATT, HOLD, REL,
   PEAK/RMS, LIN/LOG, AUTO) eines Kanals, in beide Richtungen. Kanal wie bei WING-EQ (Spur, SELECT, ◀ ▶).
 - Zwei Bilder aus den Reglern: die Kennlinie (IN → OUT) und der Verlauf in der Zeit.
@@ -125,6 +127,8 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 
 ## WING-KNOBS
 
+![WING-KNOBS](docs/panels/wingknobs.png)
+
 - 8 Regler und 8 Tasten der WING als CV: Regler 0–10 V, Tasten als Gate (10 V), je mit LEVEL.
 - An der WING das Custom Control auf **MIDI CC, Kanal 6, 7 oder 8** stellen (die übrigen Kanäle nutzt WING-LINK
   selbst); Tasten dürfen auch Noten senden.
@@ -132,6 +136,8 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
   einen Platz: neu anlernen, vergessen, umbenennen.
 
 ## WING-IN
+
+![WING-IN](docs/panels/wingin.png)
 
 - 8 USB-Ausgänge der WING (**USB n OUT**, WING → Computer) als 8 Streifen mit Pegel, Anzeige und Ausgang (±5 V).
   ◀ ▶ wählt den Block (USB 1–8 OUT, 9–16 OUT …).
@@ -158,8 +164,10 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 
 Über GitHub Actions (Windows und Mac, jeder Push baut alle), siehe `.github/workflows/main.yml`. Neue Version veröffentlichen: Versionsnummer in
 `plugin.json` erhöhen, testen, `main` auf den Branch `release` pushen; der Workflow legt den Tag `v<Version>` an und
-veröffentlicht den Release mit der `.vcvplugin`-Datei. Panels: `tools/winglink_panel.py real` und
-`tools/wingfx_panel.py real` (schreiben `res/*.svg` und die Layout-Header), Vorschau mit `preview OUT.png RACK`.
+veröffentlicht den Release mit der `.vcvplugin`-Datei. Panels: `tools/panels/winglink_panel.py real` und
+`tools/panels/wingfx_panel.py real` (schreiben `res/*.svg` und die Layout-Header), Vorschau mit `preview OUT.png RACK`.
 Die Effekt-Liste: `tools/fx_models.py` schreibt `src/WingFxModels.hpp` aus `tools/data/wing_fx_params.json`.
+
+Wo was liegt: `docs/UEBERSICHT.md`, offene Wünsche: `docs/MERKLISTE.md`.
 
 Lizenz: GPL-3.0. Protokoll nach Patrick-Gilles Maillots „WING Remote Protocols“.
