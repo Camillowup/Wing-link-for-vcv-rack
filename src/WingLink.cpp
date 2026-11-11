@@ -183,10 +183,15 @@ struct WingLink : Module {
 	} sd[2];
 	std::mutex metaMutex;  // the names (the UI writes them, the engine sends them)
 	// the WING's last complaint (shown in the display) and what it was about
-	std::string lastError;
-	float errorAge = 1e9f;
+	std::string lastError;              // (errMutex)
+	std::atomic<float> errorAge{1e9f};  // (the engine counts it: no lock there)
 	std::mutex errMutex;
 	float setGap = 0.f, qDrain = 0.f;  // after a command: wait for a complaint; after a lost answer: wait for it
+	float qStarve = 0.f;               // how long a question has waited for the commands to pause
+	bool setSinceAsk = false;          // a command went out since the question: a complaint may be its
+	float metaPoll = 0.f;              // names, colours, icons: asked every 6 s (the values every 1.5 s)
+	int metaTick = 0;                  // (the names' timers and sends: every 8th tick)
+	bool fxShow = false;               // a slot's model changed: show the panel again (no questions)
 	std::string lastSet;
 	int lastSetMeta = -1, lastSetPart = 0;
 	std::deque<std::string> outbox;     // commands of SYNC (the routing), sent one by one
@@ -276,6 +281,8 @@ struct WingLink : Module {
 		configButton(SYNC_PARAM, "SYNC: names, colours, icons and USB routing to the WING, then read its faders back");
 		configSwitch(TRACKS_PARAM, 0.f, 1.f, 0.f, "SD recording tracks", {"8", "16"});
 		ctl.setDivision(32);
+		noRandomize(this);
+		fillMeta();
 		midiOut.setChannel(-1);
 		midiIn.setChannel(-1);
 		for (int i = 0; i < NSLOT; i++)
@@ -316,12 +323,29 @@ struct WingLink : Module {
 		fxBus[1] = 2;
 		audioStart = 1;
 		fresh = true;
-		std::lock_guard<std::mutex> lock(metaMutex);
-		meta.clear();
-		for (int s = 0; s < NT; s++) {
-			st[s].tType = 0;
-			st[s].tNum = 0;
+		{
+			std::lock_guard<std::mutex> lock(metaMutex);
+			meta.clear();
+			for (int s = 0; s < NT; s++) {
+				st[s].tType = 0;
+				st[s].tNum = 0;
+			}
 		}
+		fillMeta();
+		// (Initialize put the panel to its defaults: they are not sent, the WING's values are read again)
+		wantReset = true;
+	}
+	/** An entry for every channel, bus … the WING has: the engine never has to make one (no allocation there). */
+	void fillMeta() {
+		std::lock_guard<std::mutex> lock(metaMutex);
+		for (int ty = P::T_CH; ty < P::NUM_TGT; ty++)
+			for (int n = 1; n <= P::TGT_COUNT[ty]; n++)
+				meta[ty * 100 + n];
+	}
+	/** (metaMutex held) The entry of a key, nullptr if the WING has no such channel. */
+	Meta* metaOf(int key) {
+		auto it = meta.find(key);
+		return it == meta.end() ? nullptr : &it->second;
 	}
 
 	// ---- helpers
@@ -388,12 +412,17 @@ struct WingLink : Module {
 	std::vector<std::string> logLines;
 	std::mutex logMutex;
 	std::string logPath;                // (UI thread: where it went)
+	std::atomic<bool> logPending{false};  // lines wait for the UI
+	/** Whether the log runs: its lines are only put together then (no strings in the engine otherwise). */
+	bool logging() { return logLeft.load(std::memory_order_relaxed) > 0.f; }
 	void logLine(const std::string& l) {
-		if (logLeft.load() <= 0.f)
+		if (!logging())
 			return;
 		std::unique_lock<std::mutex> lock(logMutex, std::try_to_lock);
-		if (lock.owns_lock() && logLines.size() < 20000)
+		if (lock.owns_lock() && logLines.size() < 20000) {
 			logLines.push_back(string::f("%9.3f  ", now) + l);
+			logPending = true;
+		}
 	}
 	static std::string describe(const std::vector<uint8_t>& b) {
 		if (b.empty())
@@ -418,13 +447,15 @@ struct WingLink : Module {
 		midi::Message m;
 		m.bytes = bytes;
 		midiOut.sendMessage(m);
-		logLine("OUT  " + describe(bytes));
+		if (logging())
+			logLine("OUT  " + describe(bytes));
 	}
 	void sendCc(int ch, int cc, int v) {
 		midi::Message m;
 		m.bytes = {(uint8_t) (0xB0 | ch), (uint8_t) cc, (uint8_t) clamp(v, 0, 127)};
 		midiOut.sendMessage(m);
-		logLine("OUT  " + describe(m.bytes));
+		if (logging())
+			logLine("OUT  " + describe(m.bytes));
 	}
 
 	/** The routing on the WING (read with the names: in.conn.grp / in): its channels 1–16 shown take USB 1–16 (a
@@ -473,7 +504,8 @@ struct WingLink : Module {
 			fresh = false;
 			if (same && fits < n && k + n - 1 <= 48) {
 				usbMode = k == audioStart ? 0 : k;
-				logLine(string::f("--   the WING's routing: AUDIO now to USB %d–", k));
+				if (logging())
+					logLine(string::f("--   the WING's routing: AUDIO now to USB %d–", k));
 				routeWrong = false;
 				return;
 			}
@@ -496,14 +528,18 @@ struct WingLink : Module {
 					y.local = y.wing = NAN;
 				y.dirty = false;
 				y.hold = 0.f;
+				y.sent = 0;
 			}
 		}
 		for (int k = 0; k < NSLOT; k++)
 			for (int f = 0; f < NFX; f++) {
 				fxs[k].f[f].dirty = false;
 				fxs[k].f[f].hold = 0.f;
+				fxs[k].f[f].sent = 0;
 			}
 		fxPageSeen = -1;  // (the FX panel: taken as it is again)
+		eqKeySeen = -1;   // (WING-EQ and WING-DYN: their knobs as they are, the channel read again)
+		dynKeySeen = -1;
 		queries.clear();
 		if (qWaiting)
 			qDrain = 0.3f;  // (a late answer must not land on the first new question)
@@ -521,6 +557,8 @@ struct WingLink : Module {
 		if (y.hold > 0.f)
 			return;
 		y.wing = v;
+		if (stripKey(s, f, v) != y.sent)
+			y.sent = 0;  // (the WING has another value now: ours goes out again when it changes)
 		static const int CVOF[NF] = {CV_FDR, CV_PAN, CV_FX1, CV_FX2, -1, -1};
 		if (CVOF[f] >= 0 && m->inputs[iid(j, CVOF[f])].isConnected())
 			return;
@@ -534,6 +572,7 @@ struct WingLink : Module {
 		if (y.hold > 0.f)
 			return;
 		y.wing = n;
+		y.sent = 0;
 		x.val[f] = n;
 		x.known[f] = true;
 		int j = fxVisible(slot);
@@ -553,8 +592,9 @@ struct WingLink : Module {
 		for (int f = FP1; f < NFX; f++) {
 			x.known[f] = false;
 			x.f[f].wing = NAN;
+			x.f[f].sent = 0;
 		}
-		fxPageSeen = -1;  // (refresh the panel)
+		fxShow = true;  // (refresh the panel; the caller asks for this slot's values)
 	}
 	/** Where the WING keeps what it shows for this channel: its source while linked to it, else the channel. */
 	static bool viaSource(const P::Tgt& t, const Meta& m) {
@@ -607,6 +647,7 @@ struct WingLink : Module {
 		if (y.hold > 0.f)
 			return;
 		y.wing = v;
+		y.sent = 0;
 		WingEq* em = eqMod.load();
 		if (!em)
 			return;
@@ -623,9 +664,9 @@ struct WingLink : Module {
 		if (eqSwitch(f))
 			return p > 0.5f ? "1" : "0";
 		if (eqGain(f))
-			return string::f("%.1f", clamp(p, -15.f, 15.f));
+			return P::fixed(clamp(p, -15.f, 15.f), 1);
 		float v = eqValue(f, p);
-		return v < 100.f ? string::f("%.2f", v) : string::f("%.0f", v);
+		return P::fixed(v, v < 100.f ? 2 : 0);
 	}
 
 	// ---- WING-EQ: its panel <-> the channel's EQ
@@ -730,6 +771,7 @@ struct WingLink : Module {
 		if (y.hold > 0.f)
 			return;
 		y.wing = v;
+		y.sent = 0;
 		WingDyn* dm = dynMod.load();
 		if (!dm)
 			return;
@@ -753,8 +795,8 @@ struct WingLink : Module {
 		if (f == D_CKNEE)
 			return string::f("%d", clamp((int) std::round(p), 0, 5));
 		if (d.logr)
-			return string::f("%.0f", dynRelMs(p));
-		return string::f("%.1f", clamp(p, d.lo, d.hi));
+			return P::fixed(dynRelMs(p), 0);
+		return P::fixed(clamp(p, d.lo, d.hi), 1);
 	}
 	/** The WING's text → the knob (NAN: not understood). */
 	static float dynParse(int f, const std::string& t) {
@@ -772,7 +814,9 @@ struct WingLink : Module {
 			int best = 0;
 			float bd = 1e9f;
 			for (int i = 0; i < NRATIO; i++) {
-				float r = (float) std::atof(DYN_RATIOS[i]), dd = std::fabs(r - v);
+				double rd = 0.0;
+				P::parseNumber(DYN_RATIOS[i], &rd);
+				float r = (float) rd, dd = std::fabs(r - v);
 				if (dd < bd)
 					bd = dd, best = i;
 			}
@@ -923,6 +967,7 @@ struct WingLink : Module {
 		if (im != inSeen) {
 			inSeen = im;
 			inStartSeen = -1;
+			port.engineOutputBuffer.clear();  // (what an earlier WING-IN left there is old)
 		}
 		inSyncFlash = std::max(0.f, inSyncFlash - dt);
 		if (!im)
@@ -1025,25 +1070,24 @@ struct WingLink : Module {
 		noAnswer = 0;
 		if (cmd != P::GET_REPLY) {
 			qDrain = 0.1f;  // (if that complaint was late, the real answer comes now: let it pass)
-			if (qNow.kind == 3 && qNow.f == M_LINK) {
+			if (qNow.kind == 3 && (qNow.f == M_LINK || qNow.src)) {
 				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
-				if (lock.owns_lock())
-					meta[qNow.s].link = 0;
-			}
-			if (qNow.kind == 3 && qNow.src) {
-				// the WING has no name / colour / icon at that source: use the channel's
-				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
-				if (lock.owns_lock())
-					meta[qNow.s].srcBad = true;
+				if (Meta* m = lock.owns_lock() ? metaOf(qNow.s) : nullptr) {
+					if (qNow.f == M_LINK)
+						m->link = 0;
+					if (qNow.src)
+						m->srcBad = true;  // the WING has no name / colour / icon at that source: use the channel's
+				}
 			}
 			return;
 		}
 		if (qNow.kind == 3) {
 			// name, colour or icon of a WING channel
 			std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
-			if (!lock.owns_lock())
+			Meta* mp = lock.owns_lock() ? metaOf(qNow.s) : nullptr;
+			if (!mp)
 				return;
-			Meta& m = meta[qNow.s];
+			Meta& m = *mp;
 			std::string t = text;
 			while (!t.empty() && (t.back() == '\n' || t.back() == '\r'))
 				t.pop_back();
@@ -1107,8 +1151,7 @@ struct WingLink : Module {
 			if (qNow.f == D_GMDL || qNow.f == D_CMDL) {
 				if (WingDyn* dm = dynMod.load()) {
 					bool g = qNow.f == D_GMDL;
-					char* dst = g ? dm->gateMdl : dm->compMdl;
-					std::snprintf(dst, 12, "%s", t.c_str());
+					(g ? dm->gateMdl : dm->compMdl) = packName(t);
 					(g ? dm->gateModel : dm->compModel) = t == (g ? "GATE" : "COMP") ? 1 : 0;
 				}
 				return;
@@ -1249,7 +1292,8 @@ struct WingLink : Module {
 	void onMidi(const midi::Message& msg) {
 		if (msg.bytes.empty())
 			return;
-		logLine("IN   " + describe(msg.bytes) + (qWaiting ? string::f("   (waiting: kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f) : ""));
+		if (logging())
+			logLine("IN   " + describe(msg.bytes) + (qWaiting ? string::f("   (waiting: kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f) : ""));
 		if (msg.bytes[0] == 0xF0) {
 			std::string text;
 			int cmd = P::parse(msg.bytes, &text);
@@ -1262,19 +1306,22 @@ struct WingLink : Module {
 				wingIdent = text;
 				return;
 			}
-			if (cmd == P::ERROR_REPLY && setGap > 0.f) {
-				// a complaint about the last command (not an answer to a question)
+			if (cmd == P::ERROR_REPLY && setGap > 0.f && !(qWaiting && !setSinceAsk)) {
+				// a complaint about the last command (not an answer to a question: no command went out since that
+				// was asked, or none is waiting)
 				{
-					std::lock_guard<std::mutex> lock(errMutex);
-					lastError = text + " (" + lastSet + ")";
-					errorAge = 0.f;
+					std::unique_lock<std::mutex> lock(errMutex, std::try_to_lock);
+					if (lock.owns_lock()) {
+						lastError = text + " (" + lastSet + ")";
+						errorAge = 0.f;
+					}
 				}
 				if (lastSetMeta >= 0 && lastSetPart == M_NAME && nameQuote == 0) {
 					// names: try them "quoted"
 					nameQuote = 1;
 					std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
-					if (lock.owns_lock())
-						meta[lastSetMeta].dirty |= M_NAME;
+					if (Meta* m = lock.owns_lock() ? metaOf(lastSetMeta) : nullptr)
+						m->dirty |= M_NAME;
 				}
 				return;
 			}
@@ -1359,7 +1406,32 @@ struct WingLink : Module {
 	}
 
 	// ---- values to the WING
-	void sendField(int s, int f, float v) {
+	/** A strip's value as the WING gets it (0.1 dB, a pan step, a CC step), as a key (never 0): the same isn't sent
+	 *  again. Sysex and CC keys never meet. */
+	uint32_t stripKey(int s, int f, float v) {
+		bool sx = sysexOk;
+		int q;
+		switch (f) {
+			case FADER:
+			case FX1:
+			case FX2: {
+				float db = P::posToDb(v);
+				q = (sx || f != FADER) ? (db <= -89.9f ? -1440 : (int) std::round(db * 10.f))
+				                       : (int) std::round(v * 127.f);
+				break;
+			}
+			case PAN: q = sx ? (int) std::round(v * 100.f) : (int) std::round((v + 1.f) * 63.5f); break;
+			default: q = v > 0.5f ? 1 : 0;
+		}
+		return (uint32_t) (q + 4000) * 2u + (sx ? 1u : 0u) + 2u;
+	}
+	/** Sends a strip's value; false when the WING has that (rounded) value from us already. */
+	bool sendField(int s, int f, float v) {
+		Sync& y = st[s].f[f];
+		uint32_t key = stripKey(s, f, v);
+		if (key == y.sent)
+			return false;
+		y.sent = key;
 		P::Tgt t = target(s);
 		std::string n = P::tgtNode(t) + ".";
 		bool sx = sysexOk, dca = t.type == P::T_DCA;
@@ -1389,25 +1461,43 @@ struct WingLink : Module {
 				sendSet(n + string::f("send.%d.on=1,lvl=", fxBus[f == FX2].load()) + P::dbText(P::posToDb(v)));
 				break;
 		}
+		return true;
 	}
-	void sendFx(int slot, int f, float n) {
+	/** Sends an FX value; false when nothing went out (the same rounded value as last time, or no such knob). */
+	bool sendFx(int slot, int f, float n) {
+		Sync& y = fxs[slot].f[f];
 		if (f == FON) {
+			uint32_t key = n > 0.5f ? 2u : 1u;
+			if (key == y.sent)
+				return false;
+			y.sent = key;
 			int ch, cc;
 			P::fxOnCc(slot + 1, &ch, &cc);
 			sendCc(ch, cc, n > 0.5f ? 127 : 0);
-			return;
+			return true;
 		}
 		if (f == FMIX) {
-			sendSet(P::fxNode(slot + 1) + string::f(".fxmix=%d", (int) std::round(n * 100.f)));
-			return;
+			int mix = (int) std::round(n * 100.f);
+			uint32_t key = (uint32_t) (mix + 1000);
+			if (key == y.sent)
+				return false;
+			y.sent = key;
+			sendSet(P::fxNode(slot + 1) + string::f(".fxmix=%d", mix));
+			return true;
 		}
 		const F::Param* p = fxKnob(slot, f - FP1);
 		if (!p)
-			return;
+			return false;
 		float v = F::toValue(*p, n);
-		sendSet(P::fxNode(slot + 1) + "." + p->key + "=" + F::wingText(*p, v));
+		std::string what = std::string(p->key) + "=" + F::wingText(*p, v);
+		uint32_t key = textKey(what);
+		if (key == y.sent)
+			return false;
+		y.sent = key;
+		sendSet(P::fxNode(slot + 1) + "." + what);
 		if (!std::strcmp(p->key, "time"))
 			fxs[slot].timeMs = v;
+		return true;
 	}
 	std::string queryOf(int f) {
 		switch (f) {
@@ -1437,7 +1527,7 @@ struct WingLink : Module {
 		if (what.empty())
 			return;
 		sendSet(metaNode(t, m) + "." + what);
-		if (src)
+		if (src && logging())
 			logLine(string::f("--   %s is linked to its source %s: name / colour / icon go there",
 			                  P::tgtLabel(t).c_str(), metaNode(t, m).c_str()));
 		lastSetMeta = key;
@@ -1449,6 +1539,7 @@ struct WingLink : Module {
 		lastSet = path;
 		lastSetMeta = -1;
 		setGap = 0.04f;
+		setSinceAsk = true;
 	}
 
 	// ---- WING-FX: its panel <-> the slots, the tempo
@@ -1468,8 +1559,12 @@ struct WingLink : Module {
 		if (fm->refresh.exchange(false))
 			fxPageSeen = -1;
 		int first = fm->first;
-		if (first != fxPageSeen) {
+		bool show = fxShow;
+		fxShow = false;
+		if (first != fxPageSeen || show) {
 			// new slots on the panel (or a new model, or another parameter on a knob): show what we know, then ask
+			// (a new model only: shown again, its slot's values are asked where the model came)
+			bool ask = first != fxPageSeen;
 			if (fxPageSeen >= 0 && first != fxPageSeen)
 				for (int k = 0; k < NSLOT; k++)
 					for (int f = 0; f < NFX; f++)
@@ -1484,8 +1579,9 @@ struct WingLink : Module {
 					x.f[f].local = v;
 					x.f[f].wing = v;
 					x.f[f].dirty = false;
+					x.f[f].sent = 0;
 				}
-				if (connected && sysexOk)
+				if (connected && sysexOk && ask)
 					askFx(slot, true);
 			}
 		}
@@ -1566,6 +1662,7 @@ struct WingLink : Module {
 							x.known[f] = true;
 							x.f[f].local = x.f[f].wing = n;
 							x.f[f].dirty = false;
+							x.f[f].sent = 0;
 							fm->params[fxPid(j, f)].setValue(n);
 						}
 					}
@@ -1643,10 +1740,8 @@ struct WingLink : Module {
 
 		setGap = std::max(0.f, setGap - dt);
 		qDrain = std::max(0.f, qDrain - dt);
-		{
-			std::lock_guard<std::mutex> lock(errMutex);
-			errorAge += dt;
-		}
+		metaPoll = std::max(0.f, metaPoll - dt);
+		errorAge.store(errorAge.load(std::memory_order_relaxed) + dt, std::memory_order_relaxed);
 		if (wantReset.exchange(false))
 			resetSync();
 		// WING-LINK X's own START CH
@@ -1683,11 +1778,12 @@ struct WingLink : Module {
 		lights[SYNC_LIGHT].setBrightness(syncFlash > 0.f ? 1.f : 0.f);
 
 		// the strips
+		const float envFall = std::pow(0.5f, dt / 0.12f);
 		for (int s = 0; s < NT; s++) {
 			int j;
 			Module* m = owner(s, &j);
 			Strip& t = st[s];
-			t.env = std::max(t.peak, t.env * std::pow(0.5f, dt / 0.12f));
+			t.env = std::max(t.peak, t.env * envFall);
 			t.peak = 0.f;
 			if (!m)
 				continue;
@@ -1777,14 +1873,9 @@ struct WingLink : Module {
 				for (int s = 0; s < NT; s++) {
 					if (!active(s))
 						continue;
+					// (whether the channel is linked to its source is asked with everything else below: resetSync;
+					// names / colours / icons wait for it)
 					int k = metaKey(target(s));
-					P::Tgt t = keyTgt(k);
-					if (t.type == P::T_CH || t.type == P::T_AUX) {
-						// first: is the channel linked to its source? (names / colours / icons wait for it)
-						queries.push_front({3, k, M_IN});
-						queries.push_front({3, k, M_GRP});
-						queries.push_front({3, k, M_LINK});
-					}
 					Meta& m = meta[k];
 					int d = (m.name.empty() ? 0 : M_NAME) | (m.colour > 0 ? M_COL : 0) | (m.icon >= 0 ? M_ICON : 0);
 					if (d) {
@@ -1797,18 +1888,30 @@ struct WingLink : Module {
 			resetSync();
 		}
 
-		// the names' timers
-		{
+		// the names' timers (every 8th tick)
+		bool metaNow = (++metaTick & 7) == 0;
+		if (metaNow) {
 			std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
 			if (lock.owns_lock())
 				for (auto& kv : meta) {
-					kv.second.wait = std::max(0.f, kv.second.wait - dt);
-					kv.second.hold = std::max(0.f, kv.second.hold - dt);
+					kv.second.wait = std::max(0.f, kv.second.wait - 8.f * dt);
+					kv.second.hold = std::max(0.f, kv.second.hold - 8.f * dt);
 				}
 		}
 
-		// send: one command every 3 ms at most, never while a question waits for its answer
-		// (order: SYNC's routing, then strips and FX round robin, then names)
+		// a question that has waited 100 ms for the commands to pause (a CV moves a fader all the time): it goes first
+		if (sysexOk && !qWaiting && qDrain <= 0.f && !queries.empty())
+			qStarve += dt;
+		else
+			qStarve = 0.f;
+		bool qFirst = qStarve > 0.1f;
+		// (just asked: no command for 30 ms, so a complaint in that time is the question's answer)
+		bool justAsked = qWaiting && qTimer > 0.22f;
+
+		// send: one command every 3 ms at most. SYNC's routing and the names never while a question waits for its
+		// answer; the strips', FX', EQ's and DYN's values also then, but not right after it was asked, and not while a
+		// question has waited too long. A value goes out only when it differs, rounded as the WING takes it, from
+		// what was sent last. (order: SYNC's routing, then strips and FX round robin, then names)
 		sendWait -= dt;
 		if (sendWait <= 0.f) {
 			bool sent = false;
@@ -1818,7 +1921,7 @@ struct WingLink : Module {
 				sent = true;
 			}
 			const int NSTRIP = NT * NF, NFXALL = NSLOT * NFX, NALL = NSTRIP + NFXALL + NEQ + NDYN;
-			for (int n = 0; n < NALL && !sent; n++) {
+			for (int n = 0; n < NALL && !sent && !qFirst && !justAsked; n++) {
 				int i = (sendRR + n) % NALL;
 				if (i >= NSTRIP + NFXALL + NEQ) {
 					int f = i - NSTRIP - NFXALL - NEQ;
@@ -1828,8 +1931,13 @@ struct WingLink : Module {
 					y.dirty = false;
 					if (!sysexOk || dynKeySeen < 0)
 						continue;
-					sendSet(P::tgtNode(keyTgt(dynKeySeen)) + "." + DYN[f].node + "=" + dynText(f, y.local));
+					std::string what = std::string(DYN[f].node) + "=" + dynText(f, y.local);
+					uint32_t key = textKey(what);
 					y.wing = y.local;
+					if (key == y.sent)
+						continue;  // (the WING has that from us)
+					y.sent = key;
+					sendSet(P::tgtNode(keyTgt(dynKeySeen)) + "." + what);
 					y.hold = 0.4f;
 					sendRR = i + 1;
 					sent = true;
@@ -1843,8 +1951,13 @@ struct WingLink : Module {
 					y.dirty = false;
 					if (!sysexOk || eqKeySeen < 0)
 						continue;
-					sendSet(P::tgtNode(keyTgt(eqKeySeen)) + "." + eqNode(f) + "=" + eqText(f, y.local));
+					std::string what = eqNode(f) + "=" + eqText(f, y.local);
+					uint32_t key = textKey(what);
 					y.wing = y.local;
+					if (key == y.sent)
+						continue;  // (the WING has that from us)
+					y.sent = key;
+					sendSet(P::tgtNode(keyTgt(eqKeySeen)) + "." + what);
 					y.hold = 0.4f;
 					sendRR = i + 1;
 					sent = true;
@@ -1858,30 +1971,30 @@ struct WingLink : Module {
 					y.dirty = false;
 					if (f != FON && !sysexOk)
 						continue;
-					sendFx(slot, f, y.local);
 					y.wing = y.local;
+					if (!sendFx(slot, f, y.local))
+						continue;  // (the WING has that from us)
 					y.hold = 0.4f;
 					sendRR = i + 1;
 					sent = true;
 					break;
 				}
 				int s = i / NF, f = i % NF;
-				if (!active(s))
-					continue;
 				Sync& y = st[s].f[f];
-				if (!y.dirty)
+				if (!y.dirty || !active(s))
 					continue;
 				y.dirty = false;
 				if ((f == SOLO || f == FX1 || f == FX2) && !sysexOk)
 					continue;
-				sendField(s, f, y.local);
 				y.wing = y.local;
+				if (!sendField(s, f, y.local))
+					continue;  // (the WING has that from us)
 				y.hold = 0.4f;
 				sendRR = i + 1;
 				sent = true;
 				break;
 			}
-			if (!sent && sysexOk && !qWaiting) {
+			if (!sent && sysexOk && !qWaiting && !qFirst && metaNow) {
 				std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
 				if (lock.owns_lock())
 					for (auto& kv : meta) {
@@ -1909,6 +2022,7 @@ struct WingLink : Module {
 				pullAll = false;
 				queries.clear();
 				selAsked = false;
+				metaPoll = 6.f;
 				for (int s = 0; s < NT; s++)
 					if (active(s)) {
 						for (int f = 0; f < NF; f++)
@@ -1936,23 +2050,30 @@ struct WingLink : Module {
 			pollTimer -= dt;
 			if (pollTimer <= 0.f && queries.empty()) {
 				pollTimer = 1.5f;
+				// (names, colours, icons and the channels' sources change seldom: every 6 s)
+				bool withMeta = metaPoll <= 0.f;
+				if (withMeta)
+					metaPoll = 6.f;
 				for (int s = 0; s < NT; s++)
 					if (active(s)) {
 						for (int f : {SOLO, FX1, FX2})
 							if (has(s, f))
 								queries.push_back({0, s, f});
-						askMeta(s);
+						if (withMeta)
+							askMeta(s);
 					}
 				if (WingFx* fm = fxMod.load())
 					for (int j = 0; j < NPAGE; j++)
 						askFx(fm->first + j, true);
 				if (eqMod.load() && eqKeySeen >= 0) {
 					askEq();
-					askMetaKey(eqKeySeen);
+					if (withMeta)
+						askMetaKey(eqKeySeen);
 				}
 				if (dynMod.load() && dynKeySeen >= 0) {
 					askDyn();
-					askMetaKey(dynKeySeen);
+					if (withMeta)
+						askMetaKey(dynKeySeen);
 				}
 				askIn();
 				for (int c = 0; c < 2; c++)
@@ -1968,18 +2089,19 @@ struct WingLink : Module {
 					if (qNow.kind == 3 && qNow.f >= M_LINK) {
 						// no answer: take the channel's own fields
 						std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
-						if (lock.owns_lock()) {
-							Meta& m = meta[qNow.s];
-							if (qNow.f == M_LINK && m.link < 0)
-								m.link = 0;
-							if (qNow.f == M_GRP && m.grp.empty())
-								m.grp = "OFF";
+						if (Meta* m = lock.owns_lock() ? metaOf(qNow.s) : nullptr) {
+							if (qNow.f == M_LINK && m->link < 0)
+								m->link = 0;
+							if (qNow.f == M_GRP && m->grp.empty())
+								m->grp = "OFF";
 						}
 					}
-					logLine(string::f("--   no answer (kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f));
+					if (logging())
+						logLine(string::f("--   no answer (kind %d s %d f %d)", qNow.kind, qNow.s, qNow.f));
 				}
 			}
-			while (!qWaiting && !queries.empty() && sendWait <= 0.f && setGap <= 0.f && qDrain <= 0.f) {
+			// (after a command 40 ms for its complaint; 10 ms when the question has waited too long already)
+			while (!qWaiting && !queries.empty() && sendWait <= 0.f && setGap <= (qFirst ? 0.03f : 0.f) && qDrain <= 0.f) {
 				qNow = queries.front();
 				queries.pop_front();
 				if (qNow.kind == 0) {
@@ -2066,6 +2188,8 @@ struct WingLink : Module {
 					send(P::fxGet(qNow.s + 1, what));
 				}
 				qWaiting = true;
+				setSinceAsk = false;
+				qStarve = 0.f;
 				qTimer = 0.25f;
 				sendWait = 0.002f;
 			}
@@ -2107,6 +2231,8 @@ struct WingLink : Module {
 	}
 
 	void onSampleRateChange(const SampleRateChangeEvent& e) override {
+		// (the control tick: 1500 times a second at 48 kHz, and no more often at 96 or 192 kHz)
+		ctl.setDivision(std::max(32, (int) std::round(e.sampleRate / 1500.f)));
 		port.engineInputBuffer.clear();
 		port.engineOutputBuffer.clear();
 	}
@@ -2120,10 +2246,25 @@ struct WingLink : Module {
 		return it == meta.end() ? Meta() : it->second;
 	}
 	std::string getName(int s) { return getMeta(s).name; }
+	/** (UI thread) The same, fetched once per frame and strip (the strip's widgets all show it). */
+	int uiFrame = 0;  // (counted by the panel)
+	Meta uiMeta[NT];
+	int uiMetaFrame[NT] = {}, uiMetaKey[NT] = {};
+	const Meta& getMetaUi(int s) {
+		int k = metaKey(target(s));
+		if (uiMetaFrame[s] != uiFrame || uiMetaKey[s] != k) {
+			uiMeta[s] = getMeta(s);
+			uiMetaFrame[s] = uiFrame;
+			uiMetaKey[s] = k;
+		}
+		return uiMeta[s];
+	}
 	void editMeta(int s, int part, std::function<void(Meta&)> f, float wait) {
 		P::Tgt t = target(s);
 		if (!t.ok())
 			return;
+		for (int i = 0; i < NT; i++)
+			uiMetaKey[i] = -1;  // (what the panel fetched this frame is old now)
 		std::lock_guard<std::mutex> lock(metaMutex);
 		Meta& m = meta[metaKey(t)];
 		f(m);
@@ -2325,6 +2466,12 @@ void Satellite::onRemove(const RemoveEvent& e) {
 	}
 	host = nullptr;
 }
+void Satellite::onReset() {
+	// (Initialize put this panel to its defaults: WING-LINK doesn't send them, it reads the WING's values again)
+	WingLink* h = host.load();
+	if (hostAlive(h))
+		h->wantReset = true;
+}
 Satellite::~Satellite() {}
 json_t* Satellite::dataToJson() {
 	json_t* root = json_object();
@@ -2344,6 +2491,7 @@ WingLinkX::WingLinkX() {
 	configStrips(this, NS);
 	configButton(DOWN_PARAM, "Start channel down");
 	configButton(UP_PARAM, "Start channel up");
+	noRandomize(this);
 }
 json_t* WingLinkX::dataToJson() {
 	json_t* root = Satellite::dataToJson();
@@ -2495,7 +2643,7 @@ struct NameField : DisplayTextField {
 	void step() override {
 		WingLink* h = getHost ? getHost() : nullptr;
 		if (h && APP->event->selectedWidget != this) {
-			std::string n = h->getName(s);
+			const std::string& n = h->getMetaUi(s).name;
 			if (n != text)
 				setText(n);
 		}
@@ -2634,7 +2782,7 @@ struct ScribbleWidget : OpaqueWidget {
 			P::Tgt t;
 			bool fixed = false;
 			if (h) {
-				Meta m = h->getMeta(s);
+				const Meta& m = h->getMetaUi(s);
 				col = m.colour;
 				icon = m.icon;
 				t = h->target(s);
@@ -3119,18 +3267,21 @@ struct WingLinkWidget : ModuleWidget {
 	}
 
 	void step() override {
+		if (WingLink* m0 = dynamic_cast<WingLink*>(module))
+			m0->uiFrame++;  // (a new frame: the strips fetch their names, colours, icons once)
 		ModuleWidget::step();
 		WingLink* m = dynamic_cast<WingLink*>(module);
 		if (!m)
 			return;
 		// the MIDI log: write what the engine noted
-		if (m->logLeft > 0.f || !m->logLines.empty()) {
+		if (m->logLeft > 0.f || m->logPending) {
 			float left = m->logLeft - frameDt();
 			m->logLeft = std::max(0.f, left);
 			std::vector<std::string> lines;
 			{
 				std::lock_guard<std::mutex> lock(m->logMutex);
 				lines.swap(m->logLines);
+				m->logPending = false;
 			}
 			if (!lines.empty() || left <= 0.f) {
 				if (FILE* f = std::fopen(m->logPath.c_str(), "a")) {

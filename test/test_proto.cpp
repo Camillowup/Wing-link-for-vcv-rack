@@ -25,6 +25,24 @@ int main() {
 	CHECK(dbText(0.f) == "0.0" && (dbText(-5.55f) == "-5.6" || dbText(-5.55f) == "-5.5"));
 	CHECK(dbText(-0.01f) == "0.0");
 	CHECK(dbText(MINUS_INF) == "-144");
+	// numbers as text: a decimal point whatever the locale
+	CHECK(fixed(-5.46, 1) == "-5.5" && fixed(12.0, 1) == "12.0" && fixed(0.04, 1) == "0.0" && fixed(-0.04, 1) == "0.0");
+	CHECK(fixed(1234.5, 0) == "1235" && fixed(0.4, 0) == "0" && fixed(0.125, 3) == "0.125" && fixed(-0.05, 2) == "-0.05");
+	CHECK(fixed(9.96, 1) == "10.0" && fixed(100.0, 2) == "100.00" && fixed(7.0, 0) == "7");
+	{
+		double d = 0;
+		CHECK(parseNumber("-5.5", &d) && std::fabs(d + 5.5) < 1e-9);
+		CHECK(parseNumber("+3", &d) && d == 3.0);
+		CHECK(parseNumber(".5", &d) && std::fabs(d - 0.5) < 1e-9);
+		CHECK(parseNumber("10.", &d) && d == 10.0);
+		CHECK(parseNumber("1e3", &d) && std::fabs(d - 1000.0) < 1e-6);
+		CHECK(parseNumber("2.5E-1", &d) && std::fabs(d - 0.25) < 1e-9);
+		CHECK(parseNumber("12abc", &d) && d == 12.0);
+		CHECK(!parseNumber("", &d) && !parseNumber("-", &d) && !parseNumber(".", &d) && !parseNumber("abc", &d));
+		float f = 0;
+		CHECK(number("-5.5", &f) && near(f, -5.5f) && number("2k5", &f) && near(f, 2500.f, 0.5f));
+		CHECK(number("10k02", &f) && near(f, 10020.f, 1.f) && !number("x", &f));
+	}
 	// channels
 	CHECK(node(33) == "ch.33" && node(41) == "aux.1" && node(48) == "aux.8");
 	CHECK(label(40) == "CH 40" && label(42) == "AUX 2");

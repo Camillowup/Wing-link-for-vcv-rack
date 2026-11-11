@@ -69,10 +69,14 @@ WingFx::WingFx() {
 	configSwitch(SYNC_PARAM, 0.f, 1.f, 1.f, "SYNC", {"Off: the WING's tempo (tap on the WING)", "On: the delays take Rack's tempo"});
 	configInput(CLOCK_INPUT, "Clock (Rack's tempo for the delays)");
 	configOutput(CLOCK_OUTPUT, "Clock (the tempo in use)");
+	noRandomize(this);
+	lightDiv.setDivision(64);
 }
 
 void WingFx::process(const ProcessArgs& args) {
-	// the lit buttons (also without a WING-LINK)
+	// the lit buttons (also without a WING-LINK), at control rate
+	if (!lightDiv.process())
+		return;
 	for (int j = 0; j < NPAGE; j++)
 		lights[ON_LIGHT + j].setBrightness(params[fxPid(j, FON)].getValue() > 0.5f ? 1.f : 0.f);
 	lights[SYNC_LIGHT].setBrightness(params[SYNC_PARAM].getValue() > 0.5f ? 1.f : 0.f);

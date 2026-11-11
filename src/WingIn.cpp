@@ -33,7 +33,10 @@ WingIn::WingIn() {
 }
 
 void WingIn::process(const ProcessArgs& args) {
-	float decay = std::exp(-args.sampleTime / 0.25f);
+	if (args.sampleTime != decayTime) {
+		decayTime = args.sampleTime;
+		decay = std::exp(-args.sampleTime / 0.25f);
+	}
 	for (int i = 0; i < NIN; i++) {
 		float a = audio[i].load(std::memory_order_relaxed) * params[LVL_PARAM + i].getValue();
 		outputs[OUTPUT + i].setVoltage(5.f * a);

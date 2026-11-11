@@ -59,14 +59,8 @@ inline std::string wingText(const Param& p, float v) {
 		}
 		case INT: std::snprintf(b, sizeof b, "%d", (int) std::round(v)); return b;
 		case FADER: return wingproto::dbText(v);
-		default:
-			if (std::fabs(v) >= 100.f)
-				std::snprintf(b, sizeof b, "%.0f", v);
-			else if (std::fabs(v) >= 10.f)
-				std::snprintf(b, sizeof b, "%.1f", v);
-			else
-				std::snprintf(b, sizeof b, "%.3f", v);
-			return b;
+		default:  // (a decimal point whatever the locale)
+			return wingproto::fixed(v, std::fabs(v) >= 100.f ? 0 : (std::fabs(v) >= 10.f ? 1 : 3));
 	}
 }
 

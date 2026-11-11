@@ -102,7 +102,38 @@ struct Sync {
 	float local = NAN;  // what the panel had at the last look
 	float hold = 0.f;   // after a change here: the WING's echoes are ignored this long (s)
 	bool dirty = false; // to send
+	uint32_t sent = 0;  // what went to the WING last (a key of the rounded value: the same isn't sent twice), 0: nothing
 };
+/** A key for a text (FNV-1a), never 0. */
+inline uint32_t textKey(const std::string& t) {
+	uint32_t h = 2166136261u;
+	for (unsigned char c : t)
+		h = (h ^ c) * 16777619u;
+	return h ? h : 1u;
+}
+/** A short name (≤ 7 characters) in one atomic value: the engine writes it, the panel reads it. */
+inline uint64_t packName(const std::string& t) {
+	uint64_t v = 0;
+	for (size_t i = 0; i < t.size() && i < 7; i++)
+		v |= (uint64_t) (unsigned char) t[i] << (8 * i);
+	return v;
+}
+inline std::string unpackName(uint64_t v) {
+	std::string t;
+	for (int i = 0; i < 7; i++) {
+		char c = (char) ((v >> (8 * i)) & 0xff);
+		if (!c)
+			break;
+		t += c;
+	}
+	return t;
+}
+/** The panels' values belong to the WING: Randomize must not send it random faders, gains … */
+inline void noRandomize(Module* m) {
+	for (ParamQuantity* q : m->paramQuantities)
+		if (q)
+			q->randomizeEnabled = false;
+}
 
 struct Strip {
 	Sync f[NF];
@@ -153,6 +184,7 @@ struct Satellite : Module {
 	virtual bool dockLeft() = 0;              // the WING-LINK is on its left (WING-LINK X) or right (WING-FX)
 	WingLink* hostSafe();                     // (UI thread) the host if it still exists
 	void onRemove(const RemoveEvent& e) override;
+	void onReset() override;                  // Initialize: the WING's values stand (they are read again)
 	~Satellite();
 	json_t* dataToJson() override;
 	void dataFromJson(json_t* root) override;
@@ -179,6 +211,7 @@ struct WingFx : Satellite {
 	std::atomic<int> ppqIn{4}, ppqOut{4};  // clock pulses per quarter note (4 = 16ths)
 	std::atomic<int> choice[wingfx::NUM_MODELS][4];  // per effect: the parameter on each knob (index into all, −1: default)
 	std::atomic<bool> refresh{false};  // (a knob got another parameter: show it, ask the WING)
+	dsp::ClockDivider lightDiv;
 	WingFx();
 	void process(const ProcessArgs& args) override;
 	const wingfx::Param* knob(int model, int k) { return wingfx::knobParam(wingfx::MODELS[model], k, choice[model][k]); }
@@ -197,6 +230,7 @@ struct WingEq : Satellite {
 	std::atomic<int> fixedKey{101};  // (M_FIXED) the channel: type * 100 + number (101: CH 1)
 	std::atomic<int> shownKey{-1};   // (the engine) the channel shown; −1: none (not a channel)
 	std::atomic<int> model{-1};      // the channel's EQ model on the WING (index into EQ_MODELS), −1 unknown
+	dsp::ClockDivider lightDiv;
 	WingEq();
 	void process(const ProcessArgs& args) override;
 	bool dockLeft() override { return false; }
@@ -256,7 +290,8 @@ struct WingDyn : Satellite {
 	std::atomic<int> fixedKey{101};
 	std::atomic<int> shownKey{-1};
 	std::atomic<int> gateModel{-1}, compModel{-1};  // 1: the STD model (GATE / COMP), 0: another, −1 unknown
-	char gateMdl[12] = "", compMdl[12] = "";
+	std::atomic<uint64_t> gateMdl{0}, compMdl{0};   // their names on the WING (packName)
+	dsp::ClockDivider lightDiv;
 	WingDyn();
 	void process(const ProcessArgs& args) override;
 	bool dockLeft() override { return false; }
@@ -332,6 +367,7 @@ struct WingIn : Satellite {
 	std::atomic<float> audio[NIN];       // (the engine of WING-LINK) the sample now
 	std::atomic<float> peak[NIN];        // (its meter)
 	std::atomic<bool> hasAudio{false};
+	float decay = 0.f, decayTime = 0.f;  // (the meters' fall per sample, for this sample time)
 	WingIn();
 	void process(const ProcessArgs& args) override;
 	bool dockLeft() override { return false; }

@@ -170,16 +170,77 @@ inline float dbToPos(float db) {
 	return p < 0.f ? 0.f : (p > 1.f ? 1.f : p);
 }
 
+// ---------------------------------------------------------------- numbers as text, whatever the locale
+// (printf and strtod follow the host's locale: a DAW may set a decimal comma, and "fdr=-5,5" is two values for the WING)
+/** v with a fixed number of decimals (0..6) and a decimal point: fixed(-5.46, 1) = "-5.5". */
+inline std::string fixed(double v, int decimals) {
+	if (!(v == v))
+		return "0";
+	if (decimals < 0)
+		decimals = 0;
+	if (decimals > 6)
+		decimals = 6;
+	double scale = 1.0;
+	for (int i = 0; i < decimals; i++)
+		scale *= 10.0;
+	double a = std::fabs(v) * scale;
+	if (a > 9e17)
+		a = 9e17;
+	unsigned long long n = (unsigned long long) std::floor(a + 0.5);
+	bool neg = v < 0.0 && n > 0;
+	std::string digits;
+	do {
+		digits.insert(digits.begin(), (char) ('0' + (int) (n % 10)));
+		n /= 10;
+	} while (n > 0);
+	while ((int) digits.size() <= decimals)
+		digits.insert(digits.begin(), '0');
+	std::string s = neg ? "-" : "";
+	s += digits.substr(0, digits.size() - decimals);
+	if (decimals > 0)
+		s += "." + digits.substr(digits.size() - decimals);
+	return s;
+}
+
+/** A number at the start of s ("-5.5", "+3", ".5", "1e3"; the decimal point only): false if there is none. */
+inline bool parseNumber(const char* s, double* v) {
+	const char* p = s;
+	bool neg = false;
+	if (*p == '+' || *p == '-')
+		neg = *p++ == '-';
+	double x = 0.0;
+	int nd = 0;
+	for (; *p >= '0' && *p <= '9'; p++, nd++)
+		x = x * 10.0 + (*p - '0');
+	if (*p == '.') {
+		double f = 0.1;
+		for (p++; *p >= '0' && *p <= '9'; p++, nd++, f *= 0.1)
+			x += (*p - '0') * f;
+	}
+	if (nd == 0)
+		return false;
+	if (*p == 'e' || *p == 'E') {
+		const char* q = p + 1;
+		bool eneg = false;
+		if (*q == '+' || *q == '-')
+			eneg = *q++ == '-';
+		if (*q >= '0' && *q <= '9') {
+			int e = 0;
+			for (; *q >= '0' && *q <= '9'; q++)
+				if (e < 400)
+					e = e * 10 + (*q - '0');
+			x *= std::pow(10.0, eneg ? -e : e);
+		}
+	}
+	*v = neg ? -x : x;
+	return true;
+}
+
 /** dB as the WING takes it: one decimal, −144 for −∞. */
 inline std::string dbText(float db) {
-	char b[16];
 	if (db <= -89.9f)
 		return "-144";
-	std::snprintf(b, sizeof b, "%.1f", std::round(db * 10.f) / 10.f);
-	std::string s = b;
-	if (s == "-0.0")
-		s = "0.0";
-	return s;
+	return fixed(db, 1);
 }
 
 // ---------------------------------------------------------------- sysex
@@ -253,16 +314,14 @@ inline bool number(const std::string& s0, float* v) {
 	if (kpos != std::string::npos && kpos > 0 && s.find_first_not_of("0123456789.-k") == std::string::npos) {
 		std::string t = s;
 		t[kpos] = '.';
-		char* end = nullptr;
-		double d = std::strtod(t.c_str(), &end);
-		if (end == t.c_str())
+		double d;
+		if (!parseNumber(t.c_str(), &d))
 			return false;
 		*v = (float) (d * 1000.0);
 		return true;
 	}
-	char* end = nullptr;
-	double d = std::strtod(s.c_str(), &end);
-	if (end == s.c_str())
+	double d;
+	if (!parseNumber(s.c_str(), &d))
 		return false;
 	*v = (float) d;
 	return true;

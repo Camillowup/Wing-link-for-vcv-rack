@@ -1,7 +1,7 @@
 # WING-LINK für VCV Rack
 
 Eine Brücke von VCV Rack zum Behringer **WING** (gebaut und getestet für die WING COMPACT) über **ein USB-Kabel**,
-im Look des GENRA-Plugins. Plugin-Version **2.6.0**, 7 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ, WING-DYN, WING-KNOBS, WING-IN).
+im Look des GENRA-Plugins. Plugin-Version **2.7.0**, 7 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ, WING-DYN, WING-KNOBS, WING-IN).
 
 ![Panel](docs/panels/winglink.png)
 

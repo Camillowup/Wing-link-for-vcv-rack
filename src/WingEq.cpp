@@ -4,6 +4,7 @@
 // the display picks one) or the one selected on the WING. Six bands with GAIN, FREQ, Q and CV, LOW / HIGH as shelf or
 // peak, LO CUT and HI CUT, the curve drawn from the knobs. Panel: tools/wingeq_panel.py.
 #include "WingLink.hpp"
+#include <cstring>
 #include "WingEqLayout.hpp"
 #include <complex>
 
@@ -45,10 +46,14 @@ WingEq::WingEq() {
 	configInput(CV_LC, "Low cut frequency CV (0–10 V)");
 	configInput(CV_HC, "High cut frequency CV (0–10 V)");
 	configInput(CV_ON, "EQ on (gate)");
+	noRandomize(this);
+	lightDiv.setDivision(64);
 }
 
 void WingEq::process(const ProcessArgs& args) {
-	// the lit buttons (also without a WING-LINK)
+	// the lit buttons (also without a WING-LINK), at control rate
+	if (!lightDiv.process())
+		return;
 	lights[ON_LIGHT].setBrightness(params[EQ_ON].getValue() > 0.5f ? 1.f : 0.f);
 	lights[LSHV_LIGHT].setBrightness(params[EQ_LSHV].getValue() > 0.5f ? 1.f : 0.f);
 	lights[HSHV_LIGHT].setBrightness(params[EQ_HSHV].getValue() > 0.5f ? 1.f : 0.f);
@@ -114,6 +119,62 @@ struct CurveWidget : Widget {
 	WingEq* module = nullptr;
 	static const int NP = 160;
 	float fx(float f, float x0, float x1) { return x0 + std::log10(f / 20.f) / 3.f * (x1 - x0); }
+	// the curves as they were worked out last (for the knobs in seen)
+	bool cached = false, onC = true;
+	float seen[NEQ] = {};
+	float xn[NP + 1] = {};           // each point's place, 0..1 across the picture
+	float bandC[NBAND][NP + 1] = {}; // each band (dB)
+	float totC[NP + 1] = {};         // the sum (dB)
+	float pfC[NBAND] = {}, ptC[NBAND] = {};  // the bands' frequencies and the sum there
+	void compute() {
+		double bb[NBAND + 2][3], aa[NBAND + 2][3];
+		bool use[NBAND + 2] = {};
+		bool on = true;
+		const float MG[NBAND] = {4.f, -3.f, -4.5f, 2.5f, 3.5f, 2.f}, MF[NBAND] = {80, 200, 600, 2500, 5000, 10000},
+		            MQ[NBAND] = {0.7f, 1.2f, 2.f, 1.f, 1.5f, 0.7f};
+		for (int b = 0; b < NBAND; b++) {
+			float g = module ? module->params[eqG(b)].getValue() : MG[b];
+			float f = module ? eqValue(eqF(b), module->params[eqF(b)].getValue()) : MF[b];
+			float q = module ? eqValue(eqQ(b), module->params[eqQ(b)].getValue()) : MQ[b];
+			Shape s = PEAK;
+			if (b == 0 && (!module || module->params[EQ_LSHV].getValue() > 0.5f))
+				s = LOSHELF;
+			if (b == 5 && (!module || module->params[EQ_HSHV].getValue() > 0.5f))
+				s = HISHELF;
+			coeffs(s, f, g, q, bb[b], aa[b]);
+			use[b] = true;
+			pfC[b] = f;
+		}
+		if (module) {
+			on = module->params[EQ_ON].getValue() > 0.5f;
+			if (module->params[EQ_LC].getValue() > 0.5f) {
+				coeffs(HIPASS, eqValue(EQ_LCF, module->params[EQ_LCF].getValue()), 0, 0.707, bb[NBAND], aa[NBAND]);
+				use[NBAND] = true;
+			}
+			if (module->params[EQ_HC].getValue() > 0.5f) {
+				coeffs(LOPASS, eqValue(EQ_HCF, module->params[EQ_HCF].getValue()), 0, 0.707, bb[NBAND + 1], aa[NBAND + 1]);
+				use[NBAND + 1] = true;
+			}
+		}
+		onC = on;
+		auto total = [&](float f) {
+			double w = TWO_PI * f / 96000.0;
+			float d = 0.f;
+			for (int i = 0; i < NBAND + 2; i++)
+				if (use[i] && (on || i >= NBAND))
+					d += biquadDb(bb[i], aa[i], w);
+			return clamp(d, -16.f, 16.f);
+		};
+		for (int k = 0; k <= NP; k++) {
+			float f = 20.f * std::pow(1000.f, k / (float) NP);
+			xn[k] = std::log10(f / 20.f) / 3.f;
+			for (int b = 0; b < NBAND; b++)
+				bandC[b][k] = clamp(biquadDb(bb[b], aa[b], TWO_PI * f / 96000.0), -16.f, 16.f);
+			totC[k] = total(f);
+		}
+		for (int b = 0; b < NBAND; b++)
+			ptC[b] = total(pfC[b]);
+	}
 	void drawLayer(const DrawArgs& args, int layer) override {
 		if (layer != 1) {
 			Widget::drawLayer(args, layer);
@@ -145,45 +206,18 @@ struct CurveWidget : Widget {
 			nvgStroke(vg);
 			text(vg, boldFont(), x0 - mm2px(0.8f), y + 2.f, d == 0 ? "0" : string::f("%+d", d), 5.2f, FAINT, NVG_ALIGN_RIGHT, 0.f);
 		}
-		// the bands from the knobs (the mock values in the module browser)
-		double bb[NBAND + 2][3], aa[NBAND + 2][3];
-		bool use[NBAND + 2] = {};
-		float pf[NBAND];
-		bool on = true;
-		const float MG[NBAND] = {4.f, -3.f, -4.5f, 2.5f, 3.5f, 2.f}, MF[NBAND] = {80, 200, 600, 2500, 5000, 10000},
-		            MQ[NBAND] = {0.7f, 1.2f, 2.f, 1.f, 1.5f, 0.7f};
-		for (int b = 0; b < NBAND; b++) {
-			float g = module ? module->params[eqG(b)].getValue() : MG[b];
-			float f = module ? eqValue(eqF(b), module->params[eqF(b)].getValue()) : MF[b];
-			float q = module ? eqValue(eqQ(b), module->params[eqQ(b)].getValue()) : MQ[b];
-			Shape s = PEAK;
-			if (b == 0 && (!module || module->params[EQ_LSHV].getValue() > 0.5f))
-				s = LOSHELF;
-			if (b == 5 && (!module || module->params[EQ_HSHV].getValue() > 0.5f))
-				s = HISHELF;
-			coeffs(s, f, g, q, bb[b], aa[b]);
-			use[b] = true;
-			pf[b] = f;
+		// the bands from the knobs (the mock values in the module browser); the curves are worked out again only
+		// when a knob has moved
+		float cur[NEQ];
+		for (int f = 0; f < NEQ; f++)
+			cur[f] = module ? module->params[f].getValue() : 0.f;
+		if (!cached || std::memcmp(cur, seen, sizeof cur) != 0) {
+			cached = true;
+			std::memcpy(seen, cur, sizeof cur);
+			compute();
 		}
-		if (module) {
-			on = module->params[EQ_ON].getValue() > 0.5f;
-			if (module->params[EQ_LC].getValue() > 0.5f) {
-				coeffs(HIPASS, eqValue(EQ_LCF, module->params[EQ_LCF].getValue()), 0, 0.707, bb[NBAND], aa[NBAND]);
-				use[NBAND] = true;
-			}
-			if (module->params[EQ_HC].getValue() > 0.5f) {
-				coeffs(LOPASS, eqValue(EQ_HCF, module->params[EQ_HCF].getValue()), 0, 0.707, bb[NBAND + 1], aa[NBAND + 1]);
-				use[NBAND + 1] = true;
-			}
-		}
-		auto total = [&](float f) {
-			double w = TWO_PI * f / 96000.0;
-			float d = 0.f;
-			for (int i = 0; i < NBAND + 2; i++)
-				if (use[i] && (on || i >= NBAND))
-					d += biquadDb(bb[i], aa[i], w);
-			return clamp(d, -16.f, 16.f);
-		};
+		bool on = onC;
+		const float* pf = pfC;
 		nvgSave(vg);
 		nvgIntersectScissor(vg, x0, top - 2.f, x1 - x0, bot - top + 4.f);
 		// each band, thin, in its colour
@@ -191,9 +225,7 @@ struct CurveWidget : Widget {
 			for (int b = 0; b < NBAND; b++) {
 				nvgBeginPath(vg);
 				for (int k = 0; k <= NP; k++) {
-					float f = 20.f * std::pow(1000.f, k / (float) NP);
-					float d = clamp(biquadDb(bb[b], aa[b], TWO_PI * f / 96000.0), -16.f, 16.f);
-					float x = fx(f, x0, x1), y = mid - d * dbs;
+					float x = x0 + xn[k] * (x1 - x0), y = mid - bandC[b][k] * dbs;
 					k ? nvgLineTo(vg, x, y) : nvgMoveTo(vg, x, y);
 				}
 				NVGcolor c = BAND_COLOURS[b];
@@ -205,18 +237,15 @@ struct CurveWidget : Widget {
 		// the sum
 		nvgBeginPath(vg);
 		nvgMoveTo(vg, x0, mid);
-		for (int k = 0; k <= NP; k++) {
-			float f = 20.f * std::pow(1000.f, k / (float) NP);
-			nvgLineTo(vg, fx(f, x0, x1), mid - total(f) * dbs);
-		}
+		for (int k = 0; k <= NP; k++)
+			nvgLineTo(vg, x0 + xn[k] * (x1 - x0), mid - totC[k] * dbs);
 		nvgLineTo(vg, x1, mid);
 		nvgClosePath(vg);
 		nvgFillColor(vg, nvgRGBA(0xf2, 0xf3, 0xf7, on ? 0x16 : 0x08));
 		nvgFill(vg);
 		nvgBeginPath(vg);
 		for (int k = 0; k <= NP; k++) {
-			float f = 20.f * std::pow(1000.f, k / (float) NP);
-			float x = fx(f, x0, x1), y = mid - total(f) * dbs;
+			float x = x0 + xn[k] * (x1 - x0), y = mid - totC[k] * dbs;
 			k ? nvgLineTo(vg, x, y) : nvgMoveTo(vg, x, y);
 		}
 		nvgStrokeColor(vg, on ? WHITE : FAINT);
@@ -227,7 +256,7 @@ struct CurveWidget : Widget {
 		if (on) {
 			const char* lb[NBAND] = {"L", "1", "2", "3", "4", "H"};
 			for (int b = 0; b < NBAND; b++) {
-				float x = fx(clamp(pf[b], 20.f, 20000.f), x0, x1), y = mid - total(pf[b]) * dbs;
+				float x = fx(clamp(pf[b], 20.f, 20000.f), x0, x1), y = mid - ptC[b] * dbs;
 				nvgBeginPath(vg);
 				nvgCircle(vg, x, y, mm2px(1.5f));
 				nvgFillColor(vg, BAND_COLOURS[b]);

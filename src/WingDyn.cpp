@@ -64,9 +64,13 @@ WingDyn::WingDyn() {
 	configInput(CV_C_ATT, "Compressor attack CV (0–10 V)");
 	configInput(CV_C_REL, "Compressor release CV (0–10 V)");
 	configInput(CV_C_ON, "Compressor on (gate)");
+	noRandomize(this);
+	lightDiv.setDivision(64);
 }
 
 void WingDyn::process(const ProcessArgs& args) {
+	if (!lightDiv.process())
+		return;
 	lights[GON_LIGHT].setBrightness(params[D_GON].getValue() > 0.5f ? 1.f : 0.f);
 	lights[CON_LIGHT].setBrightness(params[D_CON].getValue() > 0.5f ? 1.f : 0.f);
 	lights[DET_LIGHT].setBrightness(params[D_CDET].getValue() > 0.5f ? 1.f : 0.f);
@@ -267,7 +271,8 @@ struct DynDisplay : OpaqueWidget {
 				sc = WARN;
 			}
 			else if (module->gateModel == 0 || module->compModel == 0) {
-				st = string::f("●  MODELS %s / %s ON THE WING: STD ONLY (GATE / COMP)", module->gateMdl, module->compMdl);
+				st = string::f("●  MODELS %s / %s ON THE WING: STD ONLY (GATE / COMP)", unpackName(module->gateMdl.load()).c_str(),
+				               unpackName(module->compMdl.load()).c_str());
 				sc = WARN;
 			}
 			else {
