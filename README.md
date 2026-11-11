@@ -30,9 +30,16 @@ die neueste `WingLink-2.x.x-win-x64.vcvplugin` herunterladen.
 bei **Artifacts** `winglink-windows` laden → Zip entpacken → wie oben installieren. Diese Builds löscht GitHub nach 90 Tagen;
 Releases bleiben.
 
+## Installation auf dem Mac
+
+Wie unter Windows, mit der Mac-Datei: **Apple Silicon** (M1 …) `WingLink-2.x.x-mac-arm64.vcvplugin`, **Intel**
+`WingLink-2.x.x-mac-x64.vcvplugin` (Testversionen: Artifacts `winglink-mac-arm64` / `winglink-mac-x64`). Ziel:
+*Help › Open user folder* › `plugins-mac-arm64` bzw. `plugins-mac-x64`. Die WING braucht am Mac keinen Treiber; als
+Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem Mac getestet.
+
 ## Einrichten (einmal)
 
-1. **Treiber**: Den Windows-ASIO-Treiber der WING von behringer.com installieren, PC neu starten.
+1. **Treiber** (nur Windows): Den Windows-ASIO-Treiber der WING von behringer.com installieren, PC neu starten.
 2. **WING per USB** an den PC.
 3. **An der WING**:
    - *Setup › USB-Audio*: **48 Kanäle** (WING-LINK schickt standardmässig Spur 1 → USB 1 usw.).
@@ -121,7 +128,7 @@ Releases bleiben.
 
 ## Bauen
 
-Über GitHub Actions (Windows), siehe `.github/workflows/main.yml`. Neue Version veröffentlichen: Versionsnummer in
+Über GitHub Actions (Windows und Mac, jeder Push baut alle), siehe `.github/workflows/main.yml`. Neue Version veröffentlichen: Versionsnummer in
 `plugin.json` erhöhen, testen, `main` auf den Branch `release` pushen; der Workflow legt den Tag `v<Version>` an und
 veröffentlicht den Release mit der `.vcvplugin`-Datei. Panels: `tools/winglink_panel.py real` und
 `tools/wingfx_panel.py real` (schreiben `res/*.svg` und die Layout-Header), Vorschau mit `preview OUT.png RACK`.

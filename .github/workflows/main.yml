@@ -5,7 +5,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # a push to the branch "release" publishes GitHub release v<version> with the plugin
+  contents: write   # a push to the branch "release" publishes GitHub release v<version> with the plugins
+                    # (Windows x64, Mac Apple Silicon, Mac Intel)
 
 jobs:
   windows:
@@ -54,22 +55,75 @@ jobs:
           name: winglink-windows
           path: dist/*.vcvplugin
 
+  mac:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Rack SDK
+        run: |
+          curl -fsSL -o sdk.zip https://vcvrack.com/downloads/Rack-SDK-latest-mac-${{ matrix.arch }}.zip
+          unzip -q sdk.zip -d sdk
+          which zstd || brew install zstd
+
+      - name: Tests (protocol, without Rack)
+        run: |
+          clang++ -std=c++11 -O2 -Isrc test/test_proto.cpp -o t && ./t
+
+      - name: Build plugin
+        run: |
+          VER=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' plugin.json)
+          echo "Version $VER (${{ matrix.arch }})"
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            # (the runner is Apple Silicon: Intel is built across)
+            make RACK_DIR=sdk/Rack-SDK SLUG=WingLink VERSION=$VER CROSS_COMPILE=x86_64-apple-darwin \
+              EXTRA_FLAGS="-arch x86_64" EXTRA_LDFLAGS="-arch x86_64" -j4 dist
+          else
+            make RACK_DIR=sdk/Rack-SDK SLUG=WingLink VERSION=$VER -j4 dist
+          fi
+
+      - name: Check the package
+        run: |
+          ls -la dist/WingLink dist/WingLink/res
+          test -f dist/WingLink/plugin.dylib
+          file dist/WingLink/plugin.dylib
+          test -f dist/WingLink/res/WingEq.svg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winglink-mac-${{ matrix.arch }}
+          path: dist/*.vcvplugin
+
+  release:
+    if: github.ref == 'refs/heads/release'
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
       - name: Read the release version
-        if: github.ref == 'refs/heads/release'
         run: |
           VER=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' plugin.json)
           echo "RELVER=$VER" >> $GITHUB_ENV
+          ls -la out
 
-      - name: Publish the release (tag v-version with the plugin)
-        if: github.ref == 'refs/heads/release'
+      - name: Publish the release (tag v-version with the plugins)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.RELVER }}
           target_commitish: ${{ github.sha }}
           name: WING-LINK ${{ env.RELVER }}
-          files: dist/*.vcvplugin
+          files: out/*.vcvplugin
           body: |
-            WING-LINK for VCV Rack 2 (Windows x64).
+            WING-LINK for VCV Rack 2: Windows x64, Mac Apple Silicon (mac-arm64), Mac Intel (mac-x64).
 
-            Install: download the `.vcvplugin` file and put it into your Rack user folder's `plugins-win-x64` folder
-            (Rack › Help › Open user folder), then restart Rack.
+            Install: download the `.vcvplugin` file for your computer and put it into your Rack user folder's
+            `plugins-<system>` folder (Rack › Help › Open user folder), then restart Rack.
