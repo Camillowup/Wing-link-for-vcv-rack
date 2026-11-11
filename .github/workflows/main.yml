@@ -49,6 +49,9 @@ jobs:
           test -f dist/WingLink/res/WingLinkX.svg
           test -f dist/WingLink/res/WingFx.svg
           test -f dist/WingLink/res/WingEq.svg
+          test -f dist/WingLink/res/WingDyn.svg
+          test -f dist/WingLink/res/WingKnobs.svg
+          test -f dist/WingLink/res/WingIn.svg
 
       - uses: actions/upload-artifact@v4
         with:
@@ -91,6 +94,9 @@ jobs:
           test -f dist/WingLink/plugin.dylib
           file dist/WingLink/plugin.dylib
           test -f dist/WingLink/res/WingEq.svg
+          test -f dist/WingLink/res/WingDyn.svg
+          test -f dist/WingLink/res/WingKnobs.svg
+          test -f dist/WingLink/res/WingIn.svg
 
       - uses: actions/upload-artifact@v4
         with:

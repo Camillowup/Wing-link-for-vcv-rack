@@ -1,13 +1,14 @@
 # WING-LINK für VCV Rack
 
 Eine Brücke von VCV Rack zum Behringer **WING** (gebaut und getestet für die WING COMPACT) über **ein USB-Kabel**,
-im Look des GENRA-Plugins. Plugin-Version **2.5.3**, 4 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ).
+im Look des GENRA-Plugins. Plugin-Version **2.6.0**, 7 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ, WING-DYN, WING-KNOBS, WING-IN).
 
 ![Panel](docs/panel.png)
 
 - **WING-LINK**: 8 Spuren. **WING-LINK X**: 8 Spuren mehr. **WING-FX**: die 16 Effekte der WING. **WING-EQ**: EQ und
-  Filter eines Kanals.
-- WING-LINK X, WING-FX und WING-EQ verbinden sich **von selbst**, wenn es nur ein WING-LINK im Patch gibt. Sonst per
+  Filter eines Kanals. **WING-DYN**: Gate und Kompressor eines Kanals. **WING-KNOBS**: die Custom Controls der WING als
+  CV. **WING-IN**: Audio von der WING nach Rack.
+- Alle Zusatzmodule verbinden sich **von selbst**, wenn es nur ein WING-LINK im Patch gibt. Sonst per
   Rechtsklick › *Connect to WING-LINK*, oder angedockt (X rechts neben WING-LINK, FX links daneben).
 - **Audio**: Was in die AUDIO-Buchsen geht, landet direkt auf den USB-Eingängen der WING. WING-LINK ist dafür
   selbst ein Audio-Ausgang (wie Racks Audio-Modul), ein Audio-16-Modul braucht es nicht.
@@ -114,9 +115,36 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 - Hat der Kanal an der WING ein anderes EQ-Modell (SOUL, E88 …), zeigt das Display eine Warnung: WING-EQ steuert nur
   den STD-EQ.
 
+## WING-DYN
+
+- **Gate** (THRESH, RANGE, ATT, HOLD, REL, ACC) und **Kompressor** (THRESH, RATIO, GAIN, MIX, KNEE, ATT, HOLD, REL,
+  PEAK/RMS, LIN/LOG, AUTO) eines Kanals, in beide Richtungen. Kanal wie bei WING-EQ (Spur, SELECT, ◀ ▶).
+- Zwei Bilder aus den Reglern: die Kennlinie (IN → OUT) und der Verlauf in der Zeit.
+- **CV** 0–10 V über den ganzen Regelweg, GATE ON / COMP ON als Gate. Gesteckte CV hat Vorrang vor der WING.
+- Nur die STD-Modelle **GATE** und **COMP**; bei einem anderen Modell warnt das Display.
+
+## WING-KNOBS
+
+- 8 Regler und 8 Tasten der WING als CV: Regler 0–10 V, Tasten als Gate (10 V), je mit LEVEL.
+- An der WING das Custom Control auf **MIDI CC, Kanal 6, 7 oder 8** stellen (die übrigen Kanäle nutzt WING-LINK
+  selbst); Tasten dürfen auch Noten senden.
+- Anlernen: auf einen Platz klicken (er blinkt), dann den Regler / die Taste an der WING bewegen. Rechtsklick auf
+  einen Platz: neu anlernen, vergessen, umbenennen.
+
+## WING-IN
+
+- 8 USB-Ausgänge der WING (**USB n OUT**, WING → Computer) als 8 Streifen mit Pegel, Anzeige und Ausgang (±5 V).
+  ◀ ▶ wählt den Block (USB 1–8 OUT, 9–16 OUT …).
+- Klick auf die Quelle eines Streifens: ein Eingang der WING (LOCAL, AUX, A, B, C, SC, USB IN) oder ein Kanal, AUX,
+  Bus, Main oder Matrix (PRE/POST, L+R/L/R). Kanäle und Busse laufen über das User Signal **USR 1–8** (Streifen 1
+  = USR 1 …). **SYNC** schreibt das Routing an die WING; beim Laden liest WING-LINK es zurück.
+- Das Audio kommt über das Audio-Gerät von WING-LINK; es braucht dafür Eingänge (an der WING genug USB-Kanäle
+  einstellen).
+- Bezeichnung: **USB n IN** = Rack → WING (WING-LINK), **USB n OUT** = WING → Rack (WING-IN).
+
 ## Gut zu wissen
 
-- Verbundene Displays leuchten grün (WING-LINK X, WING-FX, WING-EQ am WING-LINK); unter dem Effekt-Modell zeigt
+- Verbundene Displays leuchten grün; unter dem Effekt-Modell zeigt
   WING-FX ein Bild der Effektart.
 
 - Läuft schon ein Audio-Modul von Rack auf der WING (z. B. zum Abhören auf USB 1–2), stört das nicht, solange es

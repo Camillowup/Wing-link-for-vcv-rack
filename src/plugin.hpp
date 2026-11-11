@@ -9,6 +9,9 @@ extern Model* modelWingLink;
 extern Model* modelWingLinkX;
 extern Model* modelWingFx;
 extern Model* modelWingEq;
+extern Model* modelWingDyn;
+extern Model* modelWingKnobs;
+extern Model* modelWingIn;
 
 /** The dark knob with the white pointer of the GENRA plugin (res/knob/small*.svg). */
 struct GSmallKnob : RoundKnob {

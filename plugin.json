@@ -1,7 +1,7 @@
 {
   "slug": "WingLink",
   "name": "WING-LINK",
-  "version": "2.5.3",
+  "version": "2.6.0",
   "license": "GPL-3.0-only",
   "brand": "WING-LINK",
   "author": "Bastian Ofner",
@@ -52,6 +52,34 @@
         "External",
         "Equalizer",
         "Controller"
+      ]
+    },
+    {
+      "slug": "WingDyn",
+      "name": "WING-DYN",
+      "description": "The gate and the compressor (STD models) of a WING channel from Rack: threshold, range, ratio, gain, mix, knee, times, both ways, CV, the curve and the envelopes; the channel follows a strip, SELECT on the WING or pages with buttons (a panel of WING-LINK)",
+      "tags": [
+        "External",
+        "Dynamics",
+        "Controller"
+      ]
+    },
+    {
+      "slug": "WingKnobs",
+      "name": "WING-KNOBS",
+      "description": "The WING's custom controls as CV: 8 knobs (0-10 V) and 8 buttons (gates) learned from the WING's MIDI, each with a level (a panel of WING-LINK)",
+      "tags": [
+        "External",
+        "Controller"
+      ]
+    },
+    {
+      "slug": "WingIn",
+      "name": "WING-IN",
+      "description": "Audio from the WING into Rack: 8 USB outputs of the WING as 8 strips, each with its source on the WING (an input, or a channel, bus, main or matrix through a user signal), SYNC writes the routing, meters, levels (a panel of WING-LINK)",
+      "tags": [
+        "External",
+        "Mixer"
       ]
     }
   ]

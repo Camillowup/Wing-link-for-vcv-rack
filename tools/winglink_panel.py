@@ -375,9 +375,9 @@ for k, p in enumerate((main, xp)):
         o.insert(-1, o.pop(n0))
     x, y, w, h = p.areas["DISPLAY"]
     lines = ([("CH 1 – 8", 3.4, "#ffffff", 800, 4.6), ("● WING · MIDI OK · SYSEX OK · SD1 REC", 1.6, "#b8f23a", 700, 8.1),
-              ("AUDIO → USB 1–16 · ASIO WING · 48 kHz", 1.5, DIM, 600, 10.2)] if k == 0 else
+              ("AUDIO → USB 1–16 IN · ASIO WING · 48 kHz", 1.5, DIM, 600, 10.2)] if k == 0 else
              [("CH 9 – 16", 3.4, "#ffffff", 800, 4.6), ("● LINKED TO WING-LINK", 1.6, "#b8f23a", 700, 8.1),
-              ("AUDIO → USB 9–16", 1.5, DIM, 600, 10.2)])
+              ("AUDIO → USB 9–16 IN", 1.5, DIM, 600, 10.2)])
     for s, sz, c, wt, dy in lines:
         n0 = len(o)
         p.text(x + 3, y + dy, s, sz, c, wt, "start", 0.2)

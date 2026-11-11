@@ -76,18 +76,25 @@ struct WingAudioPort : audio::Port {
 	std::atomic<int> deviceNumOutputs{0};
 	std::atomic<int> deviceTotalOutputs{0};  // (all the device's outputs: 16 for the DAW of Rack's plugin)
 	std::atomic<int> wantOffset{0};          // the first device channel: taken at the start of a buffer only
+	std::atomic<int> wantInOffset{0};        // (WING-IN) its first device input, the same way
+	std::atomic<bool> wantInputs{false};     // (WING-IN) is there
+	dsp::DoubleRingBuffer<dsp::Frame<NIN>, 32768> engineOutputBuffer;   // (WING-IN) the WING's audio, at the engine's rate
+	dsp::SampleRateConverter<NIN> outputSrc;
+	std::atomic<int> deviceNumInputs{0};
 	float deviceSampleRate = 0.f;
 	int requestedEngineFrames = 0;
 
 	WingAudioPort(Module* m) : module(m) {
-		maxInputs = 0;
+		maxInputs = NIN;
 		maxOutputs = MAXCH;
 		inputSrc.setQuality(6);
+		outputSrc.setQuality(6);
 	}
 	bool isMaster() { return APP->engine->getMasterModule() == module; }
 
 	void processInput(const float* input, int inputStride, int frames) override {
 		outputOffset = wantOffset;  // (the same for the whole buffer, whatever the engine changes meanwhile)
+		inputOffset = wantInOffset;
 		deviceTotalOutputs = device ? device->getNumOutputs() : 0;
 		deviceNumOutputs = std::min(getNumOutputs(), MAXCH);
 		deviceSampleRate = getSampleRate();
@@ -97,6 +104,17 @@ struct WingAudioPort : audio::Port {
 			APP->engine->setSuggestedSampleRate(deviceSampleRate);
 		float ratio = APP->engine->getSampleRate() / deviceSampleRate;
 		requestedEngineFrames = std::max((int) std::ceil(frames * ratio) - (int) engineInputBuffer.size(), 0);
+		// (WING-IN) the WING's USB outputs into the engine's rate
+		int ni = wantInputs ? std::min(getNumInputs(), NIN) : 0;
+		deviceNumInputs = ni;
+		if (ni > 0 && input) {
+			outputSrc.setRates(deviceSampleRate, APP->engine->getSampleRate());
+			outputSrc.setChannels(ni);
+			int inFrames = frames;
+			int outFrames = engineOutputBuffer.capacity();
+			outputSrc.process(input, inputStride, &inFrames, (float*) engineOutputBuffer.endData(), NIN, &outFrames);
+			engineOutputBuffer.endIncr(outFrames);
+		}
 	}
 	void processBuffer(const float* input, int inputStride, float* output, int outputStride, int frames) override {
 		if (isMaster() && requestedEngineFrames > 0)
@@ -123,10 +141,15 @@ struct WingAudioPort : audio::Port {
 		if ((int) engineInputBuffer.size() > maxEngineFrames)
 			engineInputBuffer.clear();
 	}
-	void onStartStream() override { engineInputBuffer.clear(); }
+	void onStartStream() override {
+		engineInputBuffer.clear();
+		engineOutputBuffer.clear();
+	}
 	void onStopStream() override {
 		deviceNumOutputs = 0;
+		deviceNumInputs = 0;
 		deviceTotalOutputs = 0;
+		engineOutputBuffer.clear();
 		deviceSampleRate = 0.f;
 		engineInputBuffer.clear();
 		if (APP->engine->getMasterModule() == module)
@@ -173,6 +196,9 @@ struct WingLink : Module {
 	std::atomic<WingLinkX*> xMod{nullptr};
 	std::atomic<WingFx*> fxMod{nullptr};
 	std::atomic<WingEq*> eqMod{nullptr};
+	std::atomic<WingDyn*> dynMod{nullptr};
+	std::atomic<WingKnobs*> knobsMod{nullptr};
+	std::atomic<WingIn*> inMod{nullptr};
 
 	// ---- connection
 	midi::InputQueue midiIn;
@@ -213,6 +239,16 @@ struct WingLink : Module {
 	int eqKeySeen = -1;
 	Sync eqs[NEQ];
 	dsp::BooleanTrigger eqPrevT, eqNextT, eqFlatT;
+	// ---- WING-DYN
+	WingDyn* dynSeen = nullptr;
+	int dynKeySeen = -1;
+	Sync dyns[NDYN];
+	dsp::BooleanTrigger dynPrevT, dynNextT;
+	// ---- WING-IN
+	WingIn* inSeen = nullptr;
+	int inStartSeen = -1;
+	dsp::BooleanTrigger inDownT, inUpT, inSyncT;
+	float inSyncFlash = 0.f;
 	int selKey = -1;         // the channel selected on the WING (SELECT), −1 unknown
 	float selTimer = 0.f;
 	bool selAsked = false;
@@ -264,6 +300,12 @@ struct WingLink : Module {
 		if (WingFx* f = fxMod.load())
 			f->host = nullptr;
 		if (WingEq* q = eqMod.load())
+			q->host = nullptr;
+		if (WingDyn* q = dynMod.load())
+			q->host = nullptr;
+		if (WingKnobs* q = knobsMod.load())
+			q->host = nullptr;
+		if (WingIn* q = inMod.load())
 			q->host = nullptr;
 	}
 
@@ -674,6 +716,296 @@ struct WingLink : Module {
 		}
 	}
 
+	// ---- WING-DYN: its panel <-> the channel's gate and compressor
+	void askDyn() {
+		if (dynKeySeen < 0)
+			return;
+		queries.push_back({6, dynKeySeen, D_GMDL});
+		queries.push_back({6, dynKeySeen, D_CMDL});
+		for (int f = 0; f < NDYN; f++)
+			queries.push_back({6, dynKeySeen, f});
+	}
+	void fromWingDyn(int f, float v) {
+		Sync& y = dyns[f];
+		if (y.hold > 0.f)
+			return;
+		y.wing = v;
+		WingDyn* dm = dynMod.load();
+		if (!dm)
+			return;
+		int in = dynInput(f);
+		if (in >= 0 && dm->inputs[in].isConnected())
+			return;
+		dm->params[f].setValue(v);
+		y.local = v;
+		y.dirty = false;
+	}
+	static std::string dynText(int f, float p) {
+		const DynSpec& d = DYN[f];
+		if (f == D_CDET)
+			return p > 0.5f ? "RMS" : "PEAK";
+		if (f == D_CENV)
+			return p > 0.5f ? "LOG" : "LIN";
+		if (d.sw)
+			return p > 0.5f ? "1" : "0";
+		if (f == D_CRATIO)
+			return DYN_RATIOS[clamp((int) std::round(p), 0, NRATIO - 1)];
+		if (f == D_CKNEE)
+			return string::f("%d", clamp((int) std::round(p), 0, 5));
+		if (d.logr)
+			return string::f("%.0f", dynRelMs(p));
+		return string::f("%.1f", clamp(p, d.lo, d.hi));
+	}
+	/** The WING's text → the knob (NAN: not understood). */
+	static float dynParse(int f, const std::string& t) {
+		const DynSpec& d = DYN[f];
+		if (f == D_CDET)
+			return t == "RMS" ? 1.f : (t == "PEAK" ? 0.f : NAN);
+		if (f == D_CENV)
+			return t == "LOG" ? 1.f : (t == "LIN" ? 0.f : NAN);
+		float v;
+		if (!P::number(t, &v))
+			return NAN;
+		if (d.sw)
+			return v > 0.5f ? 1.f : 0.f;
+		if (f == D_CRATIO) {
+			int best = 0;
+			float bd = 1e9f;
+			for (int i = 0; i < NRATIO; i++) {
+				float r = (float) std::atof(DYN_RATIOS[i]), dd = std::fabs(r - v);
+				if (dd < bd)
+					bd = dd, best = i;
+			}
+			return (float) best;
+		}
+		if (d.logr)
+			return v >= 3.f && v <= 4400.f ? dynRelParam(v) : NAN;
+		if (v < d.lo - 0.5f || v > d.hi + 0.5f)
+			return NAN;
+		return clamp(v, d.lo, d.hi);
+	}
+	void controlDyn(float dt, bool connected) {
+		WingDyn* dm = dynMod.load();
+		if (dm != dynSeen) {
+			dynSeen = dm;
+			dynKeySeen = -1;
+		}
+		if (!dm)
+			return;
+		int cur = dynKeySeen >= 0 ? dynKeySeen : dm->fixedKey.load();
+		if (dynPrevT.process(dm->params[WingDyn::PREV_PARAM].getValue() > 0.f)) {
+			dm->fixedKey = eqStepKey(cur, -1);
+			dm->mode = WingEq::M_FIXED;
+		}
+		if (dynNextT.process(dm->params[WingDyn::NEXT_PARAM].getValue() > 0.f)) {
+			dm->fixedKey = eqStepKey(cur, +1);
+			dm->mode = WingEq::M_FIXED;
+		}
+		int key;
+		if (dm->mode == WingEq::M_STRIP)
+			key = metaKey(target(clamp(dm->strip.load(), 0, NT - 1)));
+		else if (dm->mode == WingEq::M_SELECT)
+			key = selKey >= 0 ? selKey : cur;
+		else
+			key = dm->fixedKey;
+		P::Tgt t = keyTgt(key);
+		if (!t.ok() || (t.type != P::T_CH && t.type != P::T_AUX))
+			key = -1;
+		if (key != dynKeySeen) {
+			dynKeySeen = key;
+			dm->shownKey = key;
+			dm->gateModel = -1;
+			dm->compModel = -1;
+			for (int f = 0; f < NDYN; f++) {
+				dyns[f] = Sync();
+				int in = dynInput(f);
+				dyns[f].local = (in >= 0 && dm->inputs[in].isConnected()) ? NAN : dm->params[f].getValue();
+			}
+			if (key >= 0 && connected && sysexOk) {
+				askDyn();
+				askMetaKey(key);
+			}
+		}
+		// CV: 0–10 V across a knob's range; ON a gate
+		for (int f = 0; f < NDYN; f++) {
+			int in = dynInput(f);
+			if (in < 0 || !dm->inputs[in].isConnected())
+				continue;
+			const DynSpec& d = DYN[f];
+			float v = dm->inputs[in].getVoltage();
+			if (d.sw)
+				dm->params[f].setValue(v >= 1.f ? 1.f : 0.f);
+			else {
+				float x = d.lo + clamp(v / 10.f, 0.f, 1.f) * (d.hi - d.lo);
+				if (f == D_CRATIO || f == D_CKNEE)
+					x = std::round(x);
+				dm->params[f].setValue(x);
+			}
+		}
+		for (int f = 0; f < NDYN; f++) {
+			Sync& y = dyns[f];
+			float v = dm->params[f].getValue();
+			if (v != y.local) {
+				y.local = v;
+				if (key >= 0 && connected && !(std::fabs(v - y.wing) < 1e-4f)) {
+					y.dirty = true;
+					y.hold = 0.4f;
+				}
+			}
+			y.hold = std::max(0.f, y.hold - dt);
+		}
+		if (dm->mode == WingEq::M_SELECT && connected && sysexOk) {
+			selTimer -= dt;
+			if (selTimer <= 0.f && !selAsked) {
+				selTimer = 0.3f;
+				selAsked = true;
+				queries.push_front({5, 0, 0});
+			}
+		}
+	}
+
+	// ---- WING-IN: the WING's USB outputs -> Rack
+	static const char* inGroupNode(int g) {
+		switch (g) {
+			case IG_LCL: return "LCL";
+			case IG_AUX: return "AUX";
+			case IG_A: return "A";
+			case IG_B: return "B";
+			case IG_C: return "C";
+			case IG_SC: return "SC";
+			case IG_USB: return "USB";
+			default: return "OFF";
+		}
+	}
+	static const char* inUserGrp(int g) {
+		switch (g) {
+			case IG_CH: return "CH";
+			case IG_AUXCH: return "AUX";
+			case IG_BUS: return "BUS";
+			case IG_MAIN: return "MAIN";
+			case IG_MTX: return "MTX";
+			default: return "OFF";
+		}
+	}
+	/** Asks the WING what its USB outputs (those of WING-IN) take; part: 0 grp, 1 in, 2 USR grp, 3 USR in, 4 tap, 5 lr */
+	void askIn() {
+		WingIn* im = inMod.load();
+		if (!im)
+			return;
+		for (int i = 0; i < NIN; i++)
+			for (int part = 0; part < 6; part++)
+				queries.push_back({7, i, part});
+	}
+	/** SYNC of WING-IN: each USB output to its source (a channel, bus … through the user signal of its number). */
+	void syncIn(WingIn* im) {
+		int st = clamp(im->start.load(), 1, 41);
+		std::lock_guard<std::mutex> lock(im->srcMutex);
+		for (int i = 0; i < NIN; i++) {
+			const InSource& s = im->src[i];
+			int usb = st + i;
+			if (s.grp == IG_OFF)
+				outbox.push_back(string::f("io.out.USB.%d.grp=OFF", usb));
+			else if (igInternal(s.grp)) {
+				static const char* LR[3] = {"L+R", "L", "R"};
+				outbox.push_back(string::f("io.in.USR.%d.user.grp=%s,in=%d,tap=%s,lr=%s", i + 1, inUserGrp(s.grp), s.n,
+				                           s.tap ? "POST" : "PRE", LR[clamp(s.lr, 0, 2)]));
+				outbox.push_back(string::f("io.out.USB.%d.grp=USR,in=%d", usb, i + 1));
+			}
+			else
+				outbox.push_back(string::f("io.out.USB.%d.grp=%s,in=%d", usb, inGroupNode(s.grp), s.n));
+			im->known[i] = true;
+		}
+		im->pending = false;
+	}
+	void controlIn(float dt, bool connected) {
+		WingIn* im = inMod.load();
+		port.wantInputs = im != nullptr;
+		if (im != inSeen) {
+			inSeen = im;
+			inStartSeen = -1;
+		}
+		inSyncFlash = std::max(0.f, inSyncFlash - dt);
+		if (!im)
+			return;
+		int st = clamp(im->start.load(), 1, 41);
+		if (inDownT.process(im->params[WingIn::DOWN_PARAM].getValue() > 0.f) && st > 1)
+			im->start = st = std::max(1, ((st - 2) / 8) * 8 + 1);
+		if (inUpT.process(im->params[WingIn::UP_PARAM].getValue() > 0.f) && st < 41)
+			im->start = st = std::min(41, ((st - 1) / 8 + 1) * 8 + 1);
+		port.wantInOffset = smallDevice() ? 0 : st - 1;
+		if (st != inStartSeen) {
+			inStartSeen = st;
+			for (int i = 0; i < NIN; i++)
+				im->known[i] = false;
+			if (connected && sysexOk)
+				askIn();
+		}
+		bool doSync = inSyncT.process(im->params[WingIn::SYNC_PARAM].getValue() > 0.f) || im->syncReq.exchange(false);
+		if (doSync && connected && sysexOk) {
+			syncIn(im);
+			inSyncFlash = 0.3f;
+		}
+		im->lights[WingIn::SYNC_LIGHT].setBrightness(inSyncFlash > 0.f ? 1.f : 0.f);
+	}
+	/** (a reply about WING-IN's routing) */
+	void fromWingIn(int i, int part, const std::string& t0) {
+		WingIn* im = inMod.load();
+		if (!im || i < 0 || i >= NIN || im->known[i])
+			return;
+		std::string t;
+		for (char ch : t0)
+			if (ch != '"' && ch != ' ' && ch != '\n' && ch != '\r')
+				t += ch;
+		std::unique_lock<std::mutex> lock(im->srcMutex, std::try_to_lock);
+		if (!lock.owns_lock())
+			return;
+		InSource& s = im->src[i];
+		float v;
+		switch (part) {
+			case 0: {
+				int g = -1;
+				for (int k = IG_OFF; k <= IG_USB; k++)
+					if (t == inGroupNode(k))
+						g = k;
+				if (t == "USR")
+					g = 100;  // (internal: the user signal tells)
+				if (g >= 0 && g != 100)
+					s.grp = g;
+				else if (g == 100 && !igInternal(s.grp))
+					s.grp = IG_CH;
+				break;
+			}
+			case 1:
+				if (!igInternal(s.grp) && P::number(t, &v))
+					s.n = clamp((int) v, 1, std::max(1, igMax(s.grp)));
+				if (!igInternal(s.grp))
+					im->known[i] = true;
+				break;
+			case 2:
+				if (igInternal(s.grp)) {
+					if (t == "CH") s.grp = IG_CH;
+					else if (t == "AUX") s.grp = IG_AUXCH;
+					else if (t == "BUS") s.grp = IG_BUS;
+					else if (t == "MAIN") s.grp = IG_MAIN;
+					else if (t == "MTX") s.grp = IG_MTX;
+				}
+				break;
+			case 3:
+				if (igInternal(s.grp) && P::number(t, &v))
+					s.n = clamp((int) v, 1, std::max(1, igMax(s.grp)));
+				break;
+			case 4:
+				if (igInternal(s.grp))
+					s.tap = t == "PRE" ? 0 : 1;
+				break;
+			case 5:
+				if (igInternal(s.grp))
+					s.lr = t == "L" ? 1 : (t == "R" ? 2 : 0);
+				im->known[i] = true;
+				break;
+		}
+	}
+
 	void askFx(int slot, bool model) {
 		if (model)
 			queries.push_back({1, slot, FMODEL});
@@ -759,6 +1091,33 @@ struct WingLink : Module {
 					return;
 			}
 			m.known = true;
+			return;
+		}
+		if (qNow.kind == 7) {
+			fromWingIn(qNow.s, qNow.f, text);
+			return;
+		}
+		if (qNow.kind == 6) {
+			if (qNow.s != dynKeySeen)
+				return;
+			std::string t;
+			for (char ch : text)
+				if (ch != '"' && ch != ' ' && ch != '\n' && ch != '\r')
+					t += ch;
+			if (qNow.f == D_GMDL || qNow.f == D_CMDL) {
+				if (WingDyn* dm = dynMod.load()) {
+					bool g = qNow.f == D_GMDL;
+					char* dst = g ? dm->gateMdl : dm->compMdl;
+					std::snprintf(dst, 12, "%s", t.c_str());
+					(g ? dm->gateModel : dm->compModel) = t == (g ? "GATE" : "COMP") ? 1 : 0;
+				}
+				return;
+			}
+			if (qNow.f >= 0 && qNow.f < NDYN) {
+				float v = dynParse(qNow.f, t);
+				if (!std::isnan(v))
+					fromWingDyn(qNow.f, v);
+			}
 			return;
 		}
 		if (qNow.kind == 5) {
@@ -922,6 +1281,17 @@ struct WingLink : Module {
 			if (cmd == P::GET_REPLY || cmd == P::ERROR_REPLY)
 				onReply(cmd, text);
 			return;
+		}
+		int stat = msg.getStatus();
+		if (stat == 0xB || stat == 0x9 || stat == 0x8) {
+			if (WingKnobs* kn = knobsMod.load()) {
+				bool note = stat != 0xB;
+				int v = stat == 0x8 ? 0 : msg.getValue();
+				if (kn->feed(msg.getChannel(), msg.getNote(), v, note)) {
+					midiSeen = true;
+					return;
+				}
+			}
 		}
 		if (msg.getStatus() != 0xB)
 			return;
@@ -1363,6 +1733,8 @@ struct WingLink : Module {
 		}
 		controlFx(dt, connected);
 		controlEq(dt, connected);
+		controlDyn(dt, connected);
+		controlIn(dt, connected);
 		if (!connected)
 			return;
 
@@ -1445,9 +1817,24 @@ struct WingLink : Module {
 				outbox.pop_front();
 				sent = true;
 			}
-			const int NSTRIP = NT * NF, NFXALL = NSLOT * NFX, NALL = NSTRIP + NFXALL + NEQ;
+			const int NSTRIP = NT * NF, NFXALL = NSLOT * NFX, NALL = NSTRIP + NFXALL + NEQ + NDYN;
 			for (int n = 0; n < NALL && !sent; n++) {
 				int i = (sendRR + n) % NALL;
+				if (i >= NSTRIP + NFXALL + NEQ) {
+					int f = i - NSTRIP - NFXALL - NEQ;
+					Sync& y = dyns[f];
+					if (!y.dirty)
+						continue;
+					y.dirty = false;
+					if (!sysexOk || dynKeySeen < 0)
+						continue;
+					sendSet(P::tgtNode(keyTgt(dynKeySeen)) + "." + DYN[f].node + "=" + dynText(f, y.local));
+					y.wing = y.local;
+					y.hold = 0.4f;
+					sendRR = i + 1;
+					sent = true;
+					break;
+				}
 				if (i >= NSTRIP + NFXALL) {
 					int f = i - NSTRIP - NFXALL;
 					Sync& y = eqs[f];
@@ -1536,6 +1923,11 @@ struct WingLink : Module {
 					askEq();
 					askMetaKey(eqKeySeen);
 				}
+				if (dynMod.load() && dynKeySeen >= 0) {
+					askDyn();
+					askMetaKey(dynKeySeen);
+				}
+				askIn();
 				for (int ch = 8; ch < 16; ch++) {  // FX: ask the WING for its CCs (ON has no other way)
 					sendCc(ch, 9, ch - 8);
 					sendCc(ch, 9, ch - 8 + 8);
@@ -1558,6 +1950,11 @@ struct WingLink : Module {
 					askEq();
 					askMetaKey(eqKeySeen);
 				}
+				if (dynMod.load() && dynKeySeen >= 0) {
+					askDyn();
+					askMetaKey(dynKeySeen);
+				}
+				askIn();
 				for (int c = 0; c < 2; c++)
 					for (int f = 0; f < 4; f++)
 						queries.push_back({2, c, f});
@@ -1615,6 +2012,31 @@ struct WingLink : Module {
 						continue;
 					send(P::getPath(P::tgtNode(keyTgt(qNow.s)) + "." + (qNow.f == EQ_MDL ? std::string("eq.mdl") : eqNode(qNow.f))));
 				}
+				else if (qNow.kind == 6) {
+					if (qNow.s != dynKeySeen)
+						continue;
+					std::string node = qNow.f == D_GMDL ? "gate.mdl" : (qNow.f == D_CMDL ? "dyn.mdl" : DYN[qNow.f].node);
+					send(P::getPath(P::tgtNode(keyTgt(qNow.s)) + "." + node));
+				}
+				else if (qNow.kind == 7) {
+					WingIn* im = inMod.load();
+					if (!im || im->known[qNow.s])
+						continue;
+					int usb = clamp(im->start.load(), 1, 41) + qNow.s;
+					static const char* PART[6] = {"grp", "in", "user.grp", "user.in", "user.tap", "user.lr"};
+					if (qNow.f <= 1)
+						send(P::getPath(string::f("io.out.USB.%d.%s", usb, PART[qNow.f])));
+					else {
+						bool internal;
+						{
+							std::unique_lock<std::mutex> lock(im->srcMutex, std::try_to_lock);
+							internal = lock.owns_lock() && igInternal(im->src[qNow.s].grp);
+						}
+						if (!internal)
+							continue;
+						send(P::getPath(string::f("io.in.USR.%d.%s", qNow.s + 1, PART[qNow.f])));
+					}
+				}
 				else if (qNow.kind == 5) {
 					selAsked = false;
 					send(P::getPath("$ctl.$stat.selidx"));
@@ -1667,12 +2089,27 @@ struct WingLink : Module {
 		}
 		if (port.deviceNumOutputs > 0 && !port.engineInputBuffer.full())
 			port.engineInputBuffer.push(fr);
+		if (WingIn* im = inMod.load()) {
+			int ni = port.deviceNumInputs;
+			dsp::Frame<NIN> fi = {};
+			if (ni > 0 && !port.engineOutputBuffer.empty())
+				fi = port.engineOutputBuffer.shift();
+			for (int c = 0; c < NIN; c++)
+				im->audio[c].store(c < ni ? fi.samples[c] : 0.f, std::memory_order_relaxed);
+			im->hasAudio = ni > 0;
+			// (not more than ~2 blocks behind)
+			while ((int) port.engineOutputBuffer.size() > 4096)
+				port.engineOutputBuffer.shift();
+		}
 		processTempo(args.sampleTime);
 		if (ctl.process())
 			control(args.sampleTime * ctl.getDivision());
 	}
 
-	void onSampleRateChange(const SampleRateChangeEvent& e) override { port.engineInputBuffer.clear(); }
+	void onSampleRateChange(const SampleRateChangeEvent& e) override {
+		port.engineInputBuffer.clear();
+		port.engineOutputBuffer.clear();
+	}
 
 	// ---- the panels' edits (UI thread)
 	/** (UI thread) What the strip's WING channel is called, its colour and icon (a copy). */
@@ -1836,6 +2273,31 @@ struct WingLink : Module {
 };
 
 // ---------------------------------------------------------------- the panels' link
+/** (the panels WING-DYN, WING-KNOBS, WING-IN) one per WING-LINK: the slot's */
+template <class T>
+static void dropSat(std::atomic<T*>& slot, Satellite* s) {
+	if (T* t = dynamic_cast<T*>(s)) {
+		T* cur = t;
+		slot.compare_exchange_strong(cur, nullptr);
+	}
+}
+template <class T>
+static void takeSat(std::atomic<T*>& slot, Satellite* s, WingLink* h) {
+	if (T* t = dynamic_cast<T*>(s)) {
+		T* cur = slot.load();
+		if (!cur || cur->host.load() != h)
+			slot = t;
+	}
+}
+template <class T>
+static void staleSat(std::atomic<T*>& slot, WingLink* m) {
+	if (T* t = slot.load())
+		if (t->host.load() != m) {
+			T* cur = t;
+			slot.compare_exchange_strong(cur, nullptr);
+		}
+}
+
 WingLink* Satellite::hostSafe() {
 	WingLink* h = host.load();
 	return hostAlive(h) ? h : nullptr;
@@ -1849,6 +2311,9 @@ void Satellite::onRemove(const RemoveEvent& e) {
 			WingEq* cur = q;
 			h->eqMod.compare_exchange_strong(cur, nullptr);
 		}
+		dropSat(h->dynMod, this);
+		dropSat(h->knobsMod, this);
+		dropSat(h->inMod, this);
 		if (x) {
 			WingLinkX* cur = x;
 			h->xMod.compare_exchange_strong(cur, nullptr);
@@ -1948,6 +2413,9 @@ void linkPanels(Satellite* s) {
 			WingEq* cur = q;
 			old->eqMod.compare_exchange_strong(cur, nullptr);
 		}
+		dropSat(old->dynMod, s);
+		dropSat(old->knobsMod, s);
+		dropSat(old->inMod, s);
 	}
 	s->host = h;
 	if (!h)
@@ -1968,6 +2436,9 @@ void linkPanels(Satellite* s) {
 		if (!cur || cur->host.load() != h)
 			h->eqMod = q;
 	}
+	takeSat(h->dynMod, s, h);
+	takeSat(h->knobsMod, s, h);
+	takeSat(h->inMod, s, h);
 }
 
 /** Right-click on a panel: which WING-LINK. */
@@ -2423,6 +2894,12 @@ struct StatusDisplay : Widget {
 					stx += " · FX";
 				if (module->eqMod.load())
 					stx += " · EQ";
+				if (module->dynMod.load())
+					stx += " · DYN";
+				if (module->knobsMod.load())
+					stx += " · KNOBS";
+				if (module->inMod.load())
+					stx += " · IN";
 				c = OK;
 				std::lock_guard<std::mutex> lock(module->errMutex);
 				if (module->errorAge < 20.f) {
@@ -2460,11 +2937,11 @@ struct StatusDisplay : Widget {
 				// the DAW (Rack as a plugin): its outputs 1–16; the DAW routes them to the WING's USB channels
 				int n = std::min(module->xMod.load() ? NT : NS, nOut);
 				const std::string& dn = module->driverName;
-				au = string::f("AUDIO → %s 1–%d (to WING USB %d–%d)", dn.find("DAW") != std::string::npos ? "DAW" : "OUT", n, u,
+				au = string::f("AUDIO → %s 1–%d (to WING USB %d–%d IN)", dn.find("DAW") != std::string::npos ? "DAW" : "OUT", n, u,
 				               u + n - 1);
 			}
 			else
-				au = string::f("AUDIO → USB %d–%d · %.0f kHz · %s", u, u + (module->xMod.load() ? NT : NS) - 1,
+				au = string::f("AUDIO → USB %d–%d IN · %.0f kHz · %s", u, u + (module->xMod.load() ? NT : NS) - 1,
 				               module->port.deviceSampleRate / 1000.f, module->audioName.c_str());
 			text(vg, boldFont(), x, mm2px(10.2f), au.substr(0, 52), 6.f, DIM, NVG_ALIGN_LEFT, 0.3f);
 		}
@@ -2687,6 +3164,9 @@ struct WingLinkWidget : ModuleWidget {
 				WingEq* cur = q;
 				m->eqMod.compare_exchange_strong(cur, nullptr);
 			}
+		staleSat(m->dynMod, m);
+		staleSat(m->knobsMod, m);
+		staleSat(m->inMod, m);
 		if (m->autoMidi) {
 			auto pick = [&](midi::Port* port, bool in) {
 				int cur = port->getDeviceId();
@@ -2847,10 +3327,10 @@ struct XDisplay : Widget {
 				                       : (module->xStart > 0 ? "●  LINKED · OWN START CH" : "●  LINKED · FOLLOWS WING-LINK");
 				text(vg, boldFont(), x, mm2px(8.1f), st, 6.4f, live ? OK : WARN, NVG_ALIGN_LEFT, 0.3f);
 				int u = h->usbStart() + NS;
-				std::string au = h->smallDevice() ? string::f("AUDIO → %s %d–%d (to WING USB %d–%d)",
+				std::string au = h->smallDevice() ? string::f("AUDIO → %s %d–%d (to WING USB %d–%d IN)",
 				                                              h->driverName.find("DAW") != std::string::npos ? "DAW" : "OUT",
 				                                              NS + 1, NT, u, u + NS - 1)
-				                                  : string::f("AUDIO → USB %d–%d", u, u + NS - 1);
+				                                  : string::f("AUDIO → USB %d–%d IN", u, u + NS - 1);
 				text(vg, boldFont(), x, mm2px(10.2f), au, 6.f, DIM, NVG_ALIGN_LEFT, 0.3f);
 			}
 		}
@@ -2925,6 +3405,14 @@ bool hostLinked(WingLink* h, WingFx* f) { return h && h->fxMod.load() == f; }
 
 // ---------------------------------------------------------------- for WING-EQ's panel (src/WingEq.cpp)
 bool hostLinkedEq(WingLink* h, WingEq* e) { return h && h->eqMod.load() == e; }
+bool hostLinkedSat(WingLink* h, Satellite* s) {
+	if (!h || !s)
+		return false;
+	return (Satellite*) h->dynMod.load() == s || (Satellite*) h->knobsMod.load() == s || (Satellite*) h->inMod.load() == s;
+}
+std::string hostAudioName(WingLink* h) { return h ? h->audioName : ""; }
+float hostDeviceRate(WingLink* h) { return h ? h->port.deviceSampleRate : 0.f; }
+bool hostSysexOk(WingLink* h) { return h && h->sysexOk; }
 Meta hostMetaOf(WingLink* h, int key) {
 	if (!h)
 		return Meta();

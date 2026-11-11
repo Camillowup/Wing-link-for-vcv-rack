@@ -216,6 +216,141 @@ inline int eqInput(int f) {
 	return -1;
 }
 
+// ---------------------------------------------------------------- WING-DYN: a channel's gate and compressor (STD: GATE, COMP)
+enum DynField {
+	D_GON, D_GTHR, D_GRANGE, D_GATT, D_GHOLD, D_GREL, D_GACC,
+	D_CON, D_CTHR, D_CRATIO, D_CGAIN, D_CMIX, D_CKNEE, D_CATT, D_CHOLD, D_CREL, D_CDET, D_CENV, D_CAUTO,
+	NDYN
+};
+static const int D_GMDL = 100, D_CMDL = 101;  // (queries: the models)
+static const int NRATIO = 17;
+static const char* const DYN_RATIOS[NRATIO] = {"1.1", "1.2", "1.3", "1.5", "1.7", "2.0", "2.5", "3.0", "3.5",
+                                               "4.0", "5.0", "6.0", "8.0", "10", "20", "50", "100"};
+struct DynSpec {
+	const char* node;   // below the channel
+	float lo, hi, def;  // the knob's range (dB, ms, %; a release 0..1 logarithmic; a switch 0..1; RATIO an index)
+	bool sw, logr;      // a switch; a release (4..4000 ms, logarithmic)
+};
+static const DynSpec DYN[NDYN] = {
+	{"gate.on", 0, 1, 0, true, false},       {"gate.thr", -80, 0, -40, false, false},
+	{"gate.range", 3, 60, 30, false, false}, {"gate.att", 0, 120, 1, false, false},
+	{"gate.hld", 0, 200, 20, false, false},  {"gate.rel", 0, 1, 0.45f, false, true},
+	{"gate.acc", 0, 100, 0, false, false},
+	{"dyn.on", 0, 1, 0, true, false},        {"dyn.thr", -60, 0, -20, false, false},
+	{"dyn.ratio", 0, NRATIO - 1, 9, false, false}, {"dyn.gain", -6, 12, 0, false, false},
+	{"dyn.mix", 0, 100, 100, false, false},  {"dyn.knee", 0, 5, 2, false, false},
+	{"dyn.att", 0, 120, 10, false, false},   {"dyn.hld", 1, 200, 20, false, false},
+	{"dyn.rel", 0, 1, 0.4f, false, true},    {"dyn.det", 0, 1, 0, true, false},
+	{"dyn.env", 0, 1, 1, true, false},       {"dyn.auto", 0, 1, 0, true, false},
+};
+inline float dynRelMs(float p) { return 4.f * std::pow(1000.f, clamp(p, 0.f, 1.f)); }
+inline float dynRelParam(float ms) { return clamp(std::log(std::max(ms, 4.f) / 4.f) / std::log(1000.f), 0.f, 1.f); }
+
+struct WingDyn : Satellite {
+	enum ParamId { PREV_PARAM = NDYN, NEXT_PARAM, NUM_PARAMS };
+	enum InputId { CV_G_THR, CV_G_RANGE, CV_G_ON, CV_G_ATT, CV_G_REL,
+		           CV_C_THR, CV_C_RATIO, CV_C_GAIN, CV_C_MIX, CV_C_KNEE, CV_C_ATT, CV_C_REL, CV_C_ON, NUM_INPUTS };
+	enum LightId { GON_LIGHT, CON_LIGHT, DET_LIGHT, ENV_LIGHT, AUTO_LIGHT, NUM_LIGHTS };
+	std::atomic<int> mode{WingEq::M_STRIP};
+	std::atomic<int> strip{0};
+	std::atomic<int> fixedKey{101};
+	std::atomic<int> shownKey{-1};
+	std::atomic<int> gateModel{-1}, compModel{-1};  // 1: the STD model (GATE / COMP), 0: another, −1 unknown
+	char gateMdl[12] = "", compMdl[12] = "";
+	WingDyn();
+	void process(const ProcessArgs& args) override;
+	bool dockLeft() override { return false; }
+	json_t* dataToJson() override;
+	void dataFromJson(json_t* root) override;
+};
+/** The input that moves a field (−1: none). */
+inline int dynInput(int f) {
+	switch (f) {
+		case D_GTHR: return WingDyn::CV_G_THR;
+		case D_GRANGE: return WingDyn::CV_G_RANGE;
+		case D_GON: return WingDyn::CV_G_ON;
+		case D_GATT: return WingDyn::CV_G_ATT;
+		case D_GREL: return WingDyn::CV_G_REL;
+		case D_CTHR: return WingDyn::CV_C_THR;
+		case D_CRATIO: return WingDyn::CV_C_RATIO;
+		case D_CGAIN: return WingDyn::CV_C_GAIN;
+		case D_CMIX: return WingDyn::CV_C_MIX;
+		case D_CKNEE: return WingDyn::CV_C_KNEE;
+		case D_CATT: return WingDyn::CV_C_ATT;
+		case D_CREL: return WingDyn::CV_C_REL;
+		case D_CON: return WingDyn::CV_C_ON;
+		default: return -1;
+	}
+}
+
+// ---------------------------------------------------------------- WING-KNOBS: the WING's custom controls (MIDI CC / notes)
+static const int NKNOB = 8;
+struct WingKnobs : Satellite {
+	enum ParamId { ENUMS(KLVL_PARAM, NKNOB), ENUMS(BLVL_PARAM, NKNOB), NUM_PARAMS };
+	enum OutputId { ENUMS(K_OUTPUT, NKNOB), ENUMS(B_OUTPUT, NKNOB), NUM_OUTPUTS };
+	enum LightId { NUM_LIGHTS };
+	// each slot: what it learned (−1: nothing): MIDI channel * 256 + CC (a note: + 128 in the low byte)
+	std::atomic<int> learned[2 * NKNOB];
+	std::atomic<int> value[2 * NKNOB];   // 0..127
+	std::atomic<int> learning{-1};       // the slot learning now (−1: none)
+	std::string names[2 * NKNOB];        // (UI) its name
+	WingKnobs();
+	/** (the engine of WING-LINK) a CC or a note from the WING; true when a slot took it */
+	bool feed(int ch, int num, int val, bool note);
+	void process(const ProcessArgs& args) override;
+	bool dockLeft() override { return false; }
+	json_t* dataToJson() override;
+	void dataFromJson(json_t* root) override;
+};
+
+// ---------------------------------------------------------------- WING-IN: audio from the WING's USB outputs
+static const int NIN = 8;
+/** A source on the WING for a USB output: a physical input (LCL, AUX, A …) straight, or a channel / bus / main / matrix
+ *  through a user signal (USR n, n = the slot: 1..8). */
+enum InGroup { IG_OFF, IG_LCL, IG_AUX, IG_A, IG_B, IG_C, IG_SC, IG_USB, IG_CH, IG_AUXCH, IG_BUS, IG_MAIN, IG_MTX, NIG };
+static const char* const IG_NAMES[NIG] = {"OFF", "LCL", "AUX", "A", "B", "C", "SC", "USB", "CH", "AUX", "BUS", "MAIN", "MTX"};
+inline bool igInternal(int g) { return g >= IG_CH; }
+inline int igMax(int g) {
+	static const int MX[NIG] = {0, 24, 8, 48, 48, 48, 32, 48, 40, 8, 16, 4, 8};
+	return g >= 0 && g < NIG ? MX[g] : 0;
+}
+struct InSource {
+	int grp = IG_OFF, n = 1;
+	int tap = 1;  // (internal) 0 PRE, 1 POST
+	int lr = 0;   // (internal) 0 L+R, 1 L, 2 R
+};
+struct WingIn : Satellite {
+	enum ParamId { ENUMS(LVL_PARAM, NIN), DOWN_PARAM, UP_PARAM, SYNC_PARAM, NUM_PARAMS };
+	enum OutputId { ENUMS(OUTPUT, NIN), NUM_OUTPUTS };
+	enum LightId { SYNC_LIGHT, NUM_LIGHTS };
+	std::atomic<int> start{1};           // the first USB output of the WING (1..41)
+	std::mutex srcMutex;
+	InSource src[NIN];                   // (srcMutex) what each takes
+	std::atomic<bool> known[NIN];        // its source read from the WING (or set here)
+	std::atomic<bool> syncReq{false};
+	std::atomic<bool> pending{false};    // (UI) a source chosen here, not yet sent (SYNC)
+	std::atomic<float> audio[NIN];       // (the engine of WING-LINK) the sample now
+	std::atomic<float> peak[NIN];        // (its meter)
+	std::atomic<bool> hasAudio{false};
+	WingIn();
+	void process(const ProcessArgs& args) override;
+	bool dockLeft() override { return false; }
+	json_t* dataToJson() override;
+	void dataFromJson(json_t* root) override;
+};
+std::string inSourceLabel(const InSource& s);
+/** The key (type * 100 + n) of an internal source (for its name and colour), −1 for a physical input. */
+inline int inSourceKey(const InSource& s) {
+	switch (s.grp) {
+		case IG_CH: return wingproto::T_CH * 100 + s.n;
+		case IG_AUXCH: return wingproto::T_AUX * 100 + s.n;
+		case IG_BUS: return wingproto::T_BUS * 100 + s.n;
+		case IG_MAIN: return wingproto::T_MAIN * 100 + s.n;
+		case IG_MTX: return wingproto::T_MTX * 100 + s.n;
+		default: return -1;
+	}
+}
+
 bool hostAlive(WingLink* h);
 void linkPanels(Satellite* s);
 void appendLinkMenu(Menu* menu, Satellite* s);
@@ -227,6 +362,10 @@ float hostRackBpm(WingLink* h);
 float hostWingBpm(WingLink* h, int* slot);
 bool hostLinked(WingLink* h, WingFx* f);
 bool hostLinkedEq(WingLink* h, WingEq* e);
+bool hostLinkedSat(WingLink* h, Satellite* s);   // (WING-DYN, WING-KNOBS, WING-IN) it is the one this WING-LINK serves
+std::string hostAudioName(WingLink* h);
+float hostDeviceRate(WingLink* h);
+bool hostSysexOk(WingLink* h);
 Meta hostMetaOf(WingLink* h, int key);
 std::string hostStripLabel(WingLink* h, int s);
 bool hostHasX(WingLink* h);
