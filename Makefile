@@ -5,5 +5,6 @@ SOURCES += $(wildcard src/*.cpp)
 
 DISTRIBUTABLES += res
 DISTRIBUTABLES += $(wildcard LICENSE*)
+DISTRIBUTABLES += licenses
 
 include $(RACK_DIR)/plugin.mk

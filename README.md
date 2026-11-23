@@ -1,13 +1,13 @@
 # WING-LINK für VCV Rack
 
 Eine Brücke von VCV Rack zum Behringer **WING** (gebaut und getestet für die WING COMPACT) über **ein USB-Kabel**,
-im Look des GENRA-Plugins. Plugin-Version **2.7.0**, 7 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ, WING-DYN, WING-KNOBS, WING-IN).
+im Look des GENRA-Plugins. Plugin-Version **2.8.0**, 8 Module (WING-LINK, WING-LINK X, WING-FX, WING-EQ, WING-DYN, WING-KNOBS, WING-IN, WING-REC).
 
 ![Panel](docs/panels/winglink.png)
 
 - **WING-LINK**: 8 Spuren. **WING-LINK X**: 8 Spuren mehr. **WING-FX**: die 16 Effekte der WING. **WING-EQ**: EQ und
   Filter eines Kanals. **WING-DYN**: Gate und Kompressor eines Kanals. **WING-KNOBS**: die Custom Controls der WING als
-  CV. **WING-IN**: Audio von der WING nach Rack.
+  CV. **WING-IN**: Audio von der WING nach Rack. **WING-REC**: jede Spur als WAV in Rack + die SD-Karten der WING.
 - Alle Zusatzmodule verbinden sich **von selbst**, wenn es nur ein WING-LINK im Patch gibt. Sonst per
   Rechtsklick › *Connect to WING-LINK*, oder angedockt (X rechts neben WING-LINK, FX links daneben).
 - **Audio**: Was in die AUDIO-Buchsen geht, landet direkt auf den USB-Eingängen der WING. WING-LINK ist dafür
@@ -147,6 +147,36 @@ Audiogerät in WING-LINK *Core Audio* › *WING* wählen. Noch nicht auf einem M
 - Das Audio kommt über das Audio-Gerät von WING-LINK; es braucht dafür Eingänge (an der WING genug USB-Kanäle
   einstellen).
 - Bezeichnung: **USB n IN** = Rack → WING (WING-LINK), **USB n OUT** = WING → Rack (WING-IN).
+
+## WING-REC
+
+![WING-REC](docs/panels/wingrec.png)
+
+Nimmt jede Spur als eigene WAV in Rack auf und steuert die SD-Karten der WING (WING-LIVE) – beides mit einem REC.
+
+- **Zieltasten RACK / SD 1 / SD 2** (oben): wohin die nächste Aufnahme geht. Der grosse **REC** startet alles Gewählte
+  gleichzeitig; nochmal REC oder **STOP** beendet sie.
+- **SYNC an**: REC schaltet nur scharf (blinkt), die Aufnahme beginnt mit RUN von GENRA (läuft GENRA schon: am
+  nächsten Takt) und endet mit dessen STOP – jede WAV beginnt auf der Eins. Ohne GENRA übernehmen die Eingänge
+  **RUN** (Gate) und **CLOCK** (16tel) das. **SYNC aus**: REC startet sofort.
+- **Spuren**: 1–8 von WING-LINK, 9–16 von WING-LINK X, 17–24 von WING-IN (also mit den Effekten der WING), kabellos.
+  Ein Kabel in **IN 1–16** übernimmt die Spur. Klick auf eine Spur: der rote Punkt geht aus, sie wird nicht
+  aufgenommen.
+- **ST** unter einem Paar: die zwei werden eine Stereo-WAV. Ist die Quelle an der WING stereo, schaltet WING-REC das
+  von selbst (sobald die WING es meldet); der Taster ändert es jederzeit.
+- **MARK** (Taster, Trigger): ein Marker. Zusätzlich setzt jeder neue Song-Teil von **ABLAUF** einen Marker mit
+  seinem Namen (INTRO 1, DROP 1 …; Rechtsklick: abschaltbar). Marker landen als Cue-Punkte in den WAVs (Reaper,
+  Audacity lesen sie) und auf der SD-Karte (nummeriert).
+- **Ordner**: einmal per Rechtsklick wählen (Standard: `Rack2/WING-REC`). Pro Aufnahme ein Unterordner
+  `Datum Uhrzeit Genre`, darin `01 Kick.wav` … (24 Bit, per Rechtsklick 32 Bit Float), `Markers.txt` (Takt, Zeit,
+  Name) und ein **Ableton-Set** (Live 12) mit allen Spuren, dem Tempo und den Markern als Locators.
+- **SD CARDS**: CARD wählt Karte 1, 2 oder beide für PLAY / PAUSE / STOP, Marker ◀ ▶, MODE (PLAY, A→B, LOOP) und
+  SESSION (Session öffnen, Karte muss stehen). TRACKS: wie viele Spuren die Karten aufnehmen (8 / 16 / 32). Nach dem
+  Stopp bekommt die SD-Session einen Namen (Datum, Genre).
+- **SPLIT**: Ordner einer SD-Session wählen (mit `00000001.WAV` …) – WING-REC zerlegt die Mehrkanal-Dateien in eine
+  Mono-WAV pro Spur (`01 SD 1.wav` …) in einen neuen Ordner im Aufnahme-Ordner.
+- Buchsen: Trigger **REC, STOP, MARK, SD PLAY** (Play/Stop der gewählten Karte), Gates **REC** und **SD PLAY**.
+- Noch nicht an der WING geprüft: die SD-Befehle (Marker, Sessions, Play-Modus, Session-Namen) und das Ableton-Set.
 
 ## Gut zu wissen
 

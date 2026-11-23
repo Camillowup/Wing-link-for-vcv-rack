@@ -10,6 +10,7 @@ Plugin **WING-LINK** (Slug `WingLink`), eigenes Plugin im GENRA-Look. Alle Modul
 | WING-DYN (`WingDyn`) | `WingDyn.cpp`, `WingDynLayout.hpp` | `wingdyn_panel.py` | `WingDyn.svg` | `wingdyn.png` |
 | WING-KNOBS (`WingKnobs`) | `WingKnobs.cpp`, `WingKnobsLayout.hpp` | `wingknobs_panel.py` | `WingKnobs.svg` | `wingknobs.png` |
 | WING-IN (`WingIn`) | `WingIn.cpp`, `WingInLayout.hpp` | `wingin_panel.py` | `WingIn.svg` | `wingin.png` |
+| WING-REC (`WingRec`) | `WingRec.cpp`, `WingRecLayout.hpp`, `RecFiles.hpp` (WAV, Live-Set; Test `test/test_rec.cpp` + `check_rec.py`) | `wingrec_panel.py` | `WingRec.svg`, `wingrec/` (Live-12-Vorlage aus `tools/wingrec_als_template.py`) | `wingrec.png` |
 
 | Datei / Ordner | Inhalt |
 | --- | --- |

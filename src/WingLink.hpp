@@ -11,6 +11,7 @@
 #include <deque>
 #include <mutex>
 #include <set>
+#include <thread>
 
 namespace winglink {
 
@@ -155,8 +156,9 @@ struct Meta {
 	std::string grp;       // in.conn.grp (LCL, USB, A …), "" unknown
 	int in = 0;            // in.conn.in
 	bool srcBad = false;   // the WING refused the source's name: use the channel's
+	int stereo = -1;       // its source is stereo (io.in.<grp>.<in>.mode ST): 1, mono / M/S: 0, −1 unknown
 };
-enum { M_NAME = 1, M_COL = 2, M_ICON = 4, M_LINK = 8, M_GRP = 16, M_IN = 32 };
+enum { M_NAME = 1, M_COL = 2, M_ICON = 4, M_LINK = 8, M_GRP = 16, M_IN = 32, M_MODE = 64 };
 
 struct FxSlot {
 	std::atomic<int> model{0};  // index into wingfx::MODELS
@@ -405,5 +407,117 @@ bool hostSysexOk(WingLink* h);
 Meta hostMetaOf(WingLink* h, int key);
 std::string hostStripLabel(WingLink* h, int s);
 bool hostHasX(WingLink* h);
+
+// ---------------------------------------------------------------- WING-REC: every track as a WAV in Rack + the SD cards
+static const int NREC = NT + NIN;     // tracks: 1–8 WING-LINK, 9–16 WING-LINK X, 17–24 WING-IN
+static const int NPAIR = NREC / 2;    // ST: 1/2, 3/4 … as one stereo WAV
+struct RecFrame {
+	float s[NREC];
+};
+struct RecMarker {
+	int64_t frame = 0;   // from the start of the take
+	int bar = 1;         // the bar it is in (1 = the first)
+	float pos = -1.f;    // (ABLAUF) its song position then, to find the row; −1: a MARK
+	std::string name;    // "" until the UI found it (ABLAUF)
+};
+/** One file of a take: a track (mono) or two (stereo). */
+struct RecPlan {
+	int a = 0, b = -1;   // the tracks (b: the right one of a stereo pair, −1 mono)
+	std::string name;    // the file's name without .wav ("01 Kick")
+	int colour = 0;      // the WING's colour (1..12, 0 none)
+};
+struct WingRec : Satellite {
+	enum ParamId {
+		SYNC_PARAM, REC_PARAM, STOP_PARAM, MARK_PARAM, ENUMS(TGT_PARAM, 3), CARD_PARAM, PLAY_PARAM, PAUSE_PARAM,
+		SDSTOP_PARAM, MPREV_PARAM, MNEXT_PARAM, SPLIT_PARAM, MODE_PARAM, TRACKS_PARAM, ENUMS(ST_PARAM, NPAIR),
+		ENUMS(ARM_PARAM, NREC), NUM_PARAMS
+	};
+	enum InputId {
+		ENUMS(IN_INPUT, NT), TRIG_REC_INPUT, TRIG_STOP_INPUT, TRIG_MARK_INPUT, TRIG_SDPLAY_INPUT, CLOCK_INPUT, RUN_INPUT,
+		NUM_INPUTS
+	};
+	enum OutputId { GATE_REC_OUTPUT, GATE_SDPLAY_OUTPUT, NUM_OUTPUTS };
+	enum LightId { SYNC_LIGHT, ENUMS(ST_LIGHT, NPAIR), NUM_LIGHTS };
+	enum State { IDLE, ARMED, RECORDING };
+	std::atomic<int> state{IDLE};
+	// ---- the transport (GENRA / ABLAUF found by the UI; else CLOCK / RUN)
+	std::atomic<int64_t> genraId{-1}, ablaufId{-1};
+	std::atomic<int> genraRun{-1}, genraBar{-1}, ablaufRow{-1}, ablaufPos{-1};  // their outputs' indices
+	std::atomic<float> bpm{0.f};
+	std::string genre;                      // (UI) GENRA's genre, for the folder
+	dsp::SchmittTrigger barT, clockT, rowT, recT, stopT, markT, sdPlayT;
+	dsp::BooleanTrigger recB, stopB, markB, playB, pauseB, sdStopB, prevB, nextB, splitB;
+	bool runWas = false;
+	int clocks = 0;
+	float rowAge = 1e9f, lastRowPos = -1.f;  // ABLAUF's last row: how long ago, its song position
+	// ---- the take
+	std::atomic<int64_t> frames{0};          // recorded so far
+	std::atomic<int> bar{1};
+	std::atomic<int64_t> dropped{0};         // frames lost (the disk too slow)
+	std::atomic<float> peak[NREC];           // the tracks' meters
+	std::atomic<bool> uiRec{false};          // (the big REC button)
+	std::atomic<bool> writerBusy{false};     // a take open (until its files are finished)
+	engine::Engine* eng = nullptr;           // (set by the UI: the engine looks GENRA / ABLAUF up there)
+	float peakDecay = 0.f;
+	std::atomic<bool> rackOn{false}, sdOn[2];  // what this take records to
+	std::atomic<float> sampleRate{48000.f};
+	std::mutex markMutex;
+	std::vector<RecMarker> marks;            // (markMutex)
+	std::atomic<int> markCount{0};
+	dsp::RingBuffer<RecFrame, (1 << 16)> ring;
+	// ---- the writer (its own thread)
+	std::thread writer;
+	std::atomic<bool> quit{false};
+	std::atomic<int> wantStart{0}, wantStop{0};  // counters: the engine asks, the writer acts
+	std::mutex planMutex;
+	std::vector<RecPlan> plan;               // (planMutex, the UI) the files of the next take
+	std::string rootDir;                     // (planMutex) where takes go
+	std::atomic<int> bits{24};               // 24 or 32 (float)
+	std::atomic<bool> writeAls{true}, autoMarks{true};
+	std::atomic<bool> splitClick{false};     // (SPLIT pressed: the UI asks for the folder)
+	std::mutex statusMutex;
+	std::string takeDir, lastError, splitMsg, splitReq;  // (statusMutex) for the display; SPLIT's folder
+	std::atomic<bool> busySplit{false};
+	// ---- the SD cards
+	std::atomic<int> sdMark{1};              // the marker ◀ ▶ go to
+	std::atomic<float> nameLater{-1.f};      // (UI) seconds until the SD session gets its name (after STOP)
+	std::string nameNext;                    // (UI) that name
+	std::atomic<bool> namePending{false};
+	std::atomic<int> stereoSeen[NT / 2];        // (UI) the WING's stereo info last seen per pair (−1 unknown)
+	dsp::ClockDivider lightDiv;
+	WingRec();
+	~WingRec();
+	void process(const ProcessArgs& args) override;
+	void onSampleRateChange(const SampleRateChangeEvent& e) override { sampleRate = e.sampleRate; }
+	bool dockLeft() override { return false; }
+	json_t* dataToJson() override;
+	void dataFromJson(json_t* root) override;
+	void startTake();
+	void stopTake();
+	void addMark(bool ablauf, float pos);
+	void sdAll(const std::string& cmd, bool onlyTake);
+	void writerLoop();
+};
+
+// ---------------------------------------------------------------- for WING-REC (src/WingRec.cpp)
+/** (any thread) A strip of WING-LINK / X (0..15) is there (WING-LINK X linked for 8..15). */
+bool hostStripActive(WingLink* h, int s);
+/** (the engine) What the strip's AUDIO jack sends to the WING now (±1 = ±10 V). */
+float hostStripAudio(WingLink* h, int s);
+/** (UI thread) Name, colour, stereo source … of the strip's WING channel. */
+Meta hostStripMeta(WingLink* h, int s);
+/** WING-IN of this WING-LINK (or null) and its audio now (the engine). */
+WingIn* hostInMod(WingLink* h);
+/** The SD cards (WING-LIVE): what WING-LINK knows of card c (0, 1). */
+struct SdInfo {
+	int state = -1;      // −1 unknown, 0 STOP, 1 PPAUSE, 2 PLAY, 3 REC
+	int card = -1;       // −1 unknown, 0 NONE, 1 READY, 2 PROTECT, 3 ERASE, 4 ERROR
+	float etime = 0.f, sdfree = 0.f;  // ms
+	int markers = -1, sessions = -1, sessionPos = -1;
+};
+SdInfo hostSdInfo(WingLink* h, int c);
+/** (any thread) A command for card c (0, 1): the part after cards.wlive.<c>. (e.g. "$ctl.control=PLAY"). */
+void hostSdCommand(WingLink* h, int c, const std::string& cmd);
+bool hostConnected(WingLink* h);
 
 }  // namespace winglink

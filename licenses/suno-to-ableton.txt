@@ -1,0 +1,9 @@
+res/wingrec/live12.xml and res/wingrec/live12_track.xml (WING-REC's Ableton Live 12 template) are cut down by
+tools/wingrec_als_template.py from "templates/Ableton 12 Template.als" of
+
+  suno-to-ableton – https://github.com/steven-ahfu/suno-to-ableton
+  License: GNU Affero General Public License v3.0 (AGPL-3.0)
+
+That file is used as data (the structure of an empty Live set with one audio track); WING-REC fills in the tracks,
+clips, tempo and locators. The rest of WING-LINK is GPL-3.0-only; GPL-3.0 section 13 allows combining it with
+AGPL-3.0 material, which stays under the AGPL-3.0. The full AGPL-3.0 text: https://www.gnu.org/licenses/agpl-3.0.txt

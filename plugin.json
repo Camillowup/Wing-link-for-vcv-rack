@@ -1,7 +1,7 @@
 {
   "slug": "WingLink",
   "name": "WING-LINK",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "license": "GPL-3.0-only",
   "brand": "WING-LINK",
   "author": "Bastian Ofner",
@@ -80,6 +80,16 @@
       "tags": [
         "External",
         "Mixer"
+      ]
+    },
+    {
+      "slug": "WingRec",
+      "name": "WING-REC",
+      "description": "Recorder for WING-LINK: every track (WING-LINK, X, WING-IN or IN 1-16) as its own WAV in Rack, one folder per take with markers (ABLAUF rows), a marker list and an Ableton Live 12 set; drives the WING's SD recorder (REC, play, markers, sessions); SPLIT cuts an SD session into one WAV per track",
+      "tags": [
+        "External",
+        "Recording",
+        "Utility"
       ]
     }
   ]

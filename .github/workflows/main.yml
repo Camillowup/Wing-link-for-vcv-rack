@@ -34,6 +34,7 @@ jobs:
       - name: Tests (protocol, without Rack)
         run: |
           g++ -std=c++11 -O2 -Isrc test/test_proto.cpp -o t.exe && ./t.exe
+          mkdir -p rt && g++ -std=c++11 -O2 -Isrc test/test_rec.cpp -o tr.exe && ./tr.exe rt
 
       - name: Build plugin
         run: |
@@ -52,6 +53,8 @@ jobs:
           test -f dist/WingLink/res/WingDyn.svg
           test -f dist/WingLink/res/WingKnobs.svg
           test -f dist/WingLink/res/WingIn.svg
+          test -f dist/WingLink/res/WingRec.svg
+          test -f dist/WingLink/res/wingrec/live12.xml
 
       - uses: actions/upload-artifact@v4
         with:
@@ -75,6 +78,7 @@ jobs:
       - name: Tests (protocol, without Rack)
         run: |
           clang++ -std=c++11 -O2 -Isrc test/test_proto.cpp -o t && ./t
+          mkdir -p rt && clang++ -std=c++11 -O2 -Isrc test/test_rec.cpp -o tr && ./tr rt && python3 test/check_rec.py rt
 
       - name: Build plugin
         run: |
@@ -97,6 +101,8 @@ jobs:
           test -f dist/WingLink/res/WingDyn.svg
           test -f dist/WingLink/res/WingKnobs.svg
           test -f dist/WingLink/res/WingIn.svg
+          test -f dist/WingLink/res/WingRec.svg
+          test -f dist/WingLink/res/wingrec/live12.xml
 
       - uses: actions/upload-artifact@v4
         with:

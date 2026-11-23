@@ -12,4 +12,5 @@ void init(Plugin* p) {
 	p->addModel(modelWingDyn);
 	p->addModel(modelWingKnobs);
 	p->addModel(modelWingIn);
+	p->addModel(modelWingRec);
 }

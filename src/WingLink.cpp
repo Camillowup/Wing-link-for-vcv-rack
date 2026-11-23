@@ -180,7 +180,10 @@ struct WingLink : Module {
 		std::atomic<int> card{-1};     // −1 unknown, 0 NONE, 1 READY, 2 PROTECT, 3 ERASE, 4 ERROR
 		std::atomic<float> etime{0.f}, sdfree{0.f};  // ms
 		std::atomic<bool> toggle{false};  // (the panel: start / stop)
+		std::atomic<int> markers{-1}, sessions{-1}, sessionPos{-1};  // (for WING-REC)
 	} sd[2];
+	std::mutex sdCmdMutex;
+	std::vector<std::pair<int, std::string>> sdCmds;  // (WING-REC) commands for the cards, sent by the engine
 	std::mutex metaMutex;  // the names (the UI writes them, the engine sends them)
 	// the WING's last complaint (shown in the display) and what it was about
 	std::string lastError;              // (errMutex)
@@ -204,6 +207,7 @@ struct WingLink : Module {
 	std::atomic<WingDyn*> dynMod{nullptr};
 	std::atomic<WingKnobs*> knobsMod{nullptr};
 	std::atomic<WingIn*> inMod{nullptr};
+	std::atomic<WingRec*> recMod{nullptr};
 
 	// ---- connection
 	midi::InputQueue midiIn;
@@ -313,6 +317,8 @@ struct WingLink : Module {
 		if (WingKnobs* q = knobsMod.load())
 			q->host = nullptr;
 		if (WingIn* q = inMod.load())
+			q->host = nullptr;
+		if (WingRec* q = recMod.load())
 			q->host = nullptr;
 	}
 
@@ -613,6 +619,8 @@ struct WingLink : Module {
 			queries.push_back({3, k, M_LINK});
 			queries.push_back({3, k, M_GRP});
 			queries.push_back({3, k, M_IN});
+			if (recMod.load())
+				queries.push_back({3, k, M_MODE});
 		}
 		queries.push_back({3, k, M_NAME});
 		queries.push_back({3, k, M_COL});
@@ -1098,6 +1106,10 @@ struct WingLink : Module {
 					if (ch != '"' && ch != ' ')
 						u += ch;
 				float v;
+				if (qNow.f == M_MODE) {
+					m.stereo = u == "ST" ? 1 : ((u == "M" || u == "M/S") ? 0 : m.stereo);
+					return;
+				}
 				if (qNow.f == M_GRP) {
 					if (!u.empty() && u != m.grp) {
 						m.grp = u;
@@ -1235,6 +1247,8 @@ struct WingLink : Module {
 					if (t == CS[i])
 						c.card = i;
 			}
+			else if (qNow.f >= 4 && qNow.f <= 6 && P::number(t, &v))
+				(qNow.f == 4 ? c.markers : (qNow.f == 5 ? c.sessions : c.sessionPos)) = (int) v;
 			return;
 		}
 		if (qNow.kind == 1) {
@@ -1846,6 +1860,24 @@ struct WingLink : Module {
 				}
 				queries.push_front({2, c, 0});
 			}
+		// WING-REC's commands for the cards
+		{
+			std::vector<std::pair<int, std::string>> cmds;
+			{
+				std::lock_guard<std::mutex> lock(sdCmdMutex);
+				cmds.swap(sdCmds);
+			}
+			bool ask[2] = {false, false};
+			for (auto& c : cmds) {
+				int k = clamp(c.first, 0, 1);
+				outbox.push_back(string::f("cards.wlive.%d.", k + 1) + c.second);
+				ask[k] = true;
+			}
+			for (int c = 0; c < 2; c++)
+				if (ask[c])
+					for (int f = 6; f >= 0; f--)
+						queries.push_front({2, c, f});
+		}
 
 		// SYNC: the AUDIO jacks are routed from here (START CH now); names, colours, icons of the strips shown go out
 		if (syncNow.exchange(false)) {
@@ -2077,7 +2109,7 @@ struct WingLink : Module {
 				}
 				askIn();
 				for (int c = 0; c < 2; c++)
-					for (int f = 0; f < 4; f++)
+					for (int f = 0; f < (recMod.load() ? 7 : 4); f++)
 						queries.push_back({2, c, f});
 			}
 			if (qWaiting) {
@@ -2113,7 +2145,24 @@ struct WingLink : Module {
 					P::Tgt t = keyTgt(qNow.s);
 					if (!t.ok() || (qNow.f == M_ICON && t.type == P::T_DCA))
 						continue;
-					if (qNow.f >= M_LINK) {
+					if (qNow.f == M_MODE) {
+						// (WING-REC) is the channel's source stereo
+						std::string path;
+						{
+							std::unique_lock<std::mutex> lock(metaMutex, std::try_to_lock);
+							if (!lock.owns_lock()) {
+								queries.push_front(qNow);
+								break;
+							}
+							const Meta& m = meta[qNow.s];
+							if (!m.grp.empty() && m.grp != "OFF" && m.in > 0)
+								path = string::f("io.in.%s.%d.mode", m.grp.c_str(), m.in);
+						}
+						if (path.empty())
+							continue;
+						send(P::getPath(path));
+					}
+					else if (qNow.f >= M_LINK) {
 						const char* what = qNow.f == M_LINK ? "clink" : (qNow.f == M_GRP ? "in.conn.grp" : "in.conn.in");
 						send(P::getPath(P::tgtNode(t) + "." + what));
 					}
@@ -2164,7 +2213,8 @@ struct WingLink : Module {
 					send(P::getPath("$ctl.$stat.selidx"));
 				}
 				else if (qNow.kind == 2) {
-					static const char* const SDQ[4] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate"};
+					static const char* const SDQ[7] = {"$stat.state", "$stat.etime", "$stat.sdfree", "$stat.sdstate",
+					                                   "$stat.markers", "$stat.sessions", "$stat.sessionpos"};
 					send(P::getPath(string::f("cards.wlive.%d.", qNow.s + 1) + SDQ[qNow.f]));
 				}
 				else {
@@ -2455,6 +2505,7 @@ void Satellite::onRemove(const RemoveEvent& e) {
 		dropSat(h->dynMod, this);
 		dropSat(h->knobsMod, this);
 		dropSat(h->inMod, this);
+		dropSat(h->recMod, this);
 		if (x) {
 			WingLinkX* cur = x;
 			h->xMod.compare_exchange_strong(cur, nullptr);
@@ -2564,6 +2615,7 @@ void linkPanels(Satellite* s) {
 		dropSat(old->dynMod, s);
 		dropSat(old->knobsMod, s);
 		dropSat(old->inMod, s);
+		dropSat(old->recMod, s);
 	}
 	s->host = h;
 	if (!h)
@@ -2587,6 +2639,7 @@ void linkPanels(Satellite* s) {
 	takeSat(h->dynMod, s, h);
 	takeSat(h->knobsMod, s, h);
 	takeSat(h->inMod, s, h);
+	takeSat(h->recMod, s, h);
 }
 
 /** Right-click on a panel: which WING-LINK. */
@@ -3048,6 +3101,8 @@ struct StatusDisplay : Widget {
 					stx += " · KNOBS";
 				if (module->inMod.load())
 					stx += " · IN";
+				if (module->recMod.load())
+					stx += " · REC";
 				c = OK;
 				std::lock_guard<std::mutex> lock(module->errMutex);
 				if (module->errorAge < 20.f) {
@@ -3318,6 +3373,7 @@ struct WingLinkWidget : ModuleWidget {
 		staleSat(m->dynMod, m);
 		staleSat(m->knobsMod, m);
 		staleSat(m->inMod, m);
+		staleSat(m->recMod, m);
 		if (m->autoMidi) {
 			auto pick = [&](midi::Port* port, bool in) {
 				int cur = port->getDeviceId();
@@ -3559,7 +3615,8 @@ bool hostLinkedEq(WingLink* h, WingEq* e) { return h && h->eqMod.load() == e; }
 bool hostLinkedSat(WingLink* h, Satellite* s) {
 	if (!h || !s)
 		return false;
-	return (Satellite*) h->dynMod.load() == s || (Satellite*) h->knobsMod.load() == s || (Satellite*) h->inMod.load() == s;
+	return (Satellite*) h->dynMod.load() == s || (Satellite*) h->knobsMod.load() == s || (Satellite*) h->inMod.load() == s ||
+	       (Satellite*) h->recMod.load() == s;
 }
 std::string hostAudioName(WingLink* h) { return h ? h->audioName : ""; }
 float hostDeviceRate(WingLink* h) { return h ? h->port.deviceSampleRate : 0.f; }
@@ -3573,6 +3630,46 @@ Meta hostMetaOf(WingLink* h, int key) {
 }
 std::string hostStripLabel(WingLink* h, int s) { return h ? P::tgtLabel(h->target(s)) : ""; }
 bool hostHasX(WingLink* h) { return h && h->xMod.load(); }
+
+// ---------------------------------------------------------------- for WING-REC (src/WingRec.cpp)
+bool hostStripActive(WingLink* h, int s) {
+	if (!h || s < 0 || s >= NT)
+		return false;
+	return s < NS || h->xMod.load() != nullptr;
+}
+float hostStripAudio(WingLink* h, int s) {
+	if (!h || s < 0 || s >= NT)
+		return 0.f;
+	Module* m = s < NS ? (Module*) h : (Module*) h->xMod.load();
+	return m ? m->inputs[iid(s % NS, AUDIO)].getVoltageSum() / 10.f : 0.f;
+}
+Meta hostStripMeta(WingLink* h, int s) {
+	if (!h || s < 0 || s >= NT)
+		return Meta();
+	return h->getMeta(s);
+}
+WingIn* hostInMod(WingLink* h) { return h ? h->inMod.load() : nullptr; }
+SdInfo hostSdInfo(WingLink* h, int c) {
+	SdInfo i;
+	if (!h || c < 0 || c > 1)
+		return i;
+	i.state = h->sd[c].state;
+	i.card = h->sd[c].card;
+	i.etime = h->sd[c].etime;
+	i.sdfree = h->sd[c].sdfree;
+	i.markers = h->sd[c].markers;
+	i.sessions = h->sd[c].sessions;
+	i.sessionPos = h->sd[c].sessionPos;
+	return i;
+}
+void hostSdCommand(WingLink* h, int c, const std::string& cmd) {
+	if (!h || c < 0 || c > 1)
+		return;
+	std::lock_guard<std::mutex> lock(h->sdCmdMutex);
+	if (h->sdCmds.size() < 64)
+		h->sdCmds.push_back({c, cmd});
+}
+bool hostConnected(WingLink* h) { return h && h->sysexOk; }
 
 }  // namespace winglink
 

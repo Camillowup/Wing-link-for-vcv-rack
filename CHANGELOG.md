@@ -1,5 +1,16 @@
 # WING-LINK – Änderungen
 
+## 2.8.0
+
+Neues Modul **WING-REC** (Rekorder): jede Spur von WING-LINK, X und WING-IN (oder IN 1–16) als eigene WAV in Rack und
+die SD-Karten der WING (WING-LIVE) mit einem REC; SYNC zu GENRA (RUN/STOP), Marker per MARK und bei jedem ABLAUF-Song-
+Teil, Stereo-Paare (ST, von der WING übernommen), pro Aufnahme ein Ordner mit `Markers.txt` und Ableton-Live-12-Set;
+SD-Transport, Marker, Sessions, Play-Modus; SPLIT zerlegt eine SD-Session in eine WAV pro Spur.
+Noch nicht an der WING geprüft.
+
+WING-LINK: fragt für WING-REC zusätzlich ab, ob die Quelle eines Kanals stereo ist, und mehr vom SD-Rekorder
+(Marker, Sessions).
+
 ## 2.7.0
 
 Fehler behoben und Rechenzeit gespart; an Bedienung und Aussehen ändert sich nichts. Noch nicht an der WING getestet.
