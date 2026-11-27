@@ -1,3 +1,5 @@
+> **Archiviert (27. Nov. 2026):** WING-LINK ist umgezogen in den Überordner [Genra-for-Vcv](https://github.com/Camillowup/Genra-for-Vcv), Ordner `winglink/`. Dieses Repo bleibt zum Nachlesen, wird aber nicht mehr weitergeführt.
+
 # WING-LINK für VCV Rack
 
 Eine Brücke von VCV Rack zum Behringer **WING** (gebaut und getestet für die WING COMPACT) über **ein USB-Kabel**,
